@@ -21,7 +21,18 @@ Read the following files to understand the current state of the project:
 
 Also run `git diff HEAD` (or `git diff` if no commits yet) to understand what has already been implemented.
 
-### Step 2: Select a task
+### Step 2: Ensure you are on the correct branch
+
+Every commit for this project must land on a branch named after the project. Before touching any files or making any commits:
+
+1. Derive the expected branch name: it is exactly the project name (`{{PROJECT_NAME}}`).
+2. Check which branch is currently checked out: `git branch --show-current`.
+3. If you are **not** on the correct branch:
+   - If the branch **does not yet exist**: run `git checkout main && git checkout -b {{PROJECT_NAME}}`.
+   - If the branch **already exists**: run `git checkout {{PROJECT_NAME}}` (do **not** reset or rebase).
+4. Confirm you are on `{{PROJECT_NAME}}` before proceeding. All commits made during this task must be on this branch.
+
+### Step 3: Select a task
 
 Choose the **next available task** using these rules:
 - Status must be `"pending"` (not `"in_progress"`, `"completed"`, or `"blocked"`)
@@ -30,19 +41,19 @@ Choose the **next available task** using these rules:
 
 If no tasks are available (all are completed, blocked, or have unmet dependencies), update `artifacts/{{PROJECT_NAME}}/state.json` with an explanation and exit. Do **not** create a `done.md` file — the orchestrator detects completion via subprocess exit.
 
-### Step 3: Claim the task
+### Step 4: Claim the task
 
 Update `artifacts/{{PROJECT_NAME}}/tasks.json`:
 - Set the selected task's `status` to `"in_progress"`
 - Increment its `attempts` counter by 1
 
-### Step 4: Implement the task
+### Step 5: Implement the task
 
 Make the necessary code changes directly in the repository (the current working directory). Follow the task description carefully. Refer to `spec.md` for requirements context.
 
 Check `obstacles.json` for any known issues related to this task and avoid repeating past mistakes.
 
-### Step 5: Commit changes
+### Step 6: Commit changes
 
 Once the implementation is complete, commit all changes via git:
 ```
@@ -52,7 +63,7 @@ git commit -m "ralph: <task title> [{{PROJECT_NAME}} T<id>]"
 
 If there is nothing to commit (e.g., the task involved only updating artifact files), skip this step.
 
-### Step 6: Update artifacts
+### Step 7: Update artifacts
 
 **On success:**
 - In `artifacts/{{PROJECT_NAME}}/tasks.json`: set the task's `status` to `"completed"`
@@ -93,7 +104,7 @@ If there is nothing to commit (e.g., the task involved only updating artifact fi
 }
 ```
 
-### Step 7: Signal completion
+### Step 8: Signal completion
 
 You are done. Exit once you have committed your changes and updated the artifact files. The orchestrator detects completion via subprocess exit — do **not** create a `done.md` file.
 
