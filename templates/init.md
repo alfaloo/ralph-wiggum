@@ -38,9 +38,10 @@ Initialize a new project artifact directory for the project named **`{{PROJECT_N
 {"obstacles": []}
 ```
 
-5. Once all files are created, create `artifacts/{{PROJECT_NAME}}/done.md` with a brief confirmation message to signal that initialization is complete.
+5. Once all files are created, you are done. Exit immediately — no further action is required.
 
 ## Important
 
 - Work from the current working directory — all paths are relative to where this command is run.
 - Do not overwrite files that already have content.
+- Do not create a done.md file — the orchestrator detects completion via subprocess exit.

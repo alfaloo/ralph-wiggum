@@ -113,29 +113,14 @@ def run_comment(project_name: str, prompt: str, verbose: bool = False) -> None:
 
 
 def run_init(project_name: str, prompt: str, verbose: bool = False) -> None:
-    """Run the init agent and wait for done.md."""
-    done_path = _done_path(project_name)
-
-    # Remove stale done.md if present
-    if os.path.exists(done_path):
-        os.remove(done_path)
-
+    """Run the init agent as a single blocking subprocess invocation."""
     print(f"[ralph] Running init agent for '{project_name}'...")
     result = run_noninteractive(prompt)
     if verbose and result.stdout:
         print(result.stdout)
     if result.returncode != 0 and result.stderr:
         print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
-
-    # Wait for done.md
-    for _ in range(60):  # up to 5 minutes
-        if os.path.exists(done_path):
-            os.remove(done_path)
-            print(f"[ralph] Init complete.")
-            return
-        time.sleep(POLL_INTERVAL)
-
-    print("[ralph] Warning: init agent did not create done.md within timeout.", file=sys.stderr)
+    print(f"[ralph] Init complete.")
 
 
 def _collect_user_answers() -> str:
