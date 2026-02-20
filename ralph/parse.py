@@ -77,3 +77,12 @@ def parse_comment(project_name: str, user_comment: str) -> str:
     template = template.replace("{{PROJECT_NAME}}", project_name)
     template = template.replace("{{USER_COMMENT}}", user_comment)
     return template
+
+
+def parse_results_summary(project_name: str, artifacts_dir: str, exit_reason: str) -> str:
+    """Render the results summary prompt template."""
+    template = _load_template("results_summary.md")
+    template = template.replace("{{PROJECT_NAME}}", project_name)
+    template = template.replace("{{ARTIFACTS_DIR}}", artifacts_dir)
+    template = template.replace("{{EXIT_REASON}}", exit_reason)
+    return template

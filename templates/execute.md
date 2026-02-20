@@ -28,7 +28,7 @@ Choose the **next available task** using these rules:
 - `blocked` must be `false`
 - All tasks listed in `dependencies` must already have status `"completed"`
 
-If no tasks are available (all are completed, blocked, or have unmet dependencies), create `artifacts/{{PROJECT_NAME}}/done.md` with an explanation and exit.
+If no tasks are available (all are completed, blocked, or have unmet dependencies), update `artifacts/{{PROJECT_NAME}}/state.json` with an explanation and exit. Do **not** create a `done.md` file — the orchestrator detects completion via subprocess exit.
 
 ### Step 3: Claim the task
 
@@ -95,7 +95,7 @@ If there is nothing to commit (e.g., the task involved only updating artifact fi
 
 ### Step 7: Signal completion
 
-Create `artifacts/{{PROJECT_NAME}}/done.md` with a brief summary of this iteration (task attempted, outcome, files changed). This signals to the orchestrator that your turn is complete.
+You are done. Exit once you have committed your changes and updated the artifact files. The orchestrator detects completion via subprocess exit — do **not** create a `done.md` file.
 
 ## Important Rules
 
