@@ -12,6 +12,18 @@ def _load_template(name: str) -> str:
         return f.read()
 
 
+def _substitute(template: str, **vars: str) -> str:
+    """Replace {{KEY}} placeholders with values in a template string."""
+    for key, value in vars.items():
+        template = template.replace(f"{{{{{key}}}}}", value)
+    return template
+
+
+def _render(name: str, **vars: str) -> str:
+    """Load a template file and substitute {{KEY}} placeholders."""
+    return _substitute(_load_template(name), **vars)
+
+
 def _resolve_final_round(template: str, is_final: bool) -> str:
     """Replace {% if IS_FINAL_ROUND %} ... {% endif %} blocks."""
     def replacer(match: re.Match) -> str:
@@ -27,17 +39,17 @@ def _resolve_final_round(template: str, is_final: bool) -> str:
 
 def parse_init(project_name: str) -> str:
     """Render the init prompt template."""
-    template = _load_template("init.md")
-    return template.replace("{{PROJECT_NAME}}", project_name)
+    return _render("init.md", PROJECT_NAME=project_name)
 
 
 def parse_interview_questions(project_name: str, round_num: int, total_rounds: int) -> str:
     """Render the question-generation prompt (phase 1 of each interview round)."""
-    template = _load_template("interview_questions.md")
-    template = template.replace("{{PROJECT_NAME}}", project_name)
-    template = template.replace("{{ROUND_NUM}}", str(round_num))
-    template = template.replace("{{TOTAL_ROUNDS}}", str(total_rounds))
-    return template
+    return _render(
+        "interview_questions.md",
+        PROJECT_NAME=project_name,
+        ROUND_NUM=str(round_num),
+        TOTAL_ROUNDS=str(total_rounds),
+    )
 
 
 def parse_interview(
@@ -54,35 +66,36 @@ def parse_interview(
     """
     template = _load_template("interview.md")
     template = _resolve_final_round(template, is_final=(round_num == total_rounds))
-    template = template.replace("{{PROJECT_NAME}}", project_name)
-    template = template.replace("{{ROUND_NUM}}", str(round_num))
-    template = template.replace("{{TOTAL_ROUNDS}}", str(total_rounds))
-    template = template.replace("{{QUESTIONS}}", questions)
-    template = template.replace("{{ANSWERS}}", answers)
-    return template
+    return _substitute(
+        template,
+        PROJECT_NAME=project_name,
+        ROUND_NUM=str(round_num),
+        TOTAL_ROUNDS=str(total_rounds),
+        QUESTIONS=questions,
+        ANSWERS=answers,
+    )
 
 
 def parse_execute(project_name: str, iteration_num: int, max_iterations: int) -> str:
     """Render the execute prompt template."""
-    template = _load_template("execute.md")
-    template = template.replace("{{PROJECT_NAME}}", project_name)
-    template = template.replace("{{ITERATION_NUM}}", str(iteration_num))
-    template = template.replace("{{MAX_ITERATIONS}}", str(max_iterations))
-    return template
+    return _render(
+        "execute.md",
+        PROJECT_NAME=project_name,
+        ITERATION_NUM=str(iteration_num),
+        MAX_ITERATIONS=str(max_iterations),
+    )
 
 
 def parse_comment(project_name: str, user_comment: str) -> str:
     """Render the comment prompt template."""
-    template = _load_template("comment.md")
-    template = template.replace("{{PROJECT_NAME}}", project_name)
-    template = template.replace("{{USER_COMMENT}}", user_comment)
-    return template
+    return _render("comment.md", PROJECT_NAME=project_name, USER_COMMENT=user_comment)
 
 
 def parse_results_summary(project_name: str, artifacts_dir: str, exit_reason: str) -> str:
     """Render the results summary prompt template."""
-    template = _load_template("results_summary.md")
-    template = template.replace("{{PROJECT_NAME}}", project_name)
-    template = template.replace("{{ARTIFACTS_DIR}}", artifacts_dir)
-    template = template.replace("{{EXIT_REASON}}", exit_reason)
-    return template
+    return _render(
+        "results_summary.md",
+        PROJECT_NAME=project_name,
+        ARTIFACTS_DIR=artifacts_dir,
+        EXIT_REASON=exit_reason,
+    )

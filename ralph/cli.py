@@ -6,7 +6,7 @@ from typing import Callable
 
 from ralph.config import get_rounds, get_verbose, set_rounds, set_verbose
 from ralph.parse import parse_comment, parse_execute, parse_init, parse_interview, parse_interview_questions
-from ralph.run import run_comment, run_execute_loop, run_init, run_interview_loop
+from ralph.run import Runner
 
 DEFAULT_ITERATIONS = 20
 
@@ -19,9 +19,8 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
 
 
 def cmd_init(args: argparse.Namespace) -> None:
-    verbose = _resolve_verbose(args)
     prompt = parse_init(args.project_name)
-    run_init(args.project_name, prompt, verbose=verbose)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_init(prompt)
 
 
 def cmd_interview(args: argparse.Namespace) -> None:
@@ -46,13 +45,12 @@ def cmd_interview(args: argparse.Namespace) -> None:
         return build
 
     amend_fns = [make_amend_prompt(i + 1) for i in range(rounds)]
-    run_interview_loop(args.project_name, question_prompts, amend_fns, verbose=verbose)
+    Runner(args.project_name, verbose=verbose).run_interview_loop(question_prompts, amend_fns)
 
 
 def cmd_comment(args: argparse.Namespace) -> None:
-    verbose = _resolve_verbose(args)
     prompt = parse_comment(args.project_name, args.comment)
-    run_comment(args.project_name, prompt, verbose=verbose)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
 def cmd_execute(args: argparse.Namespace) -> None:
@@ -63,7 +61,7 @@ def cmd_execute(args: argparse.Namespace) -> None:
         parse_execute(args.project_name, iteration_num=i + 1, max_iterations=iterations)
         for i in range(iterations)
     ]
-    run_execute_loop(args.project_name, prompts, iterations, verbose=verbose)
+    Runner(args.project_name, verbose=verbose).run_execute_loop(prompts, iterations)
 
 
 def main() -> None:
