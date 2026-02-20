@@ -68,9 +68,9 @@ Rules for tasks:
 - `blocked`: always `false` initially
 {% endif %}
 
-### Final Step: Signal completion
+### Final Step: Exit
 
-Create `artifacts/{{PROJECT_NAME}}/done.md` with a brief summary of what was amended this round. This signals to the orchestrator that your turn is complete.
+You are done. Exit once all steps above are complete. The orchestrator detects your completion via subprocess exit — there is no need to create any signalling file.
 
 ## Important
 

@@ -146,18 +146,11 @@ def run_interview_loop(
       Phase 2 — non-interactive agent receives questions + answers and
                  amends spec.md (and on the final round generates tasks.json).
     """
-    done_path = _done_path(project_name)
     total = len(question_prompts)
 
     for i, q_prompt in enumerate(question_prompts):
         round_num = i + 1
         print(f"\n[ralph] Interview round {round_num}/{total}")
-        if verbose:
-            print("-" * 60)
-
-        # Remove stale done.md
-        if os.path.exists(done_path):
-            os.remove(done_path)
 
         # Phase 1: generate questions
         print("[ralph] Generating clarifying questions...\n")
@@ -182,13 +175,6 @@ def run_interview_loop(
         if proc.returncode != 0 and proc.stderr:
             print(f"[ralph] Agent stderr: {proc.stderr}", file=sys.stderr)
 
-        # Poll for done.md
-        if verbose:
-            print(f"[ralph] Waiting for agent to finish round {round_num}...")
-        while not os.path.exists(done_path):
-            time.sleep(POLL_INTERVAL)
-
-        os.remove(done_path)
         print(f"[ralph] Round {round_num} complete.")
 
     print("\n[ralph] All interview rounds complete.")
