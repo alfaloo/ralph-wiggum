@@ -106,7 +106,7 @@ def run_comment(project_name: str, prompt: str, verbose: bool = False) -> None:
     """Run the comment agent as a single headless invocation (no polling)."""
     print(f"[ralph] Running comment agent for '{project_name}'...")
     result = run_noninteractive(prompt)
-    if result.stdout:
+    if verbose and result.stdout:
         print(result.stdout)
     if result.returncode != 0 and result.stderr:
         print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
@@ -121,7 +121,11 @@ def run_init(project_name: str, prompt: str, verbose: bool = False) -> None:
         os.remove(done_path)
 
     print(f"[ralph] Running init agent for '{project_name}'...")
-    run_noninteractive(prompt)
+    result = run_noninteractive(prompt)
+    if verbose and result.stdout:
+        print(result.stdout)
+    if result.returncode != 0 and result.stderr:
+        print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
 
     # Wait for done.md
     for _ in range(60):  # up to 5 minutes
@@ -163,7 +167,8 @@ def run_interview_loop(
     for i, q_prompt in enumerate(question_prompts):
         round_num = i + 1
         print(f"\n[ralph] Interview round {round_num}/{total}")
-        print("-" * 60)
+        if verbose:
+            print("-" * 60)
 
         # Remove stale done.md
         if os.path.exists(done_path):
@@ -176,6 +181,7 @@ def run_interview_loop(
         if result.returncode != 0 and result.stderr:
             print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
 
+        # Always display questions — user must read and answer them
         print(questions)
         print()
 
@@ -186,13 +192,14 @@ def run_interview_loop(
         print("\n[ralph] Updating spec with your answers...")
         amend_prompt = make_amend_prompts[i](questions, answers)
         proc = run_noninteractive(amend_prompt)
-        if proc.stdout:
+        if verbose and proc.stdout:
             print(proc.stdout)
         if proc.returncode != 0 and proc.stderr:
             print(f"[ralph] Agent stderr: {proc.stderr}", file=sys.stderr)
 
         # Poll for done.md
-        print(f"[ralph] Waiting for agent to finish round {round_num}...")
+        if verbose:
+            print(f"[ralph] Waiting for agent to finish round {round_num}...")
         while not os.path.exists(done_path):
             time.sleep(POLL_INTERVAL)
 
@@ -232,13 +239,14 @@ def run_execute_loop(project_name: str, prompts: list[str], max_iterations: int,
         print(f"\n[ralph] Spawning execute agent (iteration {iteration}/{max_iterations})...")
 
         proc = run_noninteractive(prompt)
-        if proc.stdout:
+        if verbose and proc.stdout:
             print(proc.stdout)
         if proc.returncode != 0 and proc.stderr:
             print(f"[ralph] Agent stderr: {proc.stderr}", file=sys.stderr)
 
         # Poll for done.md
-        print(f"[ralph] Waiting for execute agent to signal completion...")
+        if verbose:
+            print(f"[ralph] Waiting for execute agent to signal completion...")
         timeout = 600  # 10 minutes max per iteration
         elapsed = 0
         while not os.path.exists(done_path) and elapsed < timeout:
