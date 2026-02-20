@@ -1,0 +1,281 @@
+# Ralph Wiggum — Spec
+
+Ralph Wiggum is a CLI-driven agentic coding framework. A main agent ingests a spec file and interviews the user to refine requirements, then subagents are continuously spawned to tackle subtasks. Each agent iteration is a fresh Claude Code instance with clean context. Memory persists via git history, `tasks.json`, `state.json`, and `obstacles.json`.
+
+---
+
+## Directory Structure
+
+```
+artifacts/
+└── <project-name>/
+    ├── spec.md          # User-written project brief (created by ralph init)
+    ├── tasks.json       # Task list generated after interviewing
+    ├── state.json       # Append-only log of agent progress
+    ├── obstacles.json   # Log of errors/blockers encountered
+    ├── results.md       # Final summary report
+    └── done.md          # Ephemeral signal file; deleted by orchestrator after detection
+
+ralph/
+├── cli.py              # CLI entry point (argparse commands)
+├── parse.py            # Template renderer (injects project-specific values)
+└── run.py              # Claude Code invocation + orchestration loop
+
+templates/
+├── init.md             # Prompt template: project initialization instructions
+├── interview.md        # Prompt template: spec gap analysis + user Q&A
+└── execute.md          # Prompt template: task execution instructions
+```
+
+---
+
+## Component Details
+
+### `templates/` — Prompt Templates
+
+Each markdown file is a prompt template injected with project-specific values before being passed to a Claude Code agent. Templates must include:
+- Clear instructions for the agent's role in that phase
+- How to read and write the relevant artifact files
+- A completion signal: the agent must create `artifacts/<project-name>/done.md` when finished
+
+**`init.md`**
+Instructions for initializing a new project artifact directory and generating a blank `spec.md` for the user to fill out.
+
+**`interview.md`**
+Instructions for the interview agent to:
+1. Read the current `spec.md`
+2. Identify gaps, ambiguities, or missing details
+3. Ask the user clarifying questions interactively
+4. Amend `spec.md` with the user's answers
+5. On the final interview round, generate `tasks.json` that breaks the project into subtasks
+6. Create `done.md` to signal completion
+
+**`execute.md`**
+Instructions for an execution agent to:
+1. Read `tasks.json`, `state.json`, and `obstacles.json`
+2. Run `git diff` to understand what has already been implemented
+3. Pick up the next available (non-blocked, non-completed) task respecting dependencies
+4. Make code changes directly to files in the user's repository (the working directory where `ralph execute` is run)
+5. Commit changes via git upon task completion
+6. Mark the task as complete in `tasks.json` and append a progress entry to `state.json`
+7. Log any blockers in `obstacles.json`
+8. Create `done.md` to signal completion
+
+---
+
+### `ralph/parse.py` — Template Renderer
+
+Responsible for rendering each prompt template by injecting project-specific values (e.g. project name, artifact directory path). A dedicated parse function exists for each template:
+
+- `parse_init(project_name) -> str`
+- `parse_interview(project_name, round_num, total_rounds) -> str`
+- `parse_execute(project_name, iteration_num, max_iterations) -> str`
+
+Each function returns a fully rendered prompt string ready to be passed to a Claude Code agent.
+
+---
+
+### `ralph/run.py` — Agent Invocation + Orchestration Loop
+
+Defines two modes of Claude Code invocation (via subprocess/bash):
+
+1. **Interactive mode** — used for `ralph interview`. Invokes `claude` CLI without `--print` flag, allowing the agent to ask the user questions in the terminal.
+   ```
+   claude --dangerously-skip-permissions -p "<prompt>"
+   ```
+   Or equivalent interactive invocation.
+
+2. **Non-interactive mode** — used for `ralph execute`. Invokes `claude` with output piped, running headlessly.
+   ```
+   claude --dangerously-skip-permissions --print "<prompt>"
+   ```
+
+**Orchestration loop (used by `ralph execute`):**
+
+```
+while iterations_used < max_iterations:
+    if done.md exists:
+        delete done.md
+        check if all tasks in tasks.json are complete -> if so, write results.md and exit
+        check if any task hit max_attempts -> if so, write results.md and halt
+    if no done.md exists:
+        spawn a new non-interactive agent with the execute prompt
+    sleep / poll
+```
+
+The orchestrator polls for `done.md` on a short interval (e.g. every 5 seconds). When detected, it deletes `done.md` immediately before spawning the next agent to avoid re-triggering.
+
+---
+
+### `ralph/cli.py` — CLI Entry Point
+
+Defines the following commands using `argparse`:
+
+```
+ralph init <project-name>
+ralph interview <project-name> [--rounds N]
+ralph execute <project-name> [--iterations N]
+```
+
+---
+
+## Artifact File Formats
+
+### `spec.md`
+Plain markdown. Written by the user initially, then progressively amended by interview agents with additional context gathered from clarifying questions.
+
+---
+
+### `tasks.json`
+Generated by the final interview agent. Tracks all subtasks and their current status.
+
+```json
+{
+  "project_name": "example-project",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Create CLI skeleton",
+      "description": "Implement base CLI using argparse",
+      "status": "pending",
+      "dependencies": [],
+      "attempts": 0,
+      "max_attempts": 3,
+      "blocked": false
+    }
+  ]
+}
+```
+
+- `status`: `"pending"` | `"in_progress"` | `"completed"` | `"blocked"`
+- `dependencies`: list of task IDs that must be completed first
+- `attempts`: incremented each time an agent picks up this task
+- `max_attempts`: if `attempts` reaches this value, halt execution entirely and write `results.md`
+- `blocked`: set to `true` if the task cannot proceed; used to skip it during agent selection
+
+---
+
+### `state.json`
+Append-only array. Each agent appends one entry after completing or attempting a task. Forms a full history log of all agent runs.
+
+```json
+[
+  {
+    "iteration": 1,
+    "task_id": "T1",
+    "status": "completed",
+    "summary": "Implemented CLI skeleton in cli.py",
+    "files_modified": ["ralph/cli.py"],
+    "obstacles": []
+  },
+  {
+    "iteration": 2,
+    "task_id": "T2",
+    "status": "attempted",
+    "summary": "Attempted auth module, hit missing dependency",
+    "files_modified": [],
+    "obstacles": ["missing_dep_O1"]
+  }
+]
+```
+
+---
+
+### `obstacles.json`
+Append-only log of errors, blockers, or unresolved questions encountered during execution. Future agents must read this before starting work to avoid repeating known mistakes.
+
+```json
+{
+  "obstacles": [
+    {
+      "id": "O1",
+      "task_id": "T2",
+      "message": "Missing dependency: 'httpx' not installed",
+      "resolved": false,
+      "iteration": 3
+    }
+  ]
+}
+```
+
+- `resolved`: set to `true` by a future agent if the obstacle has been addressed
+
+---
+
+### `results.md`
+Written at the end of a `ralph execute` run in two scenarios:
+1. **All tasks completed** — summary of all code changes, files modified, and final state
+2. **Execution halted** — either `max_iterations` was reached or a task hit `max_attempts`. Documents what was completed, what remains, and why execution stopped
+
+---
+
+### `done.md`
+An ephemeral signal file. Created by an agent to indicate it has finished its turn. The orchestrator loop detects this file, deletes it, and then decides whether to spawn another agent or terminate.
+
+---
+
+## Usage Workflow
+
+### 1. Initialize a project
+
+```bash
+ralph init <project-name>
+```
+
+Creates `artifacts/<project-name>/spec.md` (blank template) for the user to fill in with their project brief.
+
+---
+
+### 2. Interview
+
+```bash
+ralph interview <project-name> [--rounds N]
+```
+
+Spawns `N` sequential interview agents, each in **interactive mode**. Each round:
+1. Agent reads current `spec.md`
+2. Identifies ambiguities and asks the user clarifying questions in the terminal
+3. Amends `spec.md` with the gathered context
+4. Creates `done.md`; orchestrator deletes it and spawns the next round
+
+On the **final round**, the agent also generates `tasks.json`.
+
+**`--rounds` default:** 3 rounds. (Note: `tasks.json` does not exist before interviewing begins, so the default is a fixed value rather than derived from task count.)
+
+---
+
+### 3. Execute
+
+```bash
+ralph execute <project-name> [--iterations N]
+```
+
+Spawns non-interactive Claude Code agents in a loop. Each agent:
+1. Reads `tasks.json`, `state.json`, `obstacles.json`
+2. Runs `git diff` to understand existing changes
+3. Selects the next available task (pending, dependencies met, not blocked)
+4. Makes code changes directly in the user's repository (the directory where the command is run)
+5. Commits changes on task completion
+6. Updates `tasks.json` (task status, attempts count) and appends to `state.json`
+7. Logs any new blockers to `obstacles.json`
+8. Creates `done.md` and exits
+
+The orchestrator loop runs until one of:
+- All tasks in `tasks.json` are `completed` → write `results.md`, exit cleanly
+- A task's `attempts` reaches `max_attempts` → halt, write `results.md` with reason
+- `--iterations` limit is reached → halt, write `results.md` documenting progress
+
+---
+
+## Key Design Decisions
+
+| Decision | Choice |
+|---|---|
+| Agent invocation | `claude` CLI via Python `subprocess` / bash |
+| Code output location | User's own repo (working directory at time of `ralph execute`) |
+| State tracking | Append-only array in `state.json` |
+| `ralph commit` command | Removed; agents commit directly via git |
+| `max_attempts` breach | Halt entire execution, write `results.md` |
+| `done.md` lifecycle | Orchestrator deletes it upon detection before spawning next agent |
+| Interview interactivity | Only interview agents run in interactive mode; execute agents are headless |
