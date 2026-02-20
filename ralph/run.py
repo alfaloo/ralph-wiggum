@@ -102,7 +102,7 @@ def _write_results(project_name: str, reason: str) -> None:
     print(f"Results written to {results_path}")
 
 
-def run_comment(project_name: str, prompt: str) -> None:
+def run_comment(project_name: str, prompt: str, verbose: bool = False) -> None:
     """Run the comment agent as a single headless invocation (no polling)."""
     print(f"[ralph] Running comment agent for '{project_name}'...")
     result = run_noninteractive(prompt)
@@ -112,7 +112,7 @@ def run_comment(project_name: str, prompt: str) -> None:
         print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
 
 
-def run_init(project_name: str, prompt: str) -> None:
+def run_init(project_name: str, prompt: str, verbose: bool = False) -> None:
     """Run the init agent and wait for done.md."""
     done_path = _done_path(project_name)
 
@@ -147,6 +147,7 @@ def run_interview_loop(
     project_name: str,
     question_prompts: list[str],
     make_amend_prompts: list[Callable[[str, str], str]],
+    verbose: bool = False,
 ) -> None:
     """Run sequential two-phase interview agents, one per round.
 
@@ -201,7 +202,7 @@ def run_interview_loop(
     print("\n[ralph] All interview rounds complete.")
 
 
-def run_execute_loop(project_name: str, prompts: list[str], max_iterations: int) -> None:
+def run_execute_loop(project_name: str, prompts: list[str], max_iterations: int, verbose: bool = False) -> None:
     """Run non-interactive execute agents in a loop."""
     done_path = _done_path(project_name)
     iteration = 0
