@@ -4,20 +4,30 @@ import argparse
 import sys
 from typing import Callable
 
+from ralph.config import get_rounds, get_verbose, set_rounds, set_verbose
 from ralph.parse import parse_comment, parse_execute, parse_init, parse_interview, parse_interview_questions
-from ralph.run import run_comment, run_execute_loop, run_init, run_interview_loop
+from ralph.run import Runner
 
-DEFAULT_ROUNDS = 3
 DEFAULT_ITERATIONS = 20
+
+
+def _resolve_verbose(args: argparse.Namespace) -> bool:
+    """Return effective verbose: per-command CLI flag > persisted setting."""
+    if args.verbose is not None:
+        return args.verbose == "true"
+    return get_verbose()
 
 
 def cmd_init(args: argparse.Namespace) -> None:
     prompt = parse_init(args.project_name)
-    run_init(args.project_name, prompt)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_init(prompt)
 
 
 def cmd_interview(args: argparse.Namespace) -> None:
-    rounds = args.rounds
+    verbose = _resolve_verbose(args)
+    # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
+    rounds = args.rounds if args.rounds is not None else get_rounds()
+
     question_prompts = [
         parse_interview_questions(args.project_name, round_num=i + 1, total_rounds=rounds)
         for i in range(rounds)
@@ -35,23 +45,23 @@ def cmd_interview(args: argparse.Namespace) -> None:
         return build
 
     amend_fns = [make_amend_prompt(i + 1) for i in range(rounds)]
-
-    run_interview_loop(args.project_name, question_prompts, amend_fns)
+    Runner(args.project_name, verbose=verbose).run_interview_loop(question_prompts, amend_fns)
 
 
 def cmd_comment(args: argparse.Namespace) -> None:
     prompt = parse_comment(args.project_name, args.comment)
-    run_comment(args.project_name, prompt)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
 def cmd_execute(args: argparse.Namespace) -> None:
+    verbose = _resolve_verbose(args)
     iterations = args.iterations
     # Pre-render all prompts; each references its iteration number
     prompts = [
         parse_execute(args.project_name, iteration_num=i + 1, max_iterations=iterations)
         for i in range(iterations)
     ]
-    run_execute_loop(args.project_name, prompts, iterations)
+    Runner(args.project_name, verbose=verbose).run_execute_loop(prompts, iterations)
 
 
 def main() -> None:
@@ -59,15 +69,39 @@ def main() -> None:
         prog="ralph",
         description="Ralph Wiggum — CLI-driven agentic coding framework",
     )
-    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
-    subparsers.required = True
+    # Top-level flags: when provided (without or before a subcommand), persist to settings.json.
+    parser.add_argument(
+        "--verbose",
+        choices=["true", "false"],
+        default=None,
+        dest="global_verbose",
+        metavar="BOOL",
+        help="Persist verbose setting to .ralph/settings.json (true/false)",
+    )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        default=None,
+        dest="global_rounds",
+        metavar="N",
+        help="Persist rounds setting to .ralph/settings.json",
+    )
 
-    # ralph init <project-name>
+    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
+
+    # ralph init <project-name> [--verbose BOOL]
     init_parser = subparsers.add_parser("init", help="Initialize a new project")
     init_parser.add_argument("project_name", metavar="<project-name>")
+    init_parser.add_argument(
+        "--verbose",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
     init_parser.set_defaults(func=cmd_init)
 
-    # ralph interview <project-name> [--rounds N]
+    # ralph interview <project-name> [--rounds N] [--verbose BOOL]
     interview_parser = subparsers.add_parser(
         "interview", help="Run interview agents to refine the spec"
     )
@@ -75,21 +109,39 @@ def main() -> None:
     interview_parser.add_argument(
         "--rounds",
         type=int,
-        default=DEFAULT_ROUNDS,
+        default=None,
         metavar="N",
-        help=f"Number of interview rounds (default: {DEFAULT_ROUNDS})",
+        help="Number of interview rounds (overrides settings.json for this invocation only)",
+    )
+    interview_parser.add_argument(
+        "--verbose",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
     )
     interview_parser.set_defaults(func=cmd_interview)
 
-    # ralph comment <project-name> <comment>
+    # ralph comment <project-name> "<comment>" [--verbose BOOL]
     comment_parser = subparsers.add_parser(
-        "comment", help="Refine the spec with a user comment"
+        "comment", help='Refine the spec with a quoted amendment description'
     )
     comment_parser.add_argument("project_name", metavar="<project-name>")
-    comment_parser.add_argument("comment", metavar="<comment>")
+    comment_parser.add_argument(
+        "comment",
+        metavar='"<comment>"',
+        help='A quoted description of the amendments to make, e.g. "Add support for OAuth login"',
+    )
+    comment_parser.add_argument(
+        "--verbose",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
     comment_parser.set_defaults(func=cmd_comment)
 
-    # ralph execute <project-name> [--iterations N]
+    # ralph execute <project-name> [--iterations N] [--verbose BOOL]
     execute_parser = subparsers.add_parser(
         "execute", help="Run execute agents to implement the project"
     )
@@ -101,9 +153,30 @@ def main() -> None:
         metavar="N",
         help=f"Maximum number of agent iterations (default: {DEFAULT_ITERATIONS})",
     )
+    execute_parser.add_argument(
+        "--verbose",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
     execute_parser.set_defaults(func=cmd_execute)
 
     args = parser.parse_args()
+
+    # Handle global-level flags: persist to settings.json.
+    if args.global_verbose is not None:
+        set_verbose(args.global_verbose == "true")
+    if args.global_rounds is not None:
+        set_rounds(args.global_rounds)
+
+    # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
+    if args.command is None:
+        if args.global_verbose is None and args.global_rounds is None:
+            parser.print_help()
+            sys.exit(1)
+        return
+
     try:
         args.func(args)
     except KeyboardInterrupt:
