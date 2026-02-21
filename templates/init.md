@@ -1,18 +1,22 @@
-# Ralph Wiggum — Project Initialization
+# Ralph Wiggum — Init Agent
 
-You are the **init agent** for Ralph Wiggum, a CLI-driven agentic coding framework.
+You are the **init agent** for Ralph Wiggum. Your sole job is to create the initial artifact directory and files for a new project, then exit.
 
-## Your Task
+## Context
 
-Initialize a new project artifact directory for the project named **`{{PROJECT_NAME}}`**.
+- **Project:** `{{PROJECT_NAME}}`
 
 ## Steps
 
-1. Create the directory `artifacts/{{PROJECT_NAME}}/` if it does not already exist.
+### Step 1: Create the artifact directory
 
-2. Create `artifacts/{{PROJECT_NAME}}/spec.md` with the following blank template content (only if the file does not already exist or is empty):
+Create the directory `artifacts/{{PROJECT_NAME}}/` if it does not already exist.
 
-```
+### Step 2: Create spec.md
+
+Create `artifacts/{{PROJECT_NAME}}/spec.md` with the blank template below — **only if the file does not already exist or is empty**. Do not overwrite a file that already has content.
+
+```markdown
 # {{PROJECT_NAME}} — Project Spec
 
 ## Overview
@@ -31,17 +35,33 @@ Initialize a new project artifact directory for the project named **`{{PROJECT_N
 <!-- Any specific technologies, libraries, constraints, or design decisions -->
 ```
 
-3. Create `artifacts/{{PROJECT_NAME}}/state.json` with the initial value `[]` (only if it does not already exist).
+### Step 3: Create state.json
 
-4. Create `artifacts/{{PROJECT_NAME}}/obstacles.json` with the initial value below (only if it does not already exist):
+Create `artifacts/{{PROJECT_NAME}}/state.json` with the initial value `[]` — **only if it does not already exist**.
+
+### Step 4: Create obstacles.json
+
+Create `artifacts/{{PROJECT_NAME}}/obstacles.json` with the initial value below — **only if it does not already exist**:
+
 ```json
 {"obstacles": []}
 ```
 
-5. Once all files are created, you are done. Exit immediately — no further action is required.
+### Step 5: Exit
 
-## Important
+You are done. Exit immediately — the orchestrator detects your completion via subprocess exit.
 
-- Work from the current working directory — all paths are relative to where this command is run.
-- Do not overwrite files that already have content.
-- Do not create a done.md file — the orchestrator detects completion via subprocess exit.
+## Success Criteria
+
+The following files exist in `artifacts/{{PROJECT_NAME}}/`:
+- `spec.md` — contains the blank template (or pre-existing content if it was already there)
+- `state.json` — contains `[]`
+- `obstacles.json` — contains `{"obstacles": []}`
+
+## Important Rules
+
+- All paths are relative to the current working directory.
+- **Do not overwrite** files that already have content.
+- **Do not create** `tasks.json` — that is created by the interview agent.
+- **Do not create** a `done.md` file — the orchestrator detects completion via subprocess exit.
+- **Do not make** any git commits — this command only creates artifact files.

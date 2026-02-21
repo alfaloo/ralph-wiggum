@@ -12,7 +12,7 @@ You are an **execution agent** for Ralph Wiggum. Your job is to pick up the next
 
 ### Step 1: Orient yourself
 
-Read the following files to understand the current state of the project:
+Read the following files in full before doing anything else:
 
 1. `artifacts/{{PROJECT_NAME}}/spec.md` — the project requirements
 2. `artifacts/{{PROJECT_NAME}}/tasks.json` — the task list and statuses
@@ -35,11 +35,13 @@ Every commit for this project must land on a branch named after the project. Bef
 ### Step 3: Select a task
 
 Choose the **next available task** using these rules:
-- Status must be `"pending"` (not `"in_progress"`, `"completed"`, or `"blocked"`)
+- `status` must be `"pending"` (not `"in_progress"`, `"completed"`, or `"blocked"`)
 - `blocked` must be `false`
-- All tasks listed in `dependencies` must already have status `"completed"`
+- All task IDs listed in `dependencies` must already have `status: "completed"`
 
-If no tasks are available (all are completed, blocked, or have unmet dependencies), update `artifacts/{{PROJECT_NAME}}/state.json` with an explanation and exit. Do **not** create a `done.md` file — the orchestrator detects completion via subprocess exit.
+**If no tasks are available** (all tasks are completed, blocked, or have unmet dependencies):
+- Append to `artifacts/{{PROJECT_NAME}}/state.json` with `status: "no_tasks_available"` and a brief explanation.
+- Exit immediately. Do **not** create a `done.md` file — the orchestrator detects completion via subprocess exit.
 
 ### Step 4: Claim the task
 
@@ -47,27 +49,38 @@ Update `artifacts/{{PROJECT_NAME}}/tasks.json`:
 - Set the selected task's `status` to `"in_progress"`
 - Increment its `attempts` counter by 1
 
+Do this **before** starting implementation so the task is claimed even if the agent is interrupted.
+
 ### Step 5: Implement the task
 
 Make the necessary code changes directly in the repository (the current working directory). Follow the task description carefully. Refer to `spec.md` for requirements context.
 
-Check `obstacles.json` for any known issues related to this task and avoid repeating past mistakes.
+Before writing any code:
+- Check `obstacles.json` for any known issues related to this task. Do not repeat past mistakes.
+- Review `state.json` for previous attempts at this task to understand what was already tried.
+
+After writing code, verify your implementation is complete and correct before moving to the commit step. Do not commit partial or broken work.
 
 ### Step 6: Commit changes
 
-Once the implementation is complete, commit all changes via git:
+Once the implementation is complete and verified, commit all changes via git:
+
 ```
 git add -A
 git commit -m "ralph: <task title> [{{PROJECT_NAME}} T<id>]"
 ```
 
+Replace `<task title>` with the task's exact title and `<id>` with its ID (e.g. `T3`).
+
 If there is nothing to commit (e.g., the task involved only updating artifact files), skip this step.
 
 ### Step 7: Update artifacts
 
-**On success:**
-- In `artifacts/{{PROJECT_NAME}}/tasks.json`: set the task's `status` to `"completed"`
-- Append to `artifacts/{{PROJECT_NAME}}/state.json`:
+**On success**, update the artifact files as follows:
+
+In `artifacts/{{PROJECT_NAME}}/tasks.json`: set the task's `status` to `"completed"`.
+
+Append to `artifacts/{{PROJECT_NAME}}/state.json`:
 ```json
 {
   "iteration": {{ITERATION_NUM}},
@@ -79,10 +92,11 @@ If there is nothing to commit (e.g., the task involved only updating artifact fi
 }
 ```
 
-**On failure / if you cannot complete the task:**
-- In `artifacts/{{PROJECT_NAME}}/tasks.json`: set the task's `status` back to `"pending"` (or `"blocked"` if it cannot proceed)
-- If blocked, also set `"blocked": true`
-- Append to `artifacts/{{PROJECT_NAME}}/state.json`:
+**On failure / if you cannot complete the task**, update as follows:
+
+In `artifacts/{{PROJECT_NAME}}/tasks.json`: set the task's `status` back to `"pending"` (or `"blocked"` if it genuinely cannot proceed without external input). If blocked, also set `"blocked": true`.
+
+Append to `artifacts/{{PROJECT_NAME}}/state.json`:
 ```json
 {
   "iteration": {{ITERATION_NUM}},
@@ -93,7 +107,8 @@ If there is nothing to commit (e.g., the task involved only updating artifact fi
   "obstacles": ["<obstacle id if logged>"]
 }
 ```
-- Append to `artifacts/{{PROJECT_NAME}}/obstacles.json` under the `"obstacles"` array:
+
+Append to `artifacts/{{PROJECT_NAME}}/obstacles.json` under the `"obstacles"` array:
 ```json
 {
   "id": "O<next_number>",
@@ -104,15 +119,19 @@ If there is nothing to commit (e.g., the task involved only updating artifact fi
 }
 ```
 
-### Step 8: Signal completion
+If the obstacle was already logged in a previous iteration, do not duplicate it — reference its existing ID in the state entry instead.
+
+If you resolved a previously logged obstacle during this iteration, set its `"resolved": true` in `obstacles.json`.
+
+### Step 8: Exit
 
 You are done. Exit once you have committed your changes and updated the artifact files. The orchestrator detects completion via subprocess exit — do **not** create a `done.md` file.
 
 ## Important Rules
 
-- Only work on **one task per iteration**. Do not attempt multiple tasks.
-- Do not modify `tasks.json` in ways that would skip tasks or falsely mark them complete.
-- If you encounter an obstacle that was already logged in `obstacles.json`, note it in your state entry but do not duplicate the obstacle log entry (unless it's a new manifestation).
-- Mark an obstacle as `"resolved": true` in `obstacles.json` if you successfully addressed it during this iteration.
+- **One task per iteration.** Do not pick up a second task after completing the first.
+- **Do not falsely mark tasks complete.** Only set `status: "completed"` when the implementation is actually done.
+- **Do not modify completed or in-progress tasks** in `tasks.json` other than the one you claimed in Step 4.
+- **Do not skip the artifact updates** in Step 7, even on failure — the orchestrator relies on them to track progress.
 - All artifact file paths are relative to the current working directory.
 - The code you write goes directly into the current working directory (the user's repository).
