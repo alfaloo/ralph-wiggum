@@ -39,7 +39,7 @@ def _resolve_questions_block(template: str, has_questions: bool) -> str:
     )
 
 
-def parse_interview_questions(project_name: str, round_num: int, total_rounds: int) -> str:
+def parse_questions_md(project_name: str, round_num: int, total_rounds: int) -> str:
     """Render the question-generation prompt (phase 1 of each interview round)."""
     return _render(
         "questions.md",
@@ -49,7 +49,7 @@ def parse_interview_questions(project_name: str, round_num: int, total_rounds: i
     )
 
 
-def parse_generate_tasks(
+def parse_generate_tasks_md(
     project_name: str,
     *,
     round_num: int = 0,
@@ -77,7 +77,7 @@ def parse_generate_tasks(
     return _substitute(template, PROJECT_NAME=project_name, USER_COMMENT=user_comment)
 
 
-def parse_execute(project_name: str, iteration_num: int, max_iterations: int) -> str:
+def parse_execute_md(project_name: str, iteration_num: int, max_iterations: int) -> str:
     """Render the execute prompt template."""
     return _render(
         "execute.md",
@@ -87,7 +87,7 @@ def parse_execute(project_name: str, iteration_num: int, max_iterations: int) ->
     )
 
 
-def parse_results_summary(project_name: str, ralph_dir: str, exit_reason: str) -> str:
+def parse_summarise_md(project_name: str, ralph_dir: str, exit_reason: str) -> str:
     """Render the results summary prompt template."""
     return _render(
         "summarise.md",

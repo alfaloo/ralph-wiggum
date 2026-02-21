@@ -8,7 +8,7 @@ import subprocess
 import sys
 from typing import Callable
 
-from ralph.parse import parse_results_summary
+from ralph.parse import parse_summarise_md
 
 
 def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
@@ -77,6 +77,7 @@ class Runner:
             print(result.stdout)
         if result.returncode != 0 and result.stderr:
             print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
+        return result.stdout
 
     def _all_tasks_complete(self) -> bool:
         if not os.path.exists(self._tasks_path):
@@ -96,14 +97,14 @@ class Runner:
                 return True, task
         return False, None
 
-    def _run_results_summary(self, exit_reason: str) -> None:
-        """Spawn a results summary agent to write .ralph/<project-name>/results.md."""
-        print("[ralph] Generating results summary...")
-        prompt = parse_results_summary(
+    def _run_summarise(self, exit_reason: str) -> None:
+        """Spawn a summarise agent to write .ralph/<project-name>/summary.md."""
+        print("[ralph] Generating execution summary...")
+        prompt = parse_summarise_md(
             self.project_name, ralph_dir=self.ralph_dir, exit_reason=exit_reason
         )
         self._handle_result(run_noninteractive(prompt))
-        print("[ralph] Results summary complete.")
+        print("[ralph] Execution summary complete.")
 
     def run_comment(self, prompt: str) -> None:
         """Run the comment agent as a single headless invocation."""
@@ -156,7 +157,7 @@ class Runner:
         if self._all_tasks_complete():
             exit_reason = "All tasks completed successfully."
             print("\n[ralph] All tasks already completed!")
-            self._run_results_summary(exit_reason)
+            self._run_summarise(exit_reason)
             return
 
         exit_reason = f"Reached maximum iteration limit ({max_iterations})."
@@ -165,7 +166,12 @@ class Runner:
             prompt = prompts[min(iteration - 1, len(prompts) - 1)]
 
             print(f"\n[ralph] Spawning execute agent (iteration {iteration}/{max_iterations})...")
-            self._handle_result(run_noninteractive(prompt))
+            agent_response = self._handle_result(run_noninteractive(prompt))
+
+            if "You've hit your limit" in agent_response:
+                exit_reason = "Claude Code usage limit has been reached."
+                print("\n[ralph] Unfortunately you have reached your Claude Code usage limit :(")
+                break
 
             if self._all_tasks_complete():
                 exit_reason = "All tasks completed successfully."
@@ -181,4 +187,4 @@ class Runner:
             # for/else fires when all iterations were exhausted without breaking
             print(f"\n[ralph] {exit_reason}")
 
-        self._run_results_summary(exit_reason)
+        self._run_summarise(exit_reason)
