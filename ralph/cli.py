@@ -169,6 +169,92 @@ def cmd_execute(args: argparse.Namespace) -> None:
     Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
 
 
+def cmd_pr(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+
+    # Check gh CLI is installed.
+    gh_check = subprocess.run(["gh", "--version"], capture_output=True)
+    if gh_check.returncode != 0:
+        print(
+            "[ralph] Error: 'gh' CLI is not installed. Please install it from https://cli.github.com/",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check current branch matches project name.
+    branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+    current_branch = branch_result.stdout.strip()
+    if current_branch != args.project_name:
+        print(
+            f"[ralph] Error: current branch '{current_branch}' does not match project name '{args.project_name}'. "
+            "Please checkout the correct branch.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check working tree is clean.
+    status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    if status_result.stdout:
+        print(
+            "[ralph] Error: working tree is not clean. Please commit or stash all changes before creating a PR.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Detect base branch.
+    base_branch = get_base()
+    merge_base_result = subprocess.run(
+        ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
+    )
+    if merge_base_result.returncode != 0:
+        print(
+            f"[ralph] Warning: could not determine merge base between HEAD and '{base_branch}'. "
+            "Ensure the base branch exists and shares history with the current branch.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check pr-description.md exists.
+    pr_desc_path = os.path.join("artifacts", args.project_name, "pr-description.md")
+    if not os.path.exists(pr_desc_path):
+        print(
+            f"[ralph] Error: 'pr-description.md' not found at '{pr_desc_path}'. "
+            "Please run 'ralph execute' first to generate the PR description.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Push branch to origin.
+    push_result = subprocess.run(
+        ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
+    )
+    if push_result.returncode != 0:
+        print(push_result.stderr, file=sys.stderr)
+        sys.exit(1)
+
+    # Read pr-description.md.
+    with open(pr_desc_path) as f:
+        pr_body = f.read()
+
+    # Create PR non-interactively.
+    result = subprocess.run(
+        [
+            "gh", "pr", "create",
+            "--title", args.project_name,
+            "--body", pr_body,
+            "--base", base_branch,
+            "--head", args.project_name,
+        ],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr, file=sys.stderr)
+        sys.exit(1)
+
+    print("[ralph] Pull request created successfully.")
+    print(result.stdout)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="ralph",
@@ -289,6 +375,11 @@ def main() -> None:
         help="Enable/disable verbose output for this invocation only",
     )
     execute_parser.set_defaults(func=cmd_execute)
+
+    # ralph pr <project-name>
+    pr_parser = subparsers.add_parser("pr", help="Create a GitHub pull request for the project")
+    pr_parser.add_argument("project_name", metavar="<project-name>")
+    pr_parser.set_defaults(func=cmd_pr)
 
     args = parser.parse_args()
 
