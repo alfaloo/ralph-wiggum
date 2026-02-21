@@ -12,9 +12,13 @@ Agentic coding tools are powerful, but two problems routinely limit their effect
 
 ## Installation
 
+Clone this repository and install the Ralph CLI using pip:
+
 ```bash
-pipx install ralph-wiggum
+pip install -e .
 ```
+
+If the `pip install` fails, a possible solution would be to use `pipx install` instead.
 
 [pipx](https://pipx.pypa.io/) installs the tool into an isolated virtual environment while making the `ralph` command available globally, so it does not interfere with your system Python or project dependencies.
 
