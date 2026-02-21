@@ -76,13 +76,37 @@ Write a Markdown file to `{{ARTIFACTS_DIR}}/results.md` with the following struc
 <List each entry from state.json in order: iteration, task_id, status, and a brief note from the summary field.>
 ```
 
-### Step 3: Exit
+### Step 3: Write the PR description
 
-Once `results.md` has been written, you are done. Exit immediately.
+Read `{{ARTIFACTS_DIR}}/spec.md` for project requirements context. Using all the information gathered (spec.md, tasks.json, state.json, obstacles.json, and git log), write a Markdown file to `{{ARTIFACTS_DIR}}/pr-description.md` following this template:
+
+```markdown
+## Overview
+
+<A brief summary of what this PR does, based on the spec and completed tasks.>
+
+## Key Changes
+
+<A bullet list of the notable code changes made, derived from the git log and task descriptions.>
+
+- ...
+
+## Testing
+
+<Describe what testing has been done to verify the changes. If no automated tests were run, note that and describe any manual verification steps.>
+
+## Notes
+
+<Any other context a human code reviewer should know, such as migration notes, follow-up work, or known limitations. Omit this section if there is nothing relevant.>
+```
+
+### Step 4: Exit
+
+Once `results.md` and `pr-description.md` have been written, you are done. Exit immediately.
 
 ## Important Rules
 
-- **Write only** `{{ARTIFACTS_DIR}}/results.md`. Do not modify any other files.
+- **Write only** `{{ARTIFACTS_DIR}}/results.md` and `{{ARTIFACTS_DIR}}/pr-description.md`. Do not modify any other files.
 - **Do not modify** `tasks.json`, `state.json`, or `obstacles.json`.
 - **Do not make** any git commits.
 - **Use only** information from the files you read — do not invent or infer details not present in those files.
