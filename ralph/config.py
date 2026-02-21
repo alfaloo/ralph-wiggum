@@ -88,10 +88,32 @@ def set_limit(value: int) -> None:
     _write_settings(data)
 
 
+def get_base() -> str:
+    """Return the persisted base branch setting.
+
+    If the key is absent, writes the default value of 'main' back to the file
+    so that it is self-healed for future reads.
+    """
+    data = _read_settings()
+    if "base" not in data:
+        data["base"] = "main"
+        _write_settings(data)
+        return "main"
+    return str(data["base"])
+
+
+def set_base(value: str) -> None:
+    """Persist the base branch setting."""
+    data = _read_settings()
+    data["base"] = value
+    _write_settings(data)
+
+
 _DEFAULTS = {
     "verbose": False,
     "rounds": 1,
     "limit": 20,
+    "base": "main",
 }
 
 
