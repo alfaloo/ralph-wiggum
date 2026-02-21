@@ -7,6 +7,9 @@ name = "ralph-wiggum"
 version = "0.1.0"
 description = "CLI-driven agentic coding framework"
 requires-python = ">=3.11"
+dependencies = [
+    "prompt_toolkit",
+]
 
 [project.scripts]
 ralph = "ralph.cli:main"

@@ -21,12 +21,45 @@ def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
 
 
 def _collect_user_answers() -> str:
-    """Read multi-line user input until EOF (Ctrl+D / Ctrl+Z+Enter)."""
-    print("Enter your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
+    """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
+
+    Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
+    mouse-click cursor positioning, revisit previous lines). Falls back to
+    sys.stdin.read() if prompt_toolkit is not installed.
+    """
     try:
-        return sys.stdin.read().strip()
-    except (EOFError, KeyboardInterrupt):
-        return ""
+        from prompt_toolkit import prompt as pt_prompt
+        from prompt_toolkit.key_binding import KeyBindings
+
+        print("Enter your answers below. Press Ctrl+D when done, or Ctrl+C to abort:\n")
+
+        kb = KeyBindings()
+
+        @kb.add("c-d")
+        def _submit(event):
+            event.app.exit(result=event.app.current_buffer.text)
+
+        @kb.add("c-c")
+        def _abort(event):
+            event.app.exit(exception=KeyboardInterrupt())
+
+        try:
+            return pt_prompt("", multiline=True, key_bindings=kb, mouse_support=True).strip()
+        except KeyboardInterrupt:
+            print("\nInterview aborted.")
+            sys.exit(0)
+        except EOFError:
+            return ""
+
+    except ImportError:
+        print("Enter your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
+        try:
+            return sys.stdin.read().strip()
+        except EOFError:
+            return ""
+        except KeyboardInterrupt:
+            print("\nInterview aborted.")
+            sys.exit(0)
 
 
 class Runner:

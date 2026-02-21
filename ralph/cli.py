@@ -3,14 +3,24 @@
 import argparse
 import json
 import os
+import subprocess
 import sys
 from typing import Callable
 
-from ralph.config import ensure_defaults, get_limit, get_rounds, get_verbose, set_limit, set_rounds, set_verbose
+from ralph.config import ensure_defaults, get_base, get_limit, get_rounds, get_verbose, set_base, set_limit, set_rounds, set_verbose
 from ralph.parse import parse_comment, parse_execute, parse_interview, parse_interview_questions
 from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
+
+
+def _validate_branch_exists(branch: str) -> None:
+    """Verify that the given branch exists in the current repo; exit if not."""
+    result = subprocess.run(["git", "branch", "--list", branch], capture_output=True, text=True)
+    if not result.stdout.strip():
+        print(f"[ralph] Warning: branch '{branch}' does not exist in the current repo. Aborting.", file=sys.stderr)
+        sys.exit(1)
+
 
 _SPEC_MD_TEMPLATE = """\
 # {project_name} — Project Spec
@@ -127,12 +137,36 @@ def cmd_execute(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
     limit = args.limit if args.limit is not None else get_limit()
+    base = args.base if args.base is not None else get_base()
+    if args.base is not None:
+        _validate_branch_exists(args.base)
+
+    project_name = args.project_name
+
+    # Check whether the project branch already exists; abort if it does.
+    branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
+    if branch_check.stdout.strip():
+        print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+        sys.exit(1)
+
+    # Checkout the base branch.
+    checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
+    if checkout_base.returncode != 0:
+        print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    # Create and checkout the project branch.
+    create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
+    if create_branch.returncode != 0:
+        print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
     # Pre-render all prompts; each references its iteration number
     prompts = [
-        parse_execute(args.project_name, iteration_num=i + 1, max_iterations=limit)
+        parse_execute(project_name, iteration_num=i + 1, max_iterations=limit)
         for i in range(limit)
     ]
-    Runner(args.project_name, verbose=verbose).run_execute_loop(prompts, limit)
+    Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
 
 
 def main() -> None:
@@ -164,6 +198,14 @@ def main() -> None:
         dest="global_limit",
         metavar="N",
         help="Persist limit setting to .ralph/settings.json",
+    )
+    parser.add_argument(
+        "--base", "-b",
+        type=str,
+        default=None,
+        dest="global_base",
+        metavar="BRANCH",
+        help="Persist base branch setting to .ralph/settings.json",
     )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
@@ -233,6 +275,13 @@ def main() -> None:
         help=f"Maximum number of agent iterations, upper bound (default: {_DEFAULT_LIMIT})",
     )
     execute_parser.add_argument(
+        "--base", "-b",
+        type=str,
+        default=None,
+        metavar="BRANCH",
+        help="Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)",
+    )
+    execute_parser.add_argument(
         "--verbose", "-v",
         choices=["true", "false"],
         default=None,
@@ -250,10 +299,13 @@ def main() -> None:
         set_rounds(args.global_rounds)
     if args.global_limit is not None:
         set_limit(args.global_limit)
+    if args.global_base is not None:
+        _validate_branch_exists(args.global_base)
+        set_base(args.global_base)
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None:
+        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None:
             parser.print_help()
             sys.exit(1)
         return
