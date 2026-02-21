@@ -65,3 +65,24 @@ def set_rounds(value: int) -> None:
     data = _read_settings()
     data["rounds"] = value
     _write_settings(data)
+
+
+def get_limit() -> int:
+    """Return the persisted limit setting.
+
+    If the key is absent, writes the default value of 20 back to the file
+    so that it is self-healed for future reads.
+    """
+    data = _read_settings()
+    if "limit" not in data:
+        data["limit"] = 20
+        _write_settings(data)
+        return 20
+    return int(data["limit"])
+
+
+def set_limit(value: int) -> None:
+    """Persist the limit setting."""
+    data = _read_settings()
+    data["limit"] = value
+    _write_settings(data)
