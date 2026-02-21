@@ -24,13 +24,15 @@ def _render(name: str, **vars: str) -> str:
     return _substitute(_load_template(name), **vars)
 
 
-def _resolve_final_round(template: str, is_final: bool) -> str:
-    """Replace {% if IS_FINAL_ROUND %} ... {% endif %} blocks."""
+def _resolve_questions_block(template: str, has_questions: bool) -> str:
+    """Replace {% if QUESTIONS %} ... {% else %} ... {% endif %} blocks."""
     def replacer(match: re.Match) -> str:
-        return match.group(1).strip() if is_final else ""
+        if_block = match.group(1)
+        else_block = match.group(2)
+        return if_block.strip() if has_questions else else_block.strip()
 
     return re.sub(
-        r"\{%\s*if IS_FINAL_ROUND\s*%\}(.*?)\{%\s*endif\s*%\}",
+        r"\{%\s*if QUESTIONS\s*%\}(.*?)\{%\s*else\s*%\}(.*?)\{%\s*endif\s*%\}",
         replacer,
         template,
         flags=re.DOTALL,
@@ -47,28 +49,32 @@ def parse_interview_questions(project_name: str, round_num: int, total_rounds: i
     )
 
 
-def parse_interview(
+def parse_generate_tasks(
     project_name: str,
-    round_num: int,
-    total_rounds: int,
-    questions: str,
-    answers: str,
+    *,
+    round_num: int = 0,
+    total_rounds: int = 0,
+    questions: str = "",
+    answers: str = "",
+    user_comment: str = "",
 ) -> str:
-    """Render the spec-amendment prompt (phase 2 of each interview round).
+    """Render the generate_tasks prompt template.
 
-    Injects the questions Claude generated and the user's answers so the agent
-    can amend spec.md (and, on the final round, generate tasks.json).
+    In interview mode (questions supplied), incorporates Q&A and updates spec.md and tasks.json.
+    In comment mode (user_comment supplied), incorporates the comment and updates spec.md and tasks.json.
     """
-    template = _load_template("interview.md")
-    template = _resolve_final_round(template, is_final=(round_num == total_rounds))
-    return _substitute(
-        template,
-        PROJECT_NAME=project_name,
-        ROUND_NUM=str(round_num),
-        TOTAL_ROUNDS=str(total_rounds),
-        QUESTIONS=questions,
-        ANSWERS=answers,
-    )
+    template = _load_template("generate_tasks.md")
+    template = _resolve_questions_block(template, has_questions=bool(questions))
+    if questions:
+        return _substitute(
+            template,
+            PROJECT_NAME=project_name,
+            ROUND_NUM=str(round_num),
+            TOTAL_ROUNDS=str(total_rounds),
+            QUESTIONS=questions,
+            ANSWERS=answers,
+        )
+    return _substitute(template, PROJECT_NAME=project_name, USER_COMMENT=user_comment)
 
 
 def parse_execute(project_name: str, iteration_num: int, max_iterations: int) -> str:
@@ -79,11 +85,6 @@ def parse_execute(project_name: str, iteration_num: int, max_iterations: int) ->
         ITERATION_NUM=str(iteration_num),
         MAX_ITERATIONS=str(max_iterations),
     )
-
-
-def parse_comment(project_name: str, user_comment: str) -> str:
-    """Render the comment prompt template."""
-    return _render("comment.md", PROJECT_NAME=project_name, USER_COMMENT=user_comment)
 
 
 def parse_results_summary(project_name: str, ralph_dir: str, exit_reason: str) -> str:

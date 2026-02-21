@@ -8,7 +8,7 @@ import sys
 from typing import Callable
 
 from ralph.config import ensure_defaults, get_base, get_limit, get_rounds, get_verbose, set_base, set_limit, set_rounds, set_verbose
-from ralph.parse import parse_comment, parse_execute, parse_interview, parse_interview_questions
+from ralph.parse import parse_execute, parse_generate_tasks, parse_interview_questions
 from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
@@ -124,7 +124,7 @@ def cmd_interview(args: argparse.Namespace) -> None:
 
     def make_amend_prompt(round_num: int) -> Callable[[str, str], str]:
         def build(questions: str, answers: str) -> str:
-            return parse_interview(
+            return parse_generate_tasks(
                 args.project_name,
                 round_num=round_num,
                 total_rounds=rounds,
@@ -139,7 +139,7 @@ def cmd_interview(args: argparse.Namespace) -> None:
 
 def cmd_comment(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
-    prompt = parse_comment(args.project_name, args.comment)
+    prompt = parse_generate_tasks(args.project_name, user_comment=args.comment)
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
@@ -219,7 +219,7 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # Comment step: spec enrichment + task generation.
-    prompt = parse_comment(project_name, _ONESHOT_COMMENT)
+    prompt = parse_generate_tasks(project_name, user_comment=_ONESHOT_COMMENT)
     Runner(project_name, verbose=verbose).run_comment(prompt)
     tasks_path = os.path.join(".ralph", project_name, "tasks.json")
     if not os.path.exists(tasks_path):

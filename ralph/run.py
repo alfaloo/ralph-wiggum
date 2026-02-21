@@ -121,7 +121,7 @@ class Runner:
           Phase 1 — non-interactive agent outputs clarifying questions.
           (user types answers via stdin)
           Phase 2 — non-interactive agent receives questions + answers and
-                     amends spec.md (and on the final round generates tasks.json).
+                     amends spec.md and creates/refreshes tasks.json.
         """
         total = len(question_prompts)
 
