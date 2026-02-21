@@ -39,6 +39,27 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
     return get_verbose()
 
 
+def _assert_project_exists(project_name: str) -> None:
+    """Assert that the project directory and spec.md exist; exit with an error if not."""
+    artifacts_dir = os.path.join("artifacts", project_name)
+    if not os.path.exists(artifacts_dir):
+        print(
+            f"[ralph] Error: project '{project_name}' not found. "
+            f"Expected directory '{artifacts_dir}' does not exist. "
+            "Run 'ralph init' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    spec_path = os.path.join(artifacts_dir, "spec.md")
+    if not os.path.exists(spec_path):
+        print(
+            f"[ralph] Error: project '{project_name}' is missing 'spec.md'. "
+            f"Expected '{spec_path}' to exist.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def cmd_init(args: argparse.Namespace) -> None:
     project_name = args.project_name
     artifacts_dir = os.path.join("artifacts", project_name)
@@ -71,6 +92,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 
 
 def cmd_interview(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
     # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
     rounds = args.rounds if args.rounds is not None else get_rounds()
@@ -96,11 +118,13 @@ def cmd_interview(args: argparse.Namespace) -> None:
 
 
 def cmd_comment(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
     prompt = parse_comment(args.project_name, args.comment)
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
 def cmd_execute(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
     limit = args.limit if args.limit is not None else get_limit()
     # Pre-render all prompts; each references its iteration number
