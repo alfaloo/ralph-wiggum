@@ -86,10 +86,6 @@ Use this exact format:
 Field rules:
 - `id`: sequential, T1, T2, T3, ...
 - `dependencies`: list IDs of tasks that must be `"completed"` before this task can start; `[]` if none
-- `status`: always `"pending"` initially
-- `attempts`: always `0` initially
-- `max_attempts`: always `3`
-- `blocked`: always `false` initially
 
 **Do not**:
 - Change or delete any task with `status: "completed"` or `status: "in_progress"`.
@@ -97,7 +93,7 @@ Field rules:
 
 ## Final Step: Exit
 
-You are done. Exit once all steps above are complete. The orchestrator detects your completion via subprocess exit — there is no need to create any signalling file.
+You are done. Exit once all steps above are complete.
 
 ## Important Rules
 
