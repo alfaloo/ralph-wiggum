@@ -7,7 +7,7 @@ Ralph Wiggum is a CLI-driven agentic coding framework. A main agent ingests a sp
 ## Directory Structure
 
 ```
-.artefacts/
+.ralph/
 └── <project-name>/
     ├── spec.md          # User-written project brief (created by ralph init)
     ├── tasks.json       # Task list generated after interviewing
@@ -36,7 +36,7 @@ templates/
 Each markdown file is a prompt template injected with project-specific values before being passed to a Claude Code agent. Templates must include:
 - Clear instructions for the agent's role in that phase
 - How to read and write the relevant artifact files
-- A completion signal: the agent must create `.artefacts/<project-name>/done.md` when finished
+- A completion signal: the agent must create `.ralph/<project-name>/done.md` when finished
 
 **`init.md`**
 Instructions for initializing a new project artifact directory and generating a blank `spec.md` for the user to fill out.
@@ -223,7 +223,7 @@ An ephemeral signal file. Created by an agent to indicate it has finished its tu
 ralph init <project-name>
 ```
 
-Creates `.artefacts/<project-name>/spec.md` (blank template) for the user to fill in with their project brief.
+Creates `.ralph/<project-name>/spec.md` (blank template) for the user to fill in with their project brief.
 
 ---
 
