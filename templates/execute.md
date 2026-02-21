@@ -41,7 +41,7 @@ Choose the **next available task** using these rules:
 
 **If no tasks are available** (all tasks are completed, blocked, or have unmet dependencies):
 - Append to `artifacts/{{PROJECT_NAME}}/state.json` with `status: "no_tasks_available"` and a brief explanation.
-- Exit immediately. Do **not** create a `done.md` file — the orchestrator detects completion via subprocess exit.
+- Exit immediately. The orchestrator detects completion via subprocess exit.
 
 ### Step 4: Claim the task
 
@@ -125,7 +125,7 @@ If you resolved a previously logged obstacle during this iteration, set its `"re
 
 ### Step 8: Exit
 
-You are done. Exit once you have committed your changes and updated the artifact files. The orchestrator detects completion via subprocess exit — do **not** create a `done.md` file.
+You are done. Exit once you have committed your changes and updated the artifact files. The orchestrator detects completion via subprocess exit
 
 ## Important Rules
 

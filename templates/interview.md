@@ -82,7 +82,6 @@ You are done. Exit once all steps above are complete. The orchestrator detects y
 
 ## Important Rules
 
-- **Do not create** `done.md` or any other signalling file.
 - **Do not modify** any files other than `spec.md` (and `tasks.json` on the final round).
 - **Only record** what the user actually said — do not interpret or expand beyond their answers.
 - All file paths are relative to the current working directory.

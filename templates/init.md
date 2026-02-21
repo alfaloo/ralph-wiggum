@@ -63,5 +63,4 @@ The following files exist in `artifacts/{{PROJECT_NAME}}/`:
 - All paths are relative to the current working directory.
 - **Do not overwrite** files that already have content.
 - **Do not create** `tasks.json` — that is created by the interview agent.
-- **Do not create** a `done.md` file — the orchestrator detects completion via subprocess exit.
 - **Do not make** any git commits — this command only creates artifact files.

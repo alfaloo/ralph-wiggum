@@ -45,6 +45,5 @@ If `artifacts/{{PROJECT_NAME}}/tasks.json` exists:
 ## Important Rules
 
 - All file paths are relative to the current working directory.
-- **Do not create** `done.md` or any other signalling file — this command uses subprocess exit signalling.
 - **Do not make** any git commits.
 - **Do not modify** `state.json` or `obstacles.json`.

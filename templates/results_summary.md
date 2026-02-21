@@ -84,7 +84,6 @@ Once `results.md` has been written, you are done. Exit immediately.
 
 - **Write only** `{{ARTIFACTS_DIR}}/results.md`. Do not modify any other files.
 - **Do not modify** `tasks.json`, `state.json`, or `obstacles.json`.
-- **Do not create** `done.md` — the orchestrator detects completion via subprocess exit.
 - **Do not make** any git commits.
 - **Use only** information from the files you read — do not invent or infer details not present in those files.
 - All file paths are relative to the current working directory (the repository root).

@@ -35,6 +35,5 @@ Output a numbered list of focused, specific questions. Where helpful, reference 
 ## Important Rules
 
 - **Output only the numbered list.** Do not include preamble, commentary, or a summary.
-- **Do not amend any files.**
-- **Do not create any files** (including `done.md`).
+- **Do not create or amend any files.**
 - **Do not answer your own questions** — the user will answer them.
