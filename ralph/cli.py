@@ -13,6 +13,16 @@ from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
 
+_ONESHOT_COMMENT = (
+    "You are an expert software engineer reviewing this project for the first time. "
+    "Carefully read spec.md and all relevant source files, tests, and configuration in the "
+    "codebase to gain a thorough understanding of the problem domain and existing implementation "
+    "patterns. Then, enhance spec.md in-place by filling in any missing context, clarifying "
+    "ambiguous requirements, and adding technical details implied by the existing code — "
+    "ensuring the specification is precise and complete enough to drive accurate task "
+    "generation. Do not remove any existing content that remains valid."
+)
+
 
 def _validate_branch_exists(branch: str) -> None:
     """Verify that the given branch exists in the current repo; exit if not."""
@@ -167,6 +177,83 @@ def cmd_execute(args: argparse.Namespace) -> None:
         for i in range(limit)
     ]
     Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
+
+
+def cmd_oneshot(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+
+    # Uncommitted changes check.
+    status_check = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    if status_check.stdout:
+        print(
+            "[ralph] Warning: working tree has uncommitted changes. "
+            "Please commit or stash all changes before running ralph oneshot.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    verbose = _resolve_verbose(args)
+    limit = args.limit if args.limit is not None else get_limit()
+    base = args.base if args.base is not None else get_base()
+    if args.base is not None:
+        _validate_branch_exists(args.base)
+
+    project_name = args.project_name
+
+    # Branch existence check.
+    branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
+    if branch_check.stdout.strip():
+        print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+        sys.exit(1)
+
+    # Checkout base branch.
+    checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
+    if checkout_base.returncode != 0:
+        print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    # Create project branch.
+    create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
+    if create_branch.returncode != 0:
+        print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    # Comment step: spec enrichment + task generation.
+    prompt = parse_comment(project_name, _ONESHOT_COMMENT)
+    Runner(project_name, verbose=verbose).run_comment(prompt)
+    tasks_path = os.path.join(".artefacts", project_name, "tasks.json")
+    if not os.path.exists(tasks_path):
+        print(
+            f"[ralph] Warning: task generation did not produce tasks.json. "
+            f"To retry from this point, run: ralph execute {project_name}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Execute step.
+    prompts = [
+        parse_execute(project_name, iteration_num=i + 1, max_iterations=limit)
+        for i in range(limit)
+    ]
+    Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
+    with open(tasks_path) as f:
+        data = json.load(f)
+    if not all(task["status"] == "completed" for task in data["tasks"]):
+        print(
+            f"[ralph] Warning: not all tasks completed. "
+            f"To continue execution, run: ralph execute {project_name}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # PR step.
+    fake_args = argparse.Namespace(project_name=project_name)
+    try:
+        cmd_pr(fake_args)
+    except SystemExit as exc:
+        if exc.code:
+            print(f"[ralph] To create the PR manually, run: ralph pr {project_name}", file=sys.stderr)
+            sys.exit(exc.code)
 
 
 def cmd_pr(args: argparse.Namespace) -> None:
@@ -375,6 +462,34 @@ def main() -> None:
         help="Enable/disable verbose output for this invocation only",
     )
     execute_parser.set_defaults(func=cmd_execute)
+
+    # ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL]
+    oneshot_parser = subparsers.add_parser(
+        "oneshot", help="Generate tasks, execute, and create a PR in one streamlined call"
+    )
+    oneshot_parser.add_argument("project_name", metavar="<project-name>")
+    oneshot_parser.add_argument(
+        "--limit", "-l",
+        type=int,
+        default=None,
+        metavar="N",
+        help=f"Maximum number of agent iterations, upper bound (default: {_DEFAULT_LIMIT})",
+    )
+    oneshot_parser.add_argument(
+        "--base", "-b",
+        type=str,
+        default=None,
+        metavar="BRANCH",
+        help="Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)",
+    )
+    oneshot_parser.add_argument(
+        "--verbose", "-v",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
+    oneshot_parser.set_defaults(func=cmd_oneshot)
 
     # ralph pr <project-name>
     pr_parser = subparsers.add_parser("pr", help="Create a GitHub pull request for the project")
