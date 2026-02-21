@@ -8,7 +8,7 @@ import sys
 from typing import Callable
 
 from ralph.config import ensure_defaults, get_base, get_limit, get_rounds, get_verbose, set_base, set_limit, set_rounds, set_verbose
-from ralph.parse import parse_comment, parse_execute, parse_interview, parse_interview_questions
+from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md
 from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
@@ -118,13 +118,13 @@ def cmd_interview(args: argparse.Namespace) -> None:
     rounds = args.rounds if args.rounds is not None else get_rounds()
 
     question_prompts = [
-        parse_interview_questions(args.project_name, round_num=i + 1, total_rounds=rounds)
+        parse_questions_md(args.project_name, round_num=i + 1, total_rounds=rounds)
         for i in range(rounds)
     ]
 
     def make_amend_prompt(round_num: int) -> Callable[[str, str], str]:
         def build(questions: str, answers: str) -> str:
-            return parse_interview(
+            return parse_generate_tasks_md(
                 args.project_name,
                 round_num=round_num,
                 total_rounds=rounds,
@@ -139,7 +139,7 @@ def cmd_interview(args: argparse.Namespace) -> None:
 
 def cmd_comment(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
-    prompt = parse_comment(args.project_name, args.comment)
+    prompt = parse_generate_tasks_md(args.project_name, user_comment=args.comment)
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
@@ -152,28 +152,41 @@ def cmd_execute(args: argparse.Namespace) -> None:
         _validate_branch_exists(args.base)
 
     project_name = args.project_name
+    
+    if args.resume:
+        # Ensure that the project branch already exists; abort if not found.
+        branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
+        if not branch_check.stdout.strip():
+            print(f"[ralph] Warning: branch '{project_name}' is not found. Aborting.", file=sys.stderr)
+            sys.exit(1)
 
-    # Check whether the project branch already exists; abort if it does.
-    branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
-    if branch_check.stdout.strip():
-        print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
-        sys.exit(1)
+        # checkout to the existing project branch
+        checkout_branch = subprocess.run(["git", "checkout", project_name], capture_output=True, text=True)
+        if checkout_branch.returncode != 0:
+            print(f"[ralph] Warning: failed to checkout to branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Check whether the project branch already exists; abort if it does.
+        branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
+        if branch_check.stdout.strip():
+            print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+            sys.exit(1)
 
-    # Checkout the base branch.
-    checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
-    if checkout_base.returncode != 0:
-        print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
-        sys.exit(1)
+        # Checkout the base branch.
+        checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
+        if checkout_base.returncode != 0:
+            print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+            sys.exit(1)
 
-    # Create and checkout the project branch.
-    create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
-    if create_branch.returncode != 0:
-        print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
-        sys.exit(1)
+        # Create and checkout the project branch.
+        create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
+        if create_branch.returncode != 0:
+            print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+            sys.exit(1)
 
     # Pre-render all prompts; each references its iteration number
     prompts = [
-        parse_execute(project_name, iteration_num=i + 1, max_iterations=limit)
+        parse_execute_md(project_name, iteration_num=i + 1, max_iterations=limit)
         for i in range(limit)
     ]
     Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
@@ -219,7 +232,7 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # Comment step: spec enrichment + task generation.
-    prompt = parse_comment(project_name, _ONESHOT_COMMENT)
+    prompt = parse_generate_tasks_md(project_name, user_comment=_ONESHOT_COMMENT)
     Runner(project_name, verbose=verbose).run_comment(prompt)
     tasks_path = os.path.join(".ralph", project_name, "tasks.json")
     if not os.path.exists(tasks_path):
@@ -232,7 +245,7 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
 
     # Execute step.
     prompts = [
-        parse_execute(project_name, iteration_num=i + 1, max_iterations=limit)
+        parse_execute_md(project_name, iteration_num=i + 1, max_iterations=limit)
         for i in range(limit)
     ]
     Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
@@ -435,7 +448,7 @@ def main() -> None:
     )
     comment_parser.set_defaults(func=cmd_comment)
 
-    # ralph execute <project-name> [--limit N] [--verbose BOOL]
+    # ralph execute <project-name> [--limit N] [--verbose BOOL] [--resume]
     execute_parser = subparsers.add_parser(
         "execute", help="Run execute agents to implement the project"
     )
@@ -460,6 +473,11 @@ def main() -> None:
         default=None,
         metavar="BOOL",
         help="Enable/disable verbose output for this invocation only",
+    )
+    execute_parser.add_argument(
+        "--resume", "-r",
+        action="store_true",
+        help="Allow the agent to resume execution from an existing branch",
     )
     execute_parser.set_defaults(func=cmd_execute)
 
