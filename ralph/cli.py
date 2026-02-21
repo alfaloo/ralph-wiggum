@@ -6,7 +6,7 @@ import os
 import sys
 from typing import Callable
 
-from ralph.config import get_limit, get_rounds, get_verbose, set_limit, set_rounds, set_verbose
+from ralph.config import ensure_defaults, get_limit, get_rounds, get_verbose, set_limit, set_rounds, set_verbose
 from ralph.parse import parse_comment, parse_execute, parse_interview, parse_interview_questions
 from ralph.run import Runner
 
@@ -66,6 +66,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     with open(tasks_path, "w") as f:
         json.dump({}, f)
 
+    ensure_defaults()
     print(f"[ralph] Init complete. Project '{project_name}' created in '{artifacts_dir}'.")
 
 

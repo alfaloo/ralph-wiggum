@@ -86,3 +86,26 @@ def set_limit(value: int) -> None:
     data = _read_settings()
     data["limit"] = value
     _write_settings(data)
+
+
+_DEFAULTS = {
+    "verbose": False,
+    "rounds": 1,
+    "limit": 20,
+}
+
+
+def ensure_defaults() -> None:
+    """Ensure all flag variables have default values in settings.json.
+
+    Creates .ralph/settings.json (and the directory) if absent. Writes default
+    values only for keys not already present; existing values are not changed.
+    """
+    data = _read_settings()
+    changed = False
+    for key, default in _DEFAULTS.items():
+        if key not in data:
+            data[key] = default
+            changed = True
+    if changed or not os.path.exists(_SETTINGS_FILE):
+        _write_settings(data)
