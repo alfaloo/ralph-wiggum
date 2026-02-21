@@ -61,16 +61,16 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
 
 def _assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
-    artefacts_dir = os.path.join(".ralph", project_name)
-    if not os.path.exists(artefacts_dir):
+    ralph_dir = os.path.join(".ralph", project_name)
+    if not os.path.exists(ralph_dir):
         print(
             f"[ralph] Error: project '{project_name}' not found. "
-            f"Expected directory '{artefacts_dir}' does not exist. "
+            f"Expected directory '{ralph_dir}' does not exist. "
             "Run 'ralph init' first.",
             file=sys.stderr,
         )
         sys.exit(1)
-    spec_path = os.path.join(artefacts_dir, "spec.md")
+    spec_path = os.path.join(ralph_dir, "spec.md")
     if not os.path.exists(spec_path):
         print(
             f"[ralph] Error: project '{project_name}' is missing 'spec.md'. "
@@ -82,33 +82,33 @@ def _assert_project_exists(project_name: str) -> None:
 
 def cmd_init(args: argparse.Namespace) -> None:
     project_name = args.project_name
-    artefacts_dir = os.path.join(".ralph", project_name)
+    ralph_dir = os.path.join(".ralph", project_name)
 
-    if os.path.exists(artefacts_dir):
-        print(f"[ralph] Error: project '{project_name}' already exists at '{artefacts_dir}'. Aborting.", file=sys.stderr)
+    if os.path.exists(ralph_dir):
+        print(f"[ralph] Error: project '{project_name}' already exists at '{ralph_dir}'. Aborting.", file=sys.stderr)
         sys.exit(1)
 
-    os.makedirs(artefacts_dir)
-    print(f"[ralph] Created directory '{artefacts_dir}'.")
+    os.makedirs(ralph_dir)
+    print(f"[ralph] Created directory '{ralph_dir}'.")
 
-    spec_path = os.path.join(artefacts_dir, "spec.md")
+    spec_path = os.path.join(ralph_dir, "spec.md")
     with open(spec_path, "w") as f:
         f.write(_SPEC_MD_TEMPLATE.format(project_name=project_name))
 
-    state_path = os.path.join(artefacts_dir, "state.json")
+    state_path = os.path.join(ralph_dir, "state.json")
     with open(state_path, "w") as f:
         json.dump([], f)
 
-    obstacles_path = os.path.join(artefacts_dir, "obstacles.json")
+    obstacles_path = os.path.join(ralph_dir, "obstacles.json")
     with open(obstacles_path, "w") as f:
         json.dump({"obstacles": []}, f)
 
-    tasks_path = os.path.join(artefacts_dir, "tasks.json")
+    tasks_path = os.path.join(ralph_dir, "tasks.json")
     with open(tasks_path, "w") as f:
         json.dump({}, f)
 
     ensure_defaults()
-    print(f"[ralph] Init complete. Project '{project_name}' created in '{artefacts_dir}'.")
+    print(f"[ralph] Init complete. Project '{project_name}' created in '{ralph_dir}'.")
 
 
 def cmd_interview(args: argparse.Namespace) -> None:
