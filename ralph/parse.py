@@ -37,11 +37,6 @@ def _resolve_final_round(template: str, is_final: bool) -> str:
     )
 
 
-def parse_init(project_name: str) -> str:
-    """Render the init prompt template."""
-    return _render("init.md", PROJECT_NAME=project_name)
-
-
 def parse_interview_questions(project_name: str, round_num: int, total_rounds: int) -> str:
     """Render the question-generation prompt (phase 1 of each interview round)."""
     return _render(

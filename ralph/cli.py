@@ -1,14 +1,35 @@
 """Ralph Wiggum CLI entry point."""
 
 import argparse
+import json
+import os
 import sys
 from typing import Callable
 
 from ralph.config import get_limit, get_rounds, get_verbose, set_limit, set_rounds, set_verbose
-from ralph.parse import parse_comment, parse_execute, parse_init, parse_interview, parse_interview_questions
+from ralph.parse import parse_comment, parse_execute, parse_interview, parse_interview_questions
 from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
+
+_SPEC_MD_TEMPLATE = """\
+# {project_name} — Project Spec
+
+## Overview
+<!-- Describe the project in 1-3 sentences -->
+
+## Goals
+<!-- What should this project accomplish? -->
+
+## Requirements
+<!-- List the key requirements or features -->
+
+## Out of Scope
+<!-- What is explicitly NOT part of this project? -->
+
+## Technical Notes
+<!-- Any specific technologies, libraries, constraints, or design decisions -->
+"""
 
 
 def _resolve_verbose(args: argparse.Namespace) -> bool:
@@ -19,8 +40,33 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
 
 
 def cmd_init(args: argparse.Namespace) -> None:
-    prompt = parse_init(args.project_name)
-    Runner(args.project_name, verbose=_resolve_verbose(args)).run_init(prompt)
+    project_name = args.project_name
+    artifacts_dir = os.path.join("artifacts", project_name)
+
+    if os.path.exists(artifacts_dir):
+        print(f"[ralph] Error: project '{project_name}' already exists at '{artifacts_dir}'. Aborting.", file=sys.stderr)
+        sys.exit(1)
+
+    os.makedirs(artifacts_dir)
+    print(f"[ralph] Created directory '{artifacts_dir}'.")
+
+    spec_path = os.path.join(artifacts_dir, "spec.md")
+    with open(spec_path, "w") as f:
+        f.write(_SPEC_MD_TEMPLATE.format(project_name=project_name))
+
+    state_path = os.path.join(artifacts_dir, "state.json")
+    with open(state_path, "w") as f:
+        json.dump([], f)
+
+    obstacles_path = os.path.join(artifacts_dir, "obstacles.json")
+    with open(obstacles_path, "w") as f:
+        json.dump({"obstacles": []}, f)
+
+    tasks_path = os.path.join(artifacts_dir, "tasks.json")
+    with open(tasks_path, "w") as f:
+        json.dump({}, f)
+
+    print(f"[ralph] Init complete. Project '{project_name}' created in '{artifacts_dir}'.")
 
 
 def cmd_interview(args: argparse.Namespace) -> None:

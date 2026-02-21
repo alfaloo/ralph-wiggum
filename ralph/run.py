@@ -77,12 +77,6 @@ class Runner:
         print(f"[ralph] Running comment agent for '{self.project_name}'...")
         self._handle_result(run_noninteractive(prompt))
 
-    def run_init(self, prompt: str) -> None:
-        """Run the init agent as a single blocking subprocess invocation."""
-        print(f"[ralph] Running init agent for '{self.project_name}'...")
-        self._handle_result(run_noninteractive(prompt))
-        print("[ralph] Init complete.")
-
     def run_interview_loop(
         self,
         question_prompts: list[str],
