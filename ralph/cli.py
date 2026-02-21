@@ -61,7 +61,7 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
 
 def _assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
-    artefacts_dir = os.path.join(".artefacts", project_name)
+    artefacts_dir = os.path.join(".ralph", project_name)
     if not os.path.exists(artefacts_dir):
         print(
             f"[ralph] Error: project '{project_name}' not found. "
@@ -82,7 +82,7 @@ def _assert_project_exists(project_name: str) -> None:
 
 def cmd_init(args: argparse.Namespace) -> None:
     project_name = args.project_name
-    artefacts_dir = os.path.join(".artefacts", project_name)
+    artefacts_dir = os.path.join(".ralph", project_name)
 
     if os.path.exists(artefacts_dir):
         print(f"[ralph] Error: project '{project_name}' already exists at '{artefacts_dir}'. Aborting.", file=sys.stderr)
@@ -221,7 +221,7 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
     # Comment step: spec enrichment + task generation.
     prompt = parse_comment(project_name, _ONESHOT_COMMENT)
     Runner(project_name, verbose=verbose).run_comment(prompt)
-    tasks_path = os.path.join(".artefacts", project_name, "tasks.json")
+    tasks_path = os.path.join(".ralph", project_name, "tasks.json")
     if not os.path.exists(tasks_path):
         print(
             f"[ralph] Warning: task generation did not produce tasks.json. "
@@ -302,7 +302,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # Check pr-description.md exists.
-    pr_desc_path = os.path.join(".artefacts", args.project_name, "pr-description.md")
+    pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
     if not os.path.exists(pr_desc_path):
         print(
             f"[ralph] Error: 'pr-description.md' not found at '{pr_desc_path}'. "

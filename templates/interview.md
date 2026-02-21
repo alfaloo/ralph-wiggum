@@ -6,7 +6,7 @@ You are the **interview agent** for Ralph Wiggum. The user has already answered 
 
 - **Project:** `{{PROJECT_NAME}}`
 - **Interview round:** {{ROUND_NUM}} of {{TOTAL_ROUNDS}}
-- **Artifact directory:** `.artefacts/{{PROJECT_NAME}}/`
+- **Artifact directory:** `.ralph/{{PROJECT_NAME}}/`
 
 ## Clarifying Q&A
 
@@ -22,11 +22,11 @@ The following questions were asked and the user provided these answers:
 
 ## Step 1: Read the current spec
 
-Read `.artefacts/{{PROJECT_NAME}}/spec.md` to understand the existing requirements before making any changes.
+Read `.ralph/{{PROJECT_NAME}}/spec.md` to understand the existing requirements before making any changes.
 
 ## Step 2: Amend the spec
 
-Update `.artefacts/{{PROJECT_NAME}}/spec.md` to incorporate the information from the Q&A above.
+Update `.ralph/{{PROJECT_NAME}}/spec.md` to incorporate the information from the Q&A above.
 
 Guidelines:
 - Integrate new details naturally into the relevant sections (do not append a "Round N answers" block).
@@ -37,7 +37,7 @@ Guidelines:
 {% if IS_FINAL_ROUND %}
 ## Step 3: Generate tasks.json (FINAL ROUND)
 
-Since this is the **final interview round**, after updating the spec you must generate `.artefacts/{{PROJECT_NAME}}/tasks.json`.
+Since this is the **final interview round**, after updating the spec you must generate `.ralph/{{PROJECT_NAME}}/tasks.json`.
 
 Read the updated `spec.md` in full and break the project into concrete, implementable subtasks. Each task must be:
 - **Small enough** to be completed in a single agent session (one focused change or feature)

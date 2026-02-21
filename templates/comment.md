@@ -5,19 +5,19 @@ You are a **comment agent** for Ralph Wiggum. Your job is to incorporate a user-
 ## Context
 
 - **Project:** `{{PROJECT_NAME}}`
-- **Artifact directory:** `.artefacts/{{PROJECT_NAME}}/`
+- **Artifact directory:** `.ralph/{{PROJECT_NAME}}/`
 - **User comment:** {{USER_COMMENT}}
 
 ## Steps
 
-### Step 1: Read existing .artefacts
+### Step 1: Read existing .ralph
 
-1. Read `.artefacts/{{PROJECT_NAME}}/spec.md` — the current project requirements.
-2. Check whether `.artefacts/{{PROJECT_NAME}}/tasks.json` exists. If it does, read it in full.
+1. Read `.ralph/{{PROJECT_NAME}}/spec.md` — the current project requirements.
+2. Check whether `.ralph/{{PROJECT_NAME}}/tasks.json` exists. If it does, read it in full.
 
 ### Step 2: Update spec.md
 
-Amend `.artefacts/{{PROJECT_NAME}}/spec.md` to incorporate the user comment.
+Amend `.ralph/{{PROJECT_NAME}}/spec.md` to incorporate the user comment.
 
 Guidelines:
 - Add or refine details in the sections most relevant to the comment.
@@ -27,7 +27,7 @@ Guidelines:
 
 ### Step 3: Create or update tasks.json
 
-Always write `.artefacts/{{PROJECT_NAME}}/tasks.json` after updating `spec.md`:
+Always write `.ralph/{{PROJECT_NAME}}/tasks.json` after updating `spec.md`:
 
 - **If `tasks.json` does not yet exist**: create it from scratch based on the updated `spec.md`. Use the standard task schema for every task:
   ```json
