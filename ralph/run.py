@@ -68,8 +68,8 @@ class Runner:
     def __init__(self, project_name: str, verbose: bool = False) -> None:
         self.project_name = project_name
         self.verbose = verbose
-        self..artefacts_dir = os.path.join(".artefacts", project_name)
-        self._tasks_path = os.path.join(self..artefacts_dir, "tasks.json")
+        self.artefacts_dir = os.path.join(".artefacts", project_name)
+        self._tasks_path = os.path.join(self.artefacts_dir, "tasks.json")
 
     def _handle_result(self, result: subprocess.CompletedProcess) -> None:
         """Print stdout if verbose; always print stderr on non-zero exit."""
@@ -100,7 +100,7 @@ class Runner:
         """Spawn a results summary agent to write .artefacts/<project-name>/results.md."""
         print("[ralph] Generating results summary...")
         prompt = parse_results_summary(
-            self.project_name, .artefacts_dir=self..artefacts_dir, exit_reason=exit_reason
+            self.project_name, artefacts_dir=self.artefacts_dir, exit_reason=exit_reason
         )
         self._handle_result(run_noninteractive(prompt))
         print("[ralph] Results summary complete.")

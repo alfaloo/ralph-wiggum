@@ -86,11 +86,11 @@ def parse_comment(project_name: str, user_comment: str) -> str:
     return _render("comment.md", PROJECT_NAME=project_name, USER_COMMENT=user_comment)
 
 
-def parse_results_summary(project_name: str, .artefacts_dir: str, exit_reason: str) -> str:
+def parse_results_summary(project_name: str, artefacts_dir: str, exit_reason: str) -> str:
     """Render the results summary prompt template."""
     return _render(
         "results_summary.md",
         PROJECT_NAME=project_name,
-        ARTEFACTS_DIR=.artefacts_dir,
+        ARTEFACTS_DIR=artefacts_dir,
         EXIT_REASON=exit_reason,
     )
