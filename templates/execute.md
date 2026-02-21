@@ -21,16 +21,13 @@ Read the following files in full before doing anything else:
 
 Also run `git diff HEAD` (or `git diff` if no commits yet) to understand what has already been implemented.
 
-### Step 2: Ensure you are on the correct branch
+### Step 2: Verify you are on the correct branch
 
-Every commit for this project must land on a branch named after the project. Before touching any files or making any commits:
+Branch setup is handled automatically by Python code before this agent is invoked. Before touching any files or making any commits:
 
-1. Derive the expected branch name: it is exactly the project name (`{{PROJECT_NAME}}`).
-2. Check which branch is currently checked out: `git branch --show-current`.
-3. If you are **not** on the correct branch:
-   - If the branch **does not yet exist**: run `git checkout main && git checkout -b {{PROJECT_NAME}}`.
-   - If the branch **already exists**: run `git checkout {{PROJECT_NAME}}` (do **not** reset or rebase).
-4. Confirm you are on `{{PROJECT_NAME}}` before proceeding. All commits made during this task must be on this branch.
+1. Verify the current branch name: `git branch --show-current`.
+2. Confirm you are on `{{PROJECT_NAME}}`. If you are not, **do not attempt to create or switch branches** — stop immediately and report the discrepancy.
+3. All commits made during this task must be on this branch.
 
 ### Step 3: Select a task
 
@@ -129,6 +126,7 @@ You are done. Exit once you have committed your changes and updated the artifact
 
 ## Important Rules
 
+- **Never create or switch branches.** Always make all code changes in the current branch (`{{PROJECT_NAME}}`). Never run `git checkout`, `git checkout -b`, `git switch`, or any other command that creates or switches branches. Branch setup is handled entirely by the Python code that invoked this agent — do not interfere with it.
 - **One task per iteration.** Do not pick up a second task after completing the first.
 - **Do not falsely mark tasks complete.** Only set `status: "completed"` when the implementation is actually done.
 - **Do not modify completed or in-progress tasks** in `tasks.json` other than the one you claimed in Step 4.
