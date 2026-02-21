@@ -11,7 +11,7 @@ You are generating clarifying questions for a project spec. Your output will be 
 
 ### Step 1: Read the current spec
 
-Read `artifacts/{{PROJECT_NAME}}/spec.md` to understand the current state of the project requirements.
+Read `.artefacts/{{PROJECT_NAME}}/spec.md` to understand the current state of the project requirements.
 
 ### Step 2: Identify gaps
 

@@ -1,4 +1,5 @@
-.venv
+.artefacts
 .ralph
+.venv
 __pycache__
 ralph_wiggum.egg-info
