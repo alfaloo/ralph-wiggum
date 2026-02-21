@@ -1,14 +1,35 @@
 """Ralph Wiggum CLI entry point."""
 
 import argparse
+import json
+import os
 import sys
 from typing import Callable
 
-from ralph.config import get_rounds, get_verbose, set_rounds, set_verbose
-from ralph.parse import parse_comment, parse_execute, parse_init, parse_interview, parse_interview_questions
+from ralph.config import ensure_defaults, get_limit, get_rounds, get_verbose, set_limit, set_rounds, set_verbose
+from ralph.parse import parse_comment, parse_execute, parse_interview, parse_interview_questions
 from ralph.run import Runner
 
-DEFAULT_ITERATIONS = 20
+_DEFAULT_LIMIT = 20
+
+_SPEC_MD_TEMPLATE = """\
+# {project_name} — Project Spec
+
+## Overview
+<!-- Describe the project in 1-3 sentences -->
+
+## Goals
+<!-- What should this project accomplish? -->
+
+## Requirements
+<!-- List the key requirements or features -->
+
+## Out of Scope
+<!-- What is explicitly NOT part of this project? -->
+
+## Technical Notes
+<!-- Any specific technologies, libraries, constraints, or design decisions -->
+"""
 
 
 def _resolve_verbose(args: argparse.Namespace) -> bool:
@@ -18,12 +39,60 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
     return get_verbose()
 
 
+def _assert_project_exists(project_name: str) -> None:
+    """Assert that the project directory and spec.md exist; exit with an error if not."""
+    artifacts_dir = os.path.join("artifacts", project_name)
+    if not os.path.exists(artifacts_dir):
+        print(
+            f"[ralph] Error: project '{project_name}' not found. "
+            f"Expected directory '{artifacts_dir}' does not exist. "
+            "Run 'ralph init' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    spec_path = os.path.join(artifacts_dir, "spec.md")
+    if not os.path.exists(spec_path):
+        print(
+            f"[ralph] Error: project '{project_name}' is missing 'spec.md'. "
+            f"Expected '{spec_path}' to exist.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def cmd_init(args: argparse.Namespace) -> None:
-    prompt = parse_init(args.project_name)
-    Runner(args.project_name, verbose=_resolve_verbose(args)).run_init(prompt)
+    project_name = args.project_name
+    artifacts_dir = os.path.join("artifacts", project_name)
+
+    if os.path.exists(artifacts_dir):
+        print(f"[ralph] Error: project '{project_name}' already exists at '{artifacts_dir}'. Aborting.", file=sys.stderr)
+        sys.exit(1)
+
+    os.makedirs(artifacts_dir)
+    print(f"[ralph] Created directory '{artifacts_dir}'.")
+
+    spec_path = os.path.join(artifacts_dir, "spec.md")
+    with open(spec_path, "w") as f:
+        f.write(_SPEC_MD_TEMPLATE.format(project_name=project_name))
+
+    state_path = os.path.join(artifacts_dir, "state.json")
+    with open(state_path, "w") as f:
+        json.dump([], f)
+
+    obstacles_path = os.path.join(artifacts_dir, "obstacles.json")
+    with open(obstacles_path, "w") as f:
+        json.dump({"obstacles": []}, f)
+
+    tasks_path = os.path.join(artifacts_dir, "tasks.json")
+    with open(tasks_path, "w") as f:
+        json.dump({}, f)
+
+    ensure_defaults()
+    print(f"[ralph] Init complete. Project '{project_name}' created in '{artifacts_dir}'.")
 
 
 def cmd_interview(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
     # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
     rounds = args.rounds if args.rounds is not None else get_rounds()
@@ -49,19 +118,21 @@ def cmd_interview(args: argparse.Namespace) -> None:
 
 
 def cmd_comment(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
     prompt = parse_comment(args.project_name, args.comment)
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
 def cmd_execute(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
-    iterations = args.iterations
+    limit = args.limit if args.limit is not None else get_limit()
     # Pre-render all prompts; each references its iteration number
     prompts = [
-        parse_execute(args.project_name, iteration_num=i + 1, max_iterations=iterations)
-        for i in range(iterations)
+        parse_execute(args.project_name, iteration_num=i + 1, max_iterations=limit)
+        for i in range(limit)
     ]
-    Runner(args.project_name, verbose=verbose).run_execute_loop(prompts, iterations)
+    Runner(args.project_name, verbose=verbose).run_execute_loop(prompts, limit)
 
 
 def main() -> None:
@@ -71,7 +142,7 @@ def main() -> None:
     )
     # Top-level flags: when provided (without or before a subcommand), persist to settings.json.
     parser.add_argument(
-        "--verbose",
+        "--verbose", "-v",
         choices=["true", "false"],
         default=None,
         dest="global_verbose",
@@ -79,12 +150,20 @@ def main() -> None:
         help="Persist verbose setting to .ralph/settings.json (true/false)",
     )
     parser.add_argument(
-        "--rounds",
+        "--rounds", "-r",
         type=int,
         default=None,
         dest="global_rounds",
         metavar="N",
         help="Persist rounds setting to .ralph/settings.json",
+    )
+    parser.add_argument(
+        "--limit", "-l",
+        type=int,
+        default=None,
+        dest="global_limit",
+        metavar="N",
+        help="Persist limit setting to .ralph/settings.json",
     )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
@@ -93,7 +172,7 @@ def main() -> None:
     init_parser = subparsers.add_parser("init", help="Initialize a new project")
     init_parser.add_argument("project_name", metavar="<project-name>")
     init_parser.add_argument(
-        "--verbose",
+        "--verbose", "-v",
         choices=["true", "false"],
         default=None,
         metavar="BOOL",
@@ -107,14 +186,14 @@ def main() -> None:
     )
     interview_parser.add_argument("project_name", metavar="<project-name>")
     interview_parser.add_argument(
-        "--rounds",
+        "--rounds", "-r",
         type=int,
         default=None,
         metavar="N",
         help="Number of interview rounds (overrides settings.json for this invocation only)",
     )
     interview_parser.add_argument(
-        "--verbose",
+        "--verbose", "-v",
         choices=["true", "false"],
         default=None,
         metavar="BOOL",
@@ -133,7 +212,7 @@ def main() -> None:
         help='A quoted description of the amendments to make, e.g. "Add support for OAuth login"',
     )
     comment_parser.add_argument(
-        "--verbose",
+        "--verbose", "-v",
         choices=["true", "false"],
         default=None,
         metavar="BOOL",
@@ -141,20 +220,20 @@ def main() -> None:
     )
     comment_parser.set_defaults(func=cmd_comment)
 
-    # ralph execute <project-name> [--iterations N] [--verbose BOOL]
+    # ralph execute <project-name> [--limit N] [--verbose BOOL]
     execute_parser = subparsers.add_parser(
         "execute", help="Run execute agents to implement the project"
     )
     execute_parser.add_argument("project_name", metavar="<project-name>")
     execute_parser.add_argument(
-        "--iterations",
+        "--limit", "-l",
         type=int,
-        default=DEFAULT_ITERATIONS,
+        default=None,
         metavar="N",
-        help=f"Maximum number of agent iterations (default: {DEFAULT_ITERATIONS})",
+        help=f"Maximum number of agent iterations, upper bound (default: {_DEFAULT_LIMIT})",
     )
     execute_parser.add_argument(
-        "--verbose",
+        "--verbose", "-v",
         choices=["true", "false"],
         default=None,
         metavar="BOOL",
@@ -169,10 +248,12 @@ def main() -> None:
         set_verbose(args.global_verbose == "true")
     if args.global_rounds is not None:
         set_rounds(args.global_rounds)
+    if args.global_limit is not None:
+        set_limit(args.global_limit)
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None:
+        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None:
             parser.print_help()
             sys.exit(1)
         return

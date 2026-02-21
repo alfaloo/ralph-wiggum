@@ -65,3 +65,47 @@ def set_rounds(value: int) -> None:
     data = _read_settings()
     data["rounds"] = value
     _write_settings(data)
+
+
+def get_limit() -> int:
+    """Return the persisted limit setting.
+
+    If the key is absent, writes the default value of 20 back to the file
+    so that it is self-healed for future reads.
+    """
+    data = _read_settings()
+    if "limit" not in data:
+        data["limit"] = 20
+        _write_settings(data)
+        return 20
+    return int(data["limit"])
+
+
+def set_limit(value: int) -> None:
+    """Persist the limit setting."""
+    data = _read_settings()
+    data["limit"] = value
+    _write_settings(data)
+
+
+_DEFAULTS = {
+    "verbose": False,
+    "rounds": 1,
+    "limit": 20,
+}
+
+
+def ensure_defaults() -> None:
+    """Ensure all flag variables have default values in settings.json.
+
+    Creates .ralph/settings.json (and the directory) if absent. Writes default
+    values only for keys not already present; existing values are not changed.
+    """
+    data = _read_settings()
+    changed = False
+    for key, default in _DEFAULTS.items():
+        if key not in data:
+            data[key] = default
+            changed = True
+    if changed or not os.path.exists(_SETTINGS_FILE):
+        _write_settings(data)
