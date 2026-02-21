@@ -40,7 +40,7 @@ def _resolve_final_round(template: str, is_final: bool) -> str:
 def parse_interview_questions(project_name: str, round_num: int, total_rounds: int) -> str:
     """Render the question-generation prompt (phase 1 of each interview round)."""
     return _render(
-        "interview_questions.md",
+        "questions.md",
         PROJECT_NAME=project_name,
         ROUND_NUM=str(round_num),
         TOTAL_ROUNDS=str(total_rounds),
@@ -89,7 +89,7 @@ def parse_comment(project_name: str, user_comment: str) -> str:
 def parse_results_summary(project_name: str, ralph_dir: str, exit_reason: str) -> str:
     """Render the results summary prompt template."""
     return _render(
-        "results_summary.md",
+        "summarise.md",
         PROJECT_NAME=project_name,
         ralph_dir=ralph_dir,
         EXIT_REASON=exit_reason,
