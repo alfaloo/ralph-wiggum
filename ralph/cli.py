@@ -25,7 +25,7 @@ RALPH_BANNER = """\
 "Me fail English? That's unpossible"\
 """
 
-_ONESHOT_COMMENT = (
+_ENRICH_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
     "Carefully read spec.md and all relevant source files, tests, and configuration in the "
     "codebase to gain a thorough understanding of the problem domain and existing implementation "
@@ -234,6 +234,12 @@ def cmd_comment(args: argparse.Namespace) -> None:
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
+def cmd_enrich(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+    prompt = parse_generate_tasks_md(args.project_name, user_comment=_ENRICH_COMMENT)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+
+
 def cmd_execute(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
@@ -244,7 +250,7 @@ def cmd_execute(args: argparse.Namespace) -> None:
         _validate_branch_exists(args.base)
 
     project_name = args.project_name
-    
+
     if args.resume:
         # Ensure that the project branch already exists; abort if not found.
         branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
@@ -252,10 +258,10 @@ def cmd_execute(args: argparse.Namespace) -> None:
             print(f"[ralph] I can't find branch '{project_name}'. Aborting.", file=sys.stderr)
             sys.exit(1)
 
-        # checkout to the existing project branch
+        # Checkout to the existing project branch.
         checkout_branch = subprocess.run(["git", "checkout", project_name], capture_output=True, text=True)
         if checkout_branch.returncode != 0:
-            print(f"[ralph] I couldn't check out branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't check out branch '{project_name}': {checkout_branch.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
     else:
         # Check whether the project branch already exists; abort if it does.
@@ -276,6 +282,25 @@ def cmd_execute(args: argparse.Namespace) -> None:
             print(f"[ralph] I couldn't create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
+    # Verify tasks.json exists and has been populated (e.g. by ralph enrich or ralph comment).
+    tasks_path = os.path.join(".ralph", project_name, "tasks.json")
+    if not os.path.exists(tasks_path):
+        print(
+            f"[ralph] No tasks.json found for project '{project_name}'. "
+            f"Run 'ralph enrich {project_name}' or 'ralph comment {project_name}' to generate tasks first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    with open(tasks_path) as f:
+        tasks_data = json.load(f)
+    if not tasks_data.get("tasks"):
+        print(
+            f"[ralph] No tasks found in tasks.json for project '{project_name}'. "
+            f"Run 'ralph enrich {project_name}' or 'ralph comment {project_name}' to generate tasks first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     # Pre-render all prompts; each references its iteration number
     prompts = [
         parse_execute_md(project_name, iteration_num=i + 1, max_iterations=limit)
@@ -285,80 +310,9 @@ def cmd_execute(args: argparse.Namespace) -> None:
 
 
 def cmd_oneshot(args: argparse.Namespace) -> None:
-    _assert_project_exists(args.project_name)
-
-    # Uncommitted changes check.
-    status_check = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-    if status_check.stdout:
-        print(
-            "[ralph] There are uncommitted changes in the working tree. "
-            "Please commit or stash them before running 'ralph oneshot'.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    verbose = _resolve_verbose(args)
-    limit = args.limit if args.limit is not None else get_limit()
-    base = args.base if args.base is not None else get_base()
-    if args.base is not None:
-        _validate_branch_exists(args.base)
-
-    project_name = args.project_name
-
-    # Branch existence check.
-    branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
-    if branch_check.stdout.strip():
-        print(f"[ralph] Branch '{project_name}' already exists. Aborting.", file=sys.stderr)
-        sys.exit(1)
-
-    # Checkout base branch.
-    checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
-    if checkout_base.returncode != 0:
-        print(f"[ralph] I couldn't check out base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
-        sys.exit(1)
-
-    # Create project branch.
-    create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
-    if create_branch.returncode != 0:
-        print(f"[ralph] I couldn't create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
-        sys.exit(1)
-
-    # Comment step: spec enrichment + task generation.
-    prompt = parse_generate_tasks_md(project_name, user_comment=_ONESHOT_COMMENT)
-    Runner(project_name, verbose=verbose).run_comment(prompt)
-    tasks_path = os.path.join(".ralph", project_name, "tasks.json")
-    if not os.path.exists(tasks_path):
-        print(
-            f"[ralph] Task generation didn't produce a tasks.json file. "
-            f"To retry from here, run: ralph execute {project_name}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    # Execute step.
-    prompts = [
-        parse_execute_md(project_name, iteration_num=i + 1, max_iterations=limit)
-        for i in range(limit)
-    ]
-    Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
-    with open(tasks_path) as f:
-        data = json.load(f)
-    if not all(task["status"] == "completed" for task in data["tasks"]):
-        print(
-            f"[ralph] Not all tasks were completed. "
-            f"To keep going, run: ralph execute {project_name}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    # PR step.
-    fake_args = argparse.Namespace(project_name=project_name, provider=None)
-    try:
-        cmd_pr(fake_args)
-    except SystemExit as exc:
-        if exc.code:
-            print(f"[ralph] To create the PR manually, run: ralph pr {project_name}", file=sys.stderr)
-            sys.exit(exc.code)
+    cmd_enrich(args)
+    cmd_execute(args)
+    cmd_pr(args)
 
 
 def cmd_pr(args: argparse.Namespace) -> None:
@@ -632,6 +586,20 @@ def main() -> None:
     )
     comment_parser.set_defaults(func=cmd_comment)
 
+    # ralph enrich <project-name> [--verbose BOOL]
+    enrich_parser = subparsers.add_parser(
+        "enrich", help="Enrich spec.md and regenerate tasks.json using the codebase"
+    )
+    enrich_parser.add_argument("project_name", metavar="<project-name>")
+    enrich_parser.add_argument(
+        "--verbose", "-v",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
+    enrich_parser.set_defaults(func=cmd_enrich)
+
     # ralph execute <project-name> [--limit N] [--verbose BOOL] [--resume]
     execute_parser = subparsers.add_parser(
         "execute", help="Run execute agents to implement the project"
@@ -672,7 +640,7 @@ def main() -> None:
     )
     execute_parser.set_defaults(func=cmd_execute)
 
-    # ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL]
+    # ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL] [--provider PROVIDER]
     oneshot_parser = subparsers.add_parser(
         "oneshot", help="Generate tasks, execute, and create a PR in one streamlined call"
     )
@@ -697,6 +665,25 @@ def main() -> None:
         default=None,
         metavar="BOOL",
         help="Enable/disable verbose output for this invocation only",
+    )
+    oneshot_parser.add_argument(
+        "--resume", "-r",
+        action="store_true",
+        help="Allow the agent to resume execution from an existing branch",
+    )
+    oneshot_parser.add_argument(
+        "--asynchronous", "-a",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable asynchronous agent execution for this invocation only",
+    )
+    oneshot_parser.add_argument(
+        "--provider", "-p",
+        type=str,
+        default=None,
+        metavar="PROVIDER",
+        help="Provider to use for this invocation only (github/gitlab)",
     )
     oneshot_parser.set_defaults(func=cmd_oneshot)
 

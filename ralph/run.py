@@ -275,7 +275,7 @@ class Runner:
                     prompt = parse_execute_async_md(
                         self.project_name, task_id, 1, max_iterations
                     )
-                    print(f"[ralph] {task['title']} agent has started working")
+                    print(f"[ralph] Spawned execute agent to attempt task {task['id']} ({task['title']})")
 
                     def _worker(p=prompt):
                         return run_noninteractive(p).returncode
