@@ -109,11 +109,39 @@ def set_base(value: str) -> None:
     _write_settings(data)
 
 
+_VALID_PROVIDERS = ["github", "gitlab"]
+
+
+def get_provider() -> str:
+    """Return the persisted provider setting (default: 'github')."""
+    data = _read_settings()
+    if "provider" not in data:
+        data["provider"] = "github"
+        _write_settings(data)
+        return "github"
+    return str(data["provider"])
+
+
+def set_provider(value: str) -> None:
+    """Persist the provider setting.
+
+    Prints an error and returns early if the value is not one of the
+    supported providers.
+    """
+    if value not in _VALID_PROVIDERS:
+        print(f"[ralph] Error: '{value}' is not a supported provider. Choose from: {', '.join(_VALID_PROVIDERS)}.")
+        return
+    data = _read_settings()
+    data["provider"] = value
+    _write_settings(data)
+
+
 _DEFAULTS = {
     "verbose": False,
     "rounds": 1,
     "limit": 20,
     "base": "main",
+    "provider": "github",
 }
 
 
