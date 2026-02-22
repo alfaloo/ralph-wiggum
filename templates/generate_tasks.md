@@ -60,7 +60,7 @@ Always write `.ralph/{{PROJECT_NAME}}/tasks.json` after updating `spec.md`:
 Break the project into concrete, implementable subtasks. Each task must be:
 - **Small enough** to be completed in a single agent session (one focused change or feature)
 - **Self-contained**: the description must include enough context that an agent can implement it without re-reading `spec.md`
-- **Correctly ordered**: list `dependencies` for any task that requires another to be done first
+- **Correctly ordered**: list `dependencies` for any task that requires another to be done first. (**IF TWO TASKS ARE EXPECTED TO MODIFY THE SAME FILES, THERE SHOULD BE A DEPEDENCY RELATIONSHIP EVEN IF THEY CHANGE DIFFERENT PARTS OF THE FILE**).
 
 Use this exact format:
 

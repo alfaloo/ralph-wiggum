@@ -9,9 +9,11 @@ You are generating clarifying questions for a project spec. Your output will be 
 
 ## Steps
 
-### Step 1: Read the current spec
+### Step 1: Read the current spec and relevant source files
 
-Read `.ralph/{{PROJECT_NAME}}/spec.md` to understand the current state of the project requirements.
+Carefully read `.ralph/{{PROJECT_NAME}}/spec.md` to understand the current state of the project requirements. You should examine other files in the codebase that are referenced by this spec file to gain a better understanding of the problem.
+
+You are also encouraged to browse all other relevant source files, tests, and configuration in the codebase to gain a thorough understanding of the problem domain and existing implementation patterns.
 
 ### Step 2: Identify gaps
 
