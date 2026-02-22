@@ -1,3 +1,15 @@
+```
+██████╗  █████╗ ██╗     ██████╗ ██╗  ██╗
+██╔══██╗██╔══██╗██║     ██╔══██╗██║  ██║
+██████╔╝███████║██║     ██████╔╝███████║
+██╔══██╗██╔══██║██║     ██╔═══╝ ██╔══██║
+██║  ██║██║  ██║███████╗██║     ██║  ██║
+╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝
+
+    ── R A L P H   W I G G U M ──
+"Me fail English? That's unpossible"
+```
+
 # Ralph Wiggum
 
 A CLI-driven agentic coding framework that manages context and prompt quality to get better results from AI coding agents.

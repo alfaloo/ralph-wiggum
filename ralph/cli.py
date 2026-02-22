@@ -7,11 +7,23 @@ import subprocess
 import sys
 from typing import Callable
 
-from ralph.config import ensure_defaults, get_base, get_limit, get_rounds, get_verbose, set_base, set_limit, set_rounds, set_verbose
+from ralph.config import ensure_defaults, get_base, get_limit, get_provider, get_rounds, get_verbose, set_base, set_limit, set_provider, set_rounds, set_verbose
 from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md
 from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
+
+RALPH_BANNER = """\
+██████╗  █████╗ ██╗     ██████╗ ██╗  ██╗
+██╔══██╗██╔══██╗██║     ██╔══██╗██║  ██║
+██████╔╝███████║██║     ██████╔╝███████║
+██╔══██╗██╔══██║██║     ██╔═══╝ ██╔══██║
+██║  ██║██║  ██║███████╗██║     ██║  ██║
+╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝
+
+    ── R A L P H   W I G G U M ──
+"Me fail English? That's unpossible"\
+"""
 
 _ONESHOT_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
@@ -28,7 +40,7 @@ def _validate_branch_exists(branch: str) -> None:
     """Verify that the given branch exists in the current repo; exit if not."""
     result = subprocess.run(["git", "branch", "--list", branch], capture_output=True, text=True)
     if not result.stdout.strip():
-        print(f"[ralph] Warning: branch '{branch}' does not exist in the current repo. Aborting.", file=sys.stderr)
+        print(f"[ralph] I can't find branch '{branch}' in this repo. Aborting.", file=sys.stderr)
         sys.exit(1)
 
 
@@ -59,13 +71,66 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
     return get_verbose()
 
 
+def _resolve_provider(args: argparse.Namespace) -> str:
+    """Return effective provider: per-command CLI flag > persisted setting."""
+    if getattr(args, "provider", None) is not None:
+        return args.provider
+    return get_provider()
+
+
+def _validate_provider_cli(provider: str) -> bool:
+    """Check that the selected provider's CLI tool is installed and authenticated.
+
+    Returns True only if the CLI is found and auth succeeds, False otherwise.
+    """
+    if provider == "github":
+        try:
+            result = subprocess.run(["gh", "auth", "status"], capture_output=True)
+        except FileNotFoundError:
+            print(
+                "[ralph] I can't find the 'gh' CLI. "
+                "Install it from https://cli.github.com and run 'gh auth login'.",
+                file=sys.stderr,
+            )
+            return False
+        if result.returncode != 0:
+            print(
+                "[ralph] The 'gh' CLI isn't authenticated. "
+                "Run 'gh auth login' to sign in.",
+                file=sys.stderr,
+            )
+            return False
+        return True
+    elif provider == "gitlab":
+        try:
+            result = subprocess.run(["glab", "auth", "status"], capture_output=True)
+        except FileNotFoundError:
+            print(
+                "[ralph] I can't find the 'glab' CLI. "
+                "Install it from https://gitlab.com/gitlab-org/cli and run 'glab auth login'.",
+                file=sys.stderr,
+            )
+            return False
+        if result.returncode != 0:
+            print(
+                "[ralph] The 'glab' CLI isn't authenticated. "
+                "Run 'glab auth login' to sign in.",
+                file=sys.stderr,
+            )
+            return False
+        return True
+    else:
+        print(f"[ralph] I don't know the provider '{provider}'. Try 'github' or 'gitlab'.", file=sys.stderr)
+        return False
+
+
 def _assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
     ralph_dir = os.path.join(".ralph", project_name)
     if not os.path.exists(ralph_dir):
         print(
-            f"[ralph] Error: project '{project_name}' not found. "
-            f"Expected directory '{ralph_dir}' does not exist. "
+            f"[ralph] I can't find project '{project_name}'. "
+            f"Expected directory '{ralph_dir}' to exist. "
             "Run 'ralph init' first.",
             file=sys.stderr,
         )
@@ -73,7 +138,7 @@ def _assert_project_exists(project_name: str) -> None:
     spec_path = os.path.join(ralph_dir, "spec.md")
     if not os.path.exists(spec_path):
         print(
-            f"[ralph] Error: project '{project_name}' is missing 'spec.md'. "
+            f"[ralph] Project '{project_name}' is missing 'spec.md'. "
             f"Expected '{spec_path}' to exist.",
             file=sys.stderr,
         )
@@ -85,11 +150,11 @@ def cmd_init(args: argparse.Namespace) -> None:
     ralph_dir = os.path.join(".ralph", project_name)
 
     if os.path.exists(ralph_dir):
-        print(f"[ralph] Error: project '{project_name}' already exists at '{ralph_dir}'. Aborting.", file=sys.stderr)
+        print(f"[ralph] Project '{project_name}' already exists at '{ralph_dir}'. Aborting.", file=sys.stderr)
         sys.exit(1)
 
     os.makedirs(ralph_dir)
-    print(f"[ralph] Created directory '{ralph_dir}'.")
+    print(f"[ralph] Created project directory '{ralph_dir}'.")
 
     spec_path = os.path.join(ralph_dir, "spec.md")
     with open(spec_path, "w") as f:
@@ -108,7 +173,26 @@ def cmd_init(args: argparse.Namespace) -> None:
         json.dump({}, f)
 
     ensure_defaults()
-    print(f"[ralph] Init complete. Project '{project_name}' created in '{ralph_dir}'.")
+
+    # Branch mismatch check: compare current branch with the persisted base branch.
+    branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+    if branch_result.returncode == 0 and branch_result.stdout.strip():
+        current_branch = branch_result.stdout.strip()
+        base_branch = get_base()
+        if current_branch != base_branch:
+            print(
+                f"[ralph] Heads up — you're on branch '{current_branch}' but your base branch is set to '{base_branch}'."
+            )
+            while True:
+                answer = input(f"Update base branch to '{current_branch}'? (y/n): ").strip().lower()
+                if answer in ("y", "yes"):
+                    set_base(current_branch)
+                    print(f"[ralph] Base branch updated to '{current_branch}'.")
+                    break
+                elif answer in ("n", "no"):
+                    break
+
+    print(f"[ralph] Project '{project_name}' is all set up in '{ralph_dir}'.")
 
 
 def cmd_interview(args: argparse.Namespace) -> None:
@@ -157,31 +241,31 @@ def cmd_execute(args: argparse.Namespace) -> None:
         # Ensure that the project branch already exists; abort if not found.
         branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
         if not branch_check.stdout.strip():
-            print(f"[ralph] Warning: branch '{project_name}' is not found. Aborting.", file=sys.stderr)
+            print(f"[ralph] I can't find branch '{project_name}'. Aborting.", file=sys.stderr)
             sys.exit(1)
 
         # checkout to the existing project branch
         checkout_branch = subprocess.run(["git", "checkout", project_name], capture_output=True, text=True)
         if checkout_branch.returncode != 0:
-            print(f"[ralph] Warning: failed to checkout to branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't check out branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
     else:
         # Check whether the project branch already exists; abort if it does.
         branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
         if branch_check.stdout.strip():
-            print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+            print(f"[ralph] Branch '{project_name}' already exists. Aborting.", file=sys.stderr)
             sys.exit(1)
 
         # Checkout the base branch.
         checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
         if checkout_base.returncode != 0:
-            print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't check out base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
         # Create and checkout the project branch.
         create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
         if create_branch.returncode != 0:
-            print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
     # Pre-render all prompts; each references its iteration number
@@ -199,8 +283,8 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
     status_check = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
     if status_check.stdout:
         print(
-            "[ralph] Warning: working tree has uncommitted changes. "
-            "Please commit or stash all changes before running ralph oneshot.",
+            "[ralph] There are uncommitted changes in the working tree. "
+            "Please commit or stash them before running 'ralph oneshot'.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -216,19 +300,19 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
     # Branch existence check.
     branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
     if branch_check.stdout.strip():
-        print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+        print(f"[ralph] Branch '{project_name}' already exists. Aborting.", file=sys.stderr)
         sys.exit(1)
 
     # Checkout base branch.
     checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
     if checkout_base.returncode != 0:
-        print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+        print(f"[ralph] I couldn't check out base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
 
     # Create project branch.
     create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
     if create_branch.returncode != 0:
-        print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+        print(f"[ralph] I couldn't create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
 
     # Comment step: spec enrichment + task generation.
@@ -237,8 +321,8 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
     tasks_path = os.path.join(".ralph", project_name, "tasks.json")
     if not os.path.exists(tasks_path):
         print(
-            f"[ralph] Warning: task generation did not produce tasks.json. "
-            f"To retry from this point, run: ralph execute {project_name}",
+            f"[ralph] Task generation didn't produce a tasks.json file. "
+            f"To retry from here, run: ralph execute {project_name}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -253,14 +337,14 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
         data = json.load(f)
     if not all(task["status"] == "completed" for task in data["tasks"]):
         print(
-            f"[ralph] Warning: not all tasks completed. "
-            f"To continue execution, run: ralph execute {project_name}",
+            f"[ralph] Not all tasks were completed. "
+            f"To keep going, run: ralph execute {project_name}",
             file=sys.stderr,
         )
         sys.exit(1)
 
     # PR step.
-    fake_args = argparse.Namespace(project_name=project_name)
+    fake_args = argparse.Namespace(project_name=project_name, provider=None)
     try:
         cmd_pr(fake_args)
     except SystemExit as exc:
@@ -272,87 +356,163 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
 def cmd_pr(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
 
-    # Check gh CLI is installed.
-    gh_check = subprocess.run(["gh", "--version"], capture_output=True)
-    if gh_check.returncode != 0:
-        print(
-            "[ralph] Error: 'gh' CLI is not installed. Please install it from https://cli.github.com/",
-            file=sys.stderr,
+    provider = _resolve_provider(args)
+
+    if provider == "github":
+        # Check gh CLI is installed.
+        gh_check = subprocess.run(["gh", "--version"], capture_output=True)
+        if gh_check.returncode != 0:
+            print(
+                "[ralph] I can't find the 'gh' CLI. Please install it from https://cli.github.com/",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Check current branch matches project name.
+        branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+        current_branch = branch_result.stdout.strip()
+        if current_branch != args.project_name:
+            print(
+                f"[ralph] Current branch '{current_branch}' does not match project '{args.project_name}'. "
+                "Please check out the correct branch.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Check working tree is clean.
+        status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        if status_result.stdout:
+            print(
+                "[ralph] There are uncommitted changes in the working tree. Please commit or stash them before creating a PR.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Detect base branch.
+        base_branch = get_base()
+        merge_base_result = subprocess.run(
+            ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
         )
-        sys.exit(1)
+        if merge_base_result.returncode != 0:
+            print(
+                f"[ralph] I couldn't determine the merge base between HEAD and '{base_branch}'. "
+                "Make sure the base branch exists and shares history with the current branch.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-    # Check current branch matches project name.
-    branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
-    current_branch = branch_result.stdout.strip()
-    if current_branch != args.project_name:
-        print(
-            f"[ralph] Error: current branch '{current_branch}' does not match project name '{args.project_name}'. "
-            "Please checkout the correct branch.",
-            file=sys.stderr,
+        # Check pr-description.md exists.
+        pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
+        if not os.path.exists(pr_desc_path):
+            print(
+                f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
+                "Run 'ralph execute' first to generate the PR description.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Push branch to origin.
+        push_result = subprocess.run(
+            ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
         )
-        sys.exit(1)
+        if push_result.returncode != 0:
+            print(push_result.stderr, file=sys.stderr)
+            sys.exit(1)
 
-    # Check working tree is clean.
-    status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-    if status_result.stdout:
-        print(
-            "[ralph] Error: working tree is not clean. Please commit or stash all changes before creating a PR.",
-            file=sys.stderr,
+        # Read pr-description.md.
+        with open(pr_desc_path) as f:
+            pr_body = f.read()
+
+        # Create PR non-interactively.
+        result = subprocess.run(
+            [
+                "gh", "pr", "create",
+                "--title", args.project_name,
+                "--body", pr_body,
+                "--base", base_branch,
+                "--head", args.project_name,
+            ],
+            capture_output=True, text=True,
         )
-        sys.exit(1)
+        if result.returncode != 0:
+            print(result.stderr, file=sys.stderr)
+            sys.exit(1)
 
-    # Detect base branch.
-    base_branch = get_base()
-    merge_base_result = subprocess.run(
-        ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
-    )
-    if merge_base_result.returncode != 0:
-        print(
-            f"[ralph] Warning: could not determine merge base between HEAD and '{base_branch}'. "
-            "Ensure the base branch exists and shares history with the current branch.",
-            file=sys.stderr,
+        print("[ralph] Pull request created successfully.")
+        print(result.stdout)
+
+    elif provider == "gitlab":
+        # Check glab CLI is installed.
+        glab_check = subprocess.run(["glab", "--version"], capture_output=True)
+        if glab_check.returncode != 0:
+            print(
+                "[ralph] I can't find the 'glab' CLI. Please install it from https://gitlab.com/gitlab-org/cli",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Check current branch matches project name.
+        branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+        current_branch = branch_result.stdout.strip()
+        if current_branch != args.project_name:
+            print(
+                f"[ralph] Current branch '{current_branch}' does not match project '{args.project_name}'. "
+                "Please check out the correct branch.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Check working tree is clean.
+        status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        if status_result.stdout:
+            print(
+                "[ralph] There are uncommitted changes in the working tree. Please commit or stash them before creating a MR.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Detect base branch.
+        base_branch = get_base()
+
+        # Check pr-description.md exists.
+        pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
+        if not os.path.exists(pr_desc_path):
+            print(
+                f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
+                "Run 'ralph execute' first to generate the PR description.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Push branch to origin.
+        push_result = subprocess.run(
+            ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
         )
-        sys.exit(1)
+        if push_result.returncode != 0:
+            print(push_result.stderr, file=sys.stderr)
+            sys.exit(1)
 
-    # Check pr-description.md exists.
-    pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
-    if not os.path.exists(pr_desc_path):
-        print(
-            f"[ralph] Error: 'pr-description.md' not found at '{pr_desc_path}'. "
-            "Please run 'ralph execute' first to generate the PR description.",
-            file=sys.stderr,
+        # Read pr-description.md.
+        with open(pr_desc_path) as f:
+            pr_body = f.read()
+
+        # Create MR non-interactively.
+        result = subprocess.run(
+            [
+                "glab", "mr", "create",
+                "--title", args.project_name,
+                "--description", pr_body,
+                "--source-branch", args.project_name,
+                "--target-branch", base_branch,
+            ],
+            capture_output=True, text=True,
         )
-        sys.exit(1)
+        if result.returncode != 0:
+            print(result.stderr, file=sys.stderr)
+            sys.exit(1)
 
-    # Push branch to origin.
-    push_result = subprocess.run(
-        ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
-    )
-    if push_result.returncode != 0:
-        print(push_result.stderr, file=sys.stderr)
-        sys.exit(1)
-
-    # Read pr-description.md.
-    with open(pr_desc_path) as f:
-        pr_body = f.read()
-
-    # Create PR non-interactively.
-    result = subprocess.run(
-        [
-            "gh", "pr", "create",
-            "--title", args.project_name,
-            "--body", pr_body,
-            "--base", base_branch,
-            "--head", args.project_name,
-        ],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        print(result.stderr, file=sys.stderr)
-        sys.exit(1)
-
-    print("[ralph] Pull request created successfully.")
-    print(result.stdout)
+        print("[ralph] Merge request created successfully.")
+        print(result.stdout)
 
 
 def main() -> None:
@@ -392,6 +552,14 @@ def main() -> None:
         dest="global_base",
         metavar="BRANCH",
         help="Persist base branch setting to .ralph/settings.json",
+    )
+    parser.add_argument(
+        "--provider", "-p",
+        type=str,
+        default=None,
+        dest="global_provider",
+        metavar="PROVIDER",
+        help="Persist provider setting to .ralph/settings.json (github/gitlab)",
     )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
@@ -509,9 +677,16 @@ def main() -> None:
     )
     oneshot_parser.set_defaults(func=cmd_oneshot)
 
-    # ralph pr <project-name>
-    pr_parser = subparsers.add_parser("pr", help="Create a GitHub pull request for the project")
+    # ralph pr <project-name> [--provider PROVIDER]
+    pr_parser = subparsers.add_parser("pr", help="Create a pull request for the project")
     pr_parser.add_argument("project_name", metavar="<project-name>")
+    pr_parser.add_argument(
+        "--provider", "-p",
+        type=str,
+        default=None,
+        metavar="PROVIDER",
+        help="Provider to use for this invocation only (github/gitlab)",
+    )
     pr_parser.set_defaults(func=cmd_pr)
 
     args = parser.parse_args()
@@ -529,15 +704,29 @@ def main() -> None:
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None:
-            parser.print_help()
-            sys.exit(1)
+        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None:
+            print()
+            print(RALPH_BANNER)
+            print()
+            print("Author: Zhiyang Lu")
+            print("Version: 0.2.0")
+            print()
+            sys.exit(0)
+        # Provider requires validation before global persist.
+        if args.global_provider is not None:
+            if not _validate_provider_cli(args.global_provider):
+                sys.exit(1)
+            set_provider(args.global_provider)
         return
+
+    # With a subcommand present, persist global provider if provided.
+    if args.global_provider is not None:
+        set_provider(args.global_provider)
 
     try:
         args.func(args)
     except KeyboardInterrupt:
-        print("\n[ralph] Interrupted.", file=sys.stderr)
+        print("\n[ralph] Ok, stopping.", file=sys.stderr)
         sys.exit(1)
 
 

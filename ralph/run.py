@@ -31,7 +31,7 @@ def _collect_user_answers() -> str:
         from prompt_toolkit import prompt as pt_prompt
         from prompt_toolkit.key_binding import KeyBindings
 
-        print("Enter your answers below. Press Ctrl+D when done, or Ctrl+C to abort:\n")
+        print("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:\n")
 
         kb = KeyBindings()
 
@@ -46,19 +46,19 @@ def _collect_user_answers() -> str:
         try:
             return pt_prompt("", multiline=True, key_bindings=kb, mouse_support=True).strip()
         except KeyboardInterrupt:
-            print("\nInterview aborted.")
+            print("\n[ralph] Ok, stopping the interview.")
             sys.exit(0)
         except EOFError:
             return ""
 
     except ImportError:
-        print("Enter your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
+        print("Type your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
         try:
             return sys.stdin.read().strip()
         except EOFError:
             return ""
         except KeyboardInterrupt:
-            print("\nInterview aborted.")
+            print("\n[ralph] Ok, stopping the interview.")
             sys.exit(0)
 
 
@@ -76,7 +76,7 @@ class Runner:
         if self.verbose and result.stdout:
             print(result.stdout)
         if result.returncode != 0 and result.stderr:
-            print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
+            print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
         return result.stdout
 
     def _all_tasks_complete(self) -> bool:
@@ -99,17 +99,24 @@ class Runner:
 
     def _run_summarise(self, exit_reason: str) -> None:
         """Spawn a summarise agent to write .ralph/<project-name>/summary.md."""
-        print("[ralph] Generating execution summary...")
+        print("[ralph] Summarise agent has started working...")
         prompt = parse_summarise_md(
             self.project_name, ralph_dir=self.ralph_dir, exit_reason=exit_reason
         )
-        self._handle_result(run_noninteractive(prompt))
-        print("[ralph] Execution summary complete.")
+        result = run_noninteractive(prompt)
+        self._handle_result(result)
+        if result.returncode == 0:
+            print("[ralph] Execution summary is ready.")
+        else:
+            print("[ralph] I had some trouble writing the summary.", file=sys.stderr)
 
     def run_comment(self, prompt: str) -> None:
         """Run the comment agent as a single headless invocation."""
-        print(f"[ralph] Running comment agent for '{self.project_name}'...")
-        self._handle_result(run_noninteractive(prompt))
+        print(f"[ralph] Comment agent has started working on '{self.project_name}'...")
+        result = run_noninteractive(prompt)
+        self._handle_result(result)
+        if result.returncode != 0:
+            print("[ralph] The comment agent ran into some trouble.", file=sys.stderr)
 
     def run_interview_loop(
         self,
@@ -131,11 +138,11 @@ class Runner:
             print(f"\n[ralph] Interview round {round_num}/{total}")
 
             # Phase 1: generate questions
-            print("[ralph] Generating clarifying questions...\n")
+            print("[ralph] Interview agent has started working — generating questions...\n")
             result = run_noninteractive(q_prompt)
             questions = result.stdout.strip()
             if result.returncode != 0 and result.stderr:
-                print(f"[ralph] Agent stderr: {result.stderr}", file=sys.stderr)
+                print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
 
             # Always display questions — user must read and answer them
             print(questions)
@@ -145,9 +152,13 @@ class Runner:
             answers = _collect_user_answers()
 
             # Phase 2: amend spec with Q&A
-            print("\n[ralph] Updating spec with your answers...")
-            self._handle_result(run_noninteractive(make_amend_prompts[i](questions, answers)))
-            print(f"[ralph] Round {round_num} complete.")
+            print("\n[ralph] Interview agent has started working — updating spec with your answers...")
+            result2 = run_noninteractive(make_amend_prompts[i](questions, answers))
+            self._handle_result(result2)
+            if result2.returncode == 0:
+                print(f"[ralph] Round {round_num} complete.")
+            else:
+                print(f"[ralph] Round {round_num} ran into some trouble.", file=sys.stderr)
 
         print("\n[ralph] All interview rounds complete.")
 
@@ -156,7 +167,7 @@ class Runner:
         # Pre-check: skip spawning agents if all tasks are already complete.
         if self._all_tasks_complete():
             exit_reason = "All tasks completed successfully."
-            print("\n[ralph] All tasks already completed!")
+            print("\n[ralph] All tasks are already done — nothing left to do!")
             self._run_summarise(exit_reason)
             return
 
@@ -165,23 +176,23 @@ class Runner:
         for iteration in range(1, max_iterations + 1):
             prompt = prompts[min(iteration - 1, len(prompts) - 1)]
 
-            print(f"\n[ralph] Spawning execute agent (iteration {iteration}/{max_iterations})...")
+            print(f"\n[ralph] Execute agent has started working (iteration {iteration}/{max_iterations})...")
             agent_response = self._handle_result(run_noninteractive(prompt))
 
             if "You've hit your limit" in agent_response:
                 exit_reason = "Claude Code usage limit has been reached."
-                print("\n[ralph] Unfortunately you have reached your Claude Code usage limit :(")
+                print("\n[ralph] Looks like the Claude Code usage limit has been reached.")
                 break
 
             if self._all_tasks_complete():
                 exit_reason = "All tasks completed successfully."
-                print("\n[ralph] All tasks completed!")
+                print("\n[ralph] All tasks are done!")
                 break
 
             exceeded, task = self._any_task_exceeded_max_attempts()
             if exceeded:
                 exit_reason = f"Task {task['id']} ('{task['title']}') reached max_attempts ({task['max_attempts']})."
-                print(f"\n[ralph] Halting: {exit_reason}")
+                print(f"\n[ralph] Stopping early — {exit_reason}")
                 break
         else:
             # for/else fires when all iterations were exhausted without breaking
