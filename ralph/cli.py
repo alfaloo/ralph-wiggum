@@ -13,6 +13,18 @@ from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
 
+RALPH_BANNER = """\
+██████╗  █████╗ ██╗     ██████╗ ██╗  ██╗
+██╔══██╗██╔══██╗██║     ██╔══██╗██║  ██║
+██████╔╝███████║██║     ██████╔╝███████║
+██╔══██╗██╔══██║██║     ██╔═══╝ ██╔══██║
+██║  ██║██║  ██║███████╗██║     ██║  ██║
+╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝
+
+    ── R A L P H   W I G G U M ──
+"Me fail English? That's unpossible"\
+"""
+
 _ONESHOT_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
     "Carefully read spec.md and all relevant source files, tests, and configuration in the "
@@ -693,8 +705,11 @@ def main() -> None:
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
         if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None:
-            parser.print_help()
-            sys.exit(1)
+            print(RALPH_BANNER)
+            print()
+            print("Author: Zhiyang Lu")
+            print("Version: 0.2.0")
+            sys.exit(0)
         # Provider requires validation before global persist.
         if args.global_provider is not None:
             if not _validate_provider_cli(args.global_provider):
