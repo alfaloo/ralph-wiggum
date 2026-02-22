@@ -287,8 +287,12 @@ class Runner:
         finally:
             executor.shutdown(wait=False)
 
-    def run_execute_loop(self, prompts: list[str], max_iterations: int) -> None:
+    def run_execute_loop(self, prompts: list[str], max_iterations: int, asynchronous: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
+        if asynchronous:
+            self.run_execute_loop_async(prompts, max_iterations)
+            return
+
         # Pre-check: skip spawning agents if all tasks are already complete.
         if self._all_tasks_complete():
             exit_reason = "All tasks completed successfully."

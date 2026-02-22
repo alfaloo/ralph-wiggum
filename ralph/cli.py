@@ -281,7 +281,7 @@ def cmd_execute(args: argparse.Namespace) -> None:
         parse_execute_md(project_name, iteration_num=i + 1, max_iterations=limit)
         for i in range(limit)
     ]
-    Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
+    Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit, asynchronous=asynchronous)
 
 
 def cmd_oneshot(args: argparse.Namespace) -> None:
