@@ -1,11 +1,14 @@
 """Unit tests for ralph/cli.py — cmd_execute / ralph execute subcommand."""
 
 import argparse
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
 from ralph.cli import cmd_execute
+
+# Minimal valid tasks.json content used to satisfy the tasks-exist guard in cmd_execute.
+_TASKS_JSON = '{"tasks": [{"id": "T1"}]}'
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +60,13 @@ def _fail(stderr: str = "error") -> MagicMock:
 
 class TestCmdExecuteCore:
     """Happy-path: project exists, project branch absent, base branch present."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_tasks_json(self):
+        """Satisfy the tasks.json existence/non-empty guard without touching the filesystem."""
+        with patch("ralph.cli.os.path.exists", return_value=True), \
+             patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
+            yield
 
     def test_assert_project_exists_is_called(self):
         """cmd_execute calls _assert_project_exists with the correct project name."""
@@ -270,6 +280,13 @@ class TestCmdExecuteBranchAlreadyExists:
 
 
 class TestCmdExecuteBaseBranchNotExist:
+    @pytest.fixture(autouse=True)
+    def _mock_tasks_json(self):
+        """Satisfy the tasks.json guard for tests that reach that code path."""
+        with patch("ralph.cli.os.path.exists", return_value=True), \
+             patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
+            yield
+
     def test_aborts_when_specified_base_branch_not_found(self):
         """cmd_execute exits when --base specifies a branch that does not exist in the repo."""
         with patch("ralph.cli._assert_project_exists"), \
@@ -326,6 +343,13 @@ class TestCmdExecuteBaseBranchNotExist:
 
 
 class TestCmdExecuteResumeFlag:
+    @pytest.fixture(autouse=True)
+    def _mock_tasks_json(self):
+        """Satisfy the tasks.json guard for tests that reach that code path."""
+        with patch("ralph.cli.os.path.exists", return_value=True), \
+             patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
+            yield
+
     def test_resume_checks_out_existing_branch(self):
         """With --resume, cmd_execute checks out the existing project branch directly."""
         mock_runner = MagicMock()
@@ -439,6 +463,13 @@ class TestCmdExecuteResumeFlag:
 
 
 class TestCmdExecuteAsynchronousFlag:
+    @pytest.fixture(autouse=True)
+    def _mock_tasks_json(self):
+        """Satisfy the tasks.json guard for tests that reach that code path."""
+        with patch("ralph.cli.os.path.exists", return_value=True), \
+             patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
+            yield
+
     def test_asynchronous_true_forwarded_to_run_execute_loop(self):
         """When --asynchronous true is passed, run_execute_loop receives asynchronous=True."""
         mock_runner = MagicMock()

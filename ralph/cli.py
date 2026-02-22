@@ -318,18 +318,6 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
 def cmd_pr(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
 
-    # Verify all tasks are completed before creating a PR.
-    tasks_path = os.path.join(".ralph", args.project_name, "tasks.json")
-    with open(tasks_path) as f:
-        tasks_data = json.load(f)
-    if tasks_data.get("tasks") and not all(task["status"] == "completed" for task in tasks_data["tasks"]):
-        print(
-            f"[ralph] Not all tasks were completed. "
-            f"Run 'ralph execute {args.project_name}' to complete the remaining tasks.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
     provider = _resolve_provider(args)
 
     if provider == "github":
