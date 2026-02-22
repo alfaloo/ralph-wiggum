@@ -234,6 +234,12 @@ def cmd_comment(args: argparse.Namespace) -> None:
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
+def cmd_enrich(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+    prompt = parse_generate_tasks_md(args.project_name, user_comment=_ENRICH_COMMENT)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+
+
 def cmd_execute(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
@@ -631,6 +637,20 @@ def main() -> None:
         help="Enable/disable verbose output for this invocation only",
     )
     comment_parser.set_defaults(func=cmd_comment)
+
+    # ralph enrich <project-name> [--verbose BOOL]
+    enrich_parser = subparsers.add_parser(
+        "enrich", help="Enrich spec.md and regenerate tasks.json using the codebase"
+    )
+    enrich_parser.add_argument("project_name", metavar="<project-name>")
+    enrich_parser.add_argument(
+        "--verbose", "-v",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
+    enrich_parser.set_defaults(func=cmd_enrich)
 
     # ralph execute <project-name> [--limit N] [--verbose BOOL] [--resume]
     execute_parser = subparsers.add_parser(
