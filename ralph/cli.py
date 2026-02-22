@@ -25,7 +25,7 @@ RALPH_BANNER = """\
 "Me fail English? That's unpossible"\
 """
 
-_ONESHOT_COMMENT = (
+_ENRICH_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
     "Carefully read spec.md and all relevant source files, tests, and configuration in the "
     "codebase to gain a thorough understanding of the problem domain and existing implementation "
@@ -324,7 +324,7 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # Comment step: spec enrichment + task generation.
-    prompt = parse_generate_tasks_md(project_name, user_comment=_ONESHOT_COMMENT)
+    prompt = parse_generate_tasks_md(project_name, user_comment=_ENRICH_COMMENT)
     Runner(project_name, verbose=verbose).run_comment(prompt)
     tasks_path = os.path.join(".ralph", project_name, "tasks.json")
     if not os.path.exists(tasks_path):
