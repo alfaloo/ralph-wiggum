@@ -46,6 +46,33 @@ def set_verbose(value: bool) -> None:
     _write_settings(data)
 
 
+def get_asynchronous() -> bool:
+    """Return the persisted asynchronous setting (default: False)."""
+    return bool(_read_settings().get("asynchronous", False))
+
+
+def set_asynchronous(value) -> None:
+    """Persist the asynchronous setting.
+
+    Accepts a bool or the strings 'true'/'false' (case-insensitive).
+    Prints an error and returns early if the value is invalid.
+    """
+    if isinstance(value, str):
+        if value.lower() == "true":
+            value = True
+        elif value.lower() == "false":
+            value = False
+        else:
+            print(f"[ralph] Error: '{value}' is not a valid value for asynchronous. Use true or false.")
+            return
+    elif not isinstance(value, bool):
+        print(f"[ralph] Error: '{value}' is not a valid value for asynchronous. Use true or false.")
+        return
+    data = _read_settings()
+    data["asynchronous"] = value
+    _write_settings(data)
+
+
 def get_rounds() -> int:
     """Return the persisted rounds setting.
 
@@ -142,6 +169,7 @@ _DEFAULTS = {
     "limit": 20,
     "base": "main",
     "provider": "github",
+    "asynchronous": False,
 }
 
 
