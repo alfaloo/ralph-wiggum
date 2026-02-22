@@ -59,6 +59,52 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
     return get_verbose()
 
 
+def _validate_provider_cli(provider: str) -> bool:
+    """Check that the selected provider's CLI tool is installed and authenticated.
+
+    Returns True only if the CLI is found and auth succeeds, False otherwise.
+    """
+    if provider == "github":
+        try:
+            result = subprocess.run(["gh", "auth", "status"], capture_output=True)
+        except FileNotFoundError:
+            print(
+                "[ralph] Error: 'gh' CLI is not installed. "
+                "Install it from https://cli.github.com and run 'gh auth login'.",
+                file=sys.stderr,
+            )
+            return False
+        if result.returncode != 0:
+            print(
+                "[ralph] Error: 'gh' CLI is not authenticated. "
+                "Run 'gh auth login' to sign in.",
+                file=sys.stderr,
+            )
+            return False
+        return True
+    elif provider == "gitlab":
+        try:
+            result = subprocess.run(["glab", "auth", "status"], capture_output=True)
+        except FileNotFoundError:
+            print(
+                "[ralph] Error: 'glab' CLI is not installed. "
+                "Install it from https://gitlab.com/gitlab-org/cli and run 'glab auth login'.",
+                file=sys.stderr,
+            )
+            return False
+        if result.returncode != 0:
+            print(
+                "[ralph] Error: 'glab' CLI is not authenticated. "
+                "Run 'glab auth login' to sign in.",
+                file=sys.stderr,
+            )
+            return False
+        return True
+    else:
+        print(f"[ralph] Error: unknown provider '{provider}'.", file=sys.stderr)
+        return False
+
+
 def _assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
     ralph_dir = os.path.join(".ralph", project_name)
