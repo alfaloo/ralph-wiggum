@@ -40,7 +40,7 @@ def _validate_branch_exists(branch: str) -> None:
     """Verify that the given branch exists in the current repo; exit if not."""
     result = subprocess.run(["git", "branch", "--list", branch], capture_output=True, text=True)
     if not result.stdout.strip():
-        print(f"[ralph] Warning: branch '{branch}' does not exist in the current repo. Aborting.", file=sys.stderr)
+        print(f"[ralph] I can't find branch '{branch}' in this repo. Aborting.", file=sys.stderr)
         sys.exit(1)
 
 
@@ -88,14 +88,14 @@ def _validate_provider_cli(provider: str) -> bool:
             result = subprocess.run(["gh", "auth", "status"], capture_output=True)
         except FileNotFoundError:
             print(
-                "[ralph] Error: 'gh' CLI is not installed. "
+                "[ralph] I can't find the 'gh' CLI. "
                 "Install it from https://cli.github.com and run 'gh auth login'.",
                 file=sys.stderr,
             )
             return False
         if result.returncode != 0:
             print(
-                "[ralph] Error: 'gh' CLI is not authenticated. "
+                "[ralph] The 'gh' CLI isn't authenticated. "
                 "Run 'gh auth login' to sign in.",
                 file=sys.stderr,
             )
@@ -106,21 +106,21 @@ def _validate_provider_cli(provider: str) -> bool:
             result = subprocess.run(["glab", "auth", "status"], capture_output=True)
         except FileNotFoundError:
             print(
-                "[ralph] Error: 'glab' CLI is not installed. "
+                "[ralph] I can't find the 'glab' CLI. "
                 "Install it from https://gitlab.com/gitlab-org/cli and run 'glab auth login'.",
                 file=sys.stderr,
             )
             return False
         if result.returncode != 0:
             print(
-                "[ralph] Error: 'glab' CLI is not authenticated. "
+                "[ralph] The 'glab' CLI isn't authenticated. "
                 "Run 'glab auth login' to sign in.",
                 file=sys.stderr,
             )
             return False
         return True
     else:
-        print(f"[ralph] Error: unknown provider '{provider}'.", file=sys.stderr)
+        print(f"[ralph] I don't know the provider '{provider}'. Try 'github' or 'gitlab'.", file=sys.stderr)
         return False
 
 
@@ -129,8 +129,8 @@ def _assert_project_exists(project_name: str) -> None:
     ralph_dir = os.path.join(".ralph", project_name)
     if not os.path.exists(ralph_dir):
         print(
-            f"[ralph] Error: project '{project_name}' not found. "
-            f"Expected directory '{ralph_dir}' does not exist. "
+            f"[ralph] I can't find project '{project_name}'. "
+            f"Expected directory '{ralph_dir}' to exist. "
             "Run 'ralph init' first.",
             file=sys.stderr,
         )
@@ -138,7 +138,7 @@ def _assert_project_exists(project_name: str) -> None:
     spec_path = os.path.join(ralph_dir, "spec.md")
     if not os.path.exists(spec_path):
         print(
-            f"[ralph] Error: project '{project_name}' is missing 'spec.md'. "
+            f"[ralph] Project '{project_name}' is missing 'spec.md'. "
             f"Expected '{spec_path}' to exist.",
             file=sys.stderr,
         )
@@ -150,11 +150,11 @@ def cmd_init(args: argparse.Namespace) -> None:
     ralph_dir = os.path.join(".ralph", project_name)
 
     if os.path.exists(ralph_dir):
-        print(f"[ralph] Error: project '{project_name}' already exists at '{ralph_dir}'. Aborting.", file=sys.stderr)
+        print(f"[ralph] Project '{project_name}' already exists at '{ralph_dir}'. Aborting.", file=sys.stderr)
         sys.exit(1)
 
     os.makedirs(ralph_dir)
-    print(f"[ralph] Created directory '{ralph_dir}'.")
+    print(f"[ralph] Created project directory '{ralph_dir}'.")
 
     spec_path = os.path.join(ralph_dir, "spec.md")
     with open(spec_path, "w") as f:
@@ -192,7 +192,7 @@ def cmd_init(args: argparse.Namespace) -> None:
                 elif answer in ("n", "no"):
                     break
 
-    print(f"[ralph] Init complete. Project '{project_name}' created in '{ralph_dir}'.")
+    print(f"[ralph] Project '{project_name}' is all set up in '{ralph_dir}'.")
 
 
 def cmd_interview(args: argparse.Namespace) -> None:
@@ -241,31 +241,31 @@ def cmd_execute(args: argparse.Namespace) -> None:
         # Ensure that the project branch already exists; abort if not found.
         branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
         if not branch_check.stdout.strip():
-            print(f"[ralph] Warning: branch '{project_name}' is not found. Aborting.", file=sys.stderr)
+            print(f"[ralph] I can't find branch '{project_name}'. Aborting.", file=sys.stderr)
             sys.exit(1)
 
         # checkout to the existing project branch
         checkout_branch = subprocess.run(["git", "checkout", project_name], capture_output=True, text=True)
         if checkout_branch.returncode != 0:
-            print(f"[ralph] Warning: failed to checkout to branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't check out branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
     else:
         # Check whether the project branch already exists; abort if it does.
         branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
         if branch_check.stdout.strip():
-            print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+            print(f"[ralph] Branch '{project_name}' already exists. Aborting.", file=sys.stderr)
             sys.exit(1)
 
         # Checkout the base branch.
         checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
         if checkout_base.returncode != 0:
-            print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't check out base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
         # Create and checkout the project branch.
         create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
         if create_branch.returncode != 0:
-            print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
     # Pre-render all prompts; each references its iteration number
@@ -283,8 +283,8 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
     status_check = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
     if status_check.stdout:
         print(
-            "[ralph] Warning: working tree has uncommitted changes. "
-            "Please commit or stash all changes before running ralph oneshot.",
+            "[ralph] There are uncommitted changes in the working tree. "
+            "Please commit or stash them before running 'ralph oneshot'.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -300,19 +300,19 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
     # Branch existence check.
     branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
     if branch_check.stdout.strip():
-        print(f"[ralph] Warning: branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+        print(f"[ralph] Branch '{project_name}' already exists. Aborting.", file=sys.stderr)
         sys.exit(1)
 
     # Checkout base branch.
     checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
     if checkout_base.returncode != 0:
-        print(f"[ralph] Warning: failed to checkout base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+        print(f"[ralph] I couldn't check out base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
 
     # Create project branch.
     create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
     if create_branch.returncode != 0:
-        print(f"[ralph] Warning: failed to create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+        print(f"[ralph] I couldn't create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
 
     # Comment step: spec enrichment + task generation.
@@ -321,8 +321,8 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
     tasks_path = os.path.join(".ralph", project_name, "tasks.json")
     if not os.path.exists(tasks_path):
         print(
-            f"[ralph] Warning: task generation did not produce tasks.json. "
-            f"To retry from this point, run: ralph execute {project_name}",
+            f"[ralph] Task generation didn't produce a tasks.json file. "
+            f"To retry from here, run: ralph execute {project_name}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -337,8 +337,8 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
         data = json.load(f)
     if not all(task["status"] == "completed" for task in data["tasks"]):
         print(
-            f"[ralph] Warning: not all tasks completed. "
-            f"To continue execution, run: ralph execute {project_name}",
+            f"[ralph] Not all tasks were completed. "
+            f"To keep going, run: ralph execute {project_name}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -363,7 +363,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
         gh_check = subprocess.run(["gh", "--version"], capture_output=True)
         if gh_check.returncode != 0:
             print(
-                "[ralph] Error: 'gh' CLI is not installed. Please install it from https://cli.github.com/",
+                "[ralph] I can't find the 'gh' CLI. Please install it from https://cli.github.com/",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -373,8 +373,8 @@ def cmd_pr(args: argparse.Namespace) -> None:
         current_branch = branch_result.stdout.strip()
         if current_branch != args.project_name:
             print(
-                f"[ralph] Error: current branch '{current_branch}' does not match project name '{args.project_name}'. "
-                "Please checkout the correct branch.",
+                f"[ralph] Current branch '{current_branch}' does not match project '{args.project_name}'. "
+                "Please check out the correct branch.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -383,7 +383,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
         status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
         if status_result.stdout:
             print(
-                "[ralph] Error: working tree is not clean. Please commit or stash all changes before creating a PR.",
+                "[ralph] There are uncommitted changes in the working tree. Please commit or stash them before creating a PR.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -395,8 +395,8 @@ def cmd_pr(args: argparse.Namespace) -> None:
         )
         if merge_base_result.returncode != 0:
             print(
-                f"[ralph] Warning: could not determine merge base between HEAD and '{base_branch}'. "
-                "Ensure the base branch exists and shares history with the current branch.",
+                f"[ralph] I couldn't determine the merge base between HEAD and '{base_branch}'. "
+                "Make sure the base branch exists and shares history with the current branch.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -405,8 +405,8 @@ def cmd_pr(args: argparse.Namespace) -> None:
         pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
         if not os.path.exists(pr_desc_path):
             print(
-                f"[ralph] Error: 'pr-description.md' not found at '{pr_desc_path}'. "
-                "Please run 'ralph execute' first to generate the PR description.",
+                f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
+                "Run 'ralph execute' first to generate the PR description.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -446,7 +446,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
         glab_check = subprocess.run(["glab", "--version"], capture_output=True)
         if glab_check.returncode != 0:
             print(
-                "[ralph] Error: 'glab' CLI is not installed. Please install it from https://gitlab.com/gitlab-org/cli",
+                "[ralph] I can't find the 'glab' CLI. Please install it from https://gitlab.com/gitlab-org/cli",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -456,8 +456,8 @@ def cmd_pr(args: argparse.Namespace) -> None:
         current_branch = branch_result.stdout.strip()
         if current_branch != args.project_name:
             print(
-                f"[ralph] Error: current branch '{current_branch}' does not match project name '{args.project_name}'. "
-                "Please checkout the correct branch.",
+                f"[ralph] Current branch '{current_branch}' does not match project '{args.project_name}'. "
+                "Please check out the correct branch.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -466,7 +466,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
         status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
         if status_result.stdout:
             print(
-                "[ralph] Error: working tree is not clean. Please commit or stash all changes before creating a MR.",
+                "[ralph] There are uncommitted changes in the working tree. Please commit or stash them before creating a MR.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -478,8 +478,8 @@ def cmd_pr(args: argparse.Namespace) -> None:
         pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
         if not os.path.exists(pr_desc_path):
             print(
-                f"[ralph] Error: 'pr-description.md' not found at '{pr_desc_path}'. "
-                "Please run 'ralph execute' first to generate the PR description.",
+                f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
+                "Run 'ralph execute' first to generate the PR description.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -724,7 +724,7 @@ def main() -> None:
     try:
         args.func(args)
     except KeyboardInterrupt:
-        print("\n[ralph] Interrupted.", file=sys.stderr)
+        print("\n[ralph] Ok, stopping.", file=sys.stderr)
         sys.exit(1)
 
 
