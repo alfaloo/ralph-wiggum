@@ -87,6 +87,19 @@ def parse_execute_md(project_name: str, iteration_num: int, max_iterations: int)
     )
 
 
+def parse_execute_async_md(
+    project_name: str, task_id: str, iteration_num: int, max_iterations: int
+) -> str:
+    """Render the async execute prompt template for a pre-assigned task."""
+    return _render(
+        "execute_async.md",
+        PROJECT_NAME=project_name,
+        TASK_ID=task_id,
+        ITERATION_NUM=str(iteration_num),
+        MAX_ITERATIONS=str(max_iterations),
+    )
+
+
 def parse_summarise_md(project_name: str, ralph_dir: str, exit_reason: str) -> str:
     """Render the results summary prompt template."""
     return _render(

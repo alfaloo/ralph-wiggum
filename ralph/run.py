@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import subprocess
 import sys
+import time
 from typing import Callable
 
-from ralph.parse import parse_summarise_md
+from ralph import dag
+from ralph import locks
+from ralph.parse import parse_summarise_md, parse_execute_async_md
 
 
 def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
@@ -162,8 +166,133 @@ class Runner:
 
         print("\n[ralph] All interview rounds complete.")
 
-    def run_execute_loop(self, prompts: list[str], max_iterations: int) -> None:
+    def run_execute_loop_async(self, prompts: list[str], max_iterations: int) -> None:
+        """Run async execute agents in a concurrent polling loop.
+
+        The ``prompts`` parameter is accepted for API compatibility; this method
+        generates per-task prompts internally using ``parse_execute_async_md``.
+        """
+        state_path = os.path.join(self.ralph_dir, "state.json")
+        obstacles_path = os.path.join(self.ralph_dir, "obstacles.json")
+
+        # Ensure state and obstacles files exist before agents start writing.
+        if not os.path.exists(state_path):
+            locks.write_json(state_path, [])
+        if not os.path.exists(obstacles_path):
+            locks.write_json(obstacles_path, {"obstacles": []})
+
+        futures: dict[str, concurrent.futures.Future] = {}
+        executor = concurrent.futures.ThreadPoolExecutor()
+
+        try:
+            while True:
+                # Step A: Handle completed futures.
+                for task_id, future in list(futures.items()):
+                    if not future.done():
+                        continue
+                    del futures[task_id]
+
+                    try:
+                        returncode = future.result()
+                    except Exception as exc:
+                        returncode = 1
+                        print(
+                            f"[ralph] Agent for task {task_id} raised an exception: {exc}",
+                            file=sys.stderr,
+                        )
+
+                    if returncode == 0:
+                        with locks.locked_json_rw(self._tasks_path) as data:
+                            for t in data["tasks"]:
+                                if t["id"] == task_id:
+                                    t["status"] = "completed"
+                                    break
+                        with locks.locked_json_rw(state_path) as state:
+                            state.append(
+                                {
+                                    "task_id": task_id,
+                                    "status": "completed",
+                                    "summary": "",
+                                    "files_modified": [],
+                                    "obstacles": [],
+                                }
+                            )
+                    else:
+                        with locks.locked_json_rw(obstacles_path) as obs_data:
+                            obs_list = obs_data.setdefault("obstacles", [])
+                            next_id = f"O{len(obs_list) + 1}"
+                            obs_list.append(
+                                {
+                                    "id": next_id,
+                                    "task_id": task_id,
+                                    "message": (
+                                        f"Agent for task {task_id} failed with"
+                                        f" returncode {returncode}."
+                                    ),
+                                    "resolved": False,
+                                }
+                            )
+                        with locks.locked_json_rw(self._tasks_path) as data:
+                            for t in data["tasks"]:
+                                if t["id"] == task_id:
+                                    t["status"] = "pending"
+                                    break
+                        print(
+                            f"[ralph] Agent for task {task_id} failed"
+                            f" (returncode {returncode}).",
+                            file=sys.stderr,
+                        )
+
+                # Step B: Check exit conditions.
+                tasks = locks.read_json(self._tasks_path)["tasks"]
+
+                if dag.all_tasks_complete(tasks):
+                    self._run_summarise("All tasks completed successfully.")
+                    return
+
+                exceeded, task = dag.any_task_exceeded_max_attempts(tasks)
+                if exceeded:
+                    exit_reason = (
+                        f"Task {task['id']} ('{task['title']}') reached"
+                        f" max_attempts ({task['max_attempts']})."
+                    )
+                    print(f"\n[ralph] Stopping early — {exit_reason}")
+                    self._run_summarise(exit_reason)
+                    return
+
+                # Step C: Spawn agents for newly ready tasks.
+                ready_tasks = dag.get_ready_tasks(tasks)
+                for task in ready_tasks:
+                    task_id = task["id"]
+                    if task_id in futures:
+                        continue
+                    with locks.locked_json_rw(self._tasks_path) as data:
+                        for t in data["tasks"]:
+                            if t["id"] == task_id:
+                                t["status"] = "in_progress"
+                                t["attempts"] = t.get("attempts", 0) + 1
+                                break
+                    prompt = parse_execute_async_md(
+                        self.project_name, task_id, 1, max_iterations
+                    )
+                    print(f"[ralph] {task['title']} agent has started working")
+
+                    def _worker(p=prompt):
+                        return run_noninteractive(p).returncode
+
+                    futures[task_id] = executor.submit(_worker)
+
+                # Step D: Sleep, then repeat.
+                time.sleep(2)
+        finally:
+            executor.shutdown(wait=False)
+
+    def run_execute_loop(self, prompts: list[str], max_iterations: int, asynchronous: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
+        if asynchronous:
+            self.run_execute_loop_async(prompts, max_iterations)
+            return
+
         # Pre-check: skip spawning agents if all tasks are already complete.
         if self._all_tasks_complete():
             exit_reason = "All tasks completed successfully."

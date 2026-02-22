@@ -7,7 +7,7 @@ import subprocess
 import sys
 from typing import Callable
 
-from ralph.config import ensure_defaults, get_base, get_limit, get_provider, get_rounds, get_verbose, set_base, set_limit, set_provider, set_rounds, set_verbose
+from ralph.config import ensure_defaults, get_asynchronous, get_base, get_limit, get_provider, get_rounds, get_verbose, set_asynchronous, set_base, set_limit, set_provider, set_rounds, set_verbose
 from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md
 from ralph.run import Runner
 
@@ -69,6 +69,13 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
     if args.verbose is not None:
         return args.verbose == "true"
     return get_verbose()
+
+
+def _resolve_asynchronous(args: argparse.Namespace) -> bool:
+    """Return effective asynchronous: per-command CLI flag > persisted setting."""
+    if args.asynchronous is not None:
+        return args.asynchronous == "true"
+    return get_asynchronous()
 
 
 def _resolve_provider(args: argparse.Namespace) -> str:
@@ -230,6 +237,7 @@ def cmd_comment(args: argparse.Namespace) -> None:
 def cmd_execute(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
     verbose = _resolve_verbose(args)
+    asynchronous = _resolve_asynchronous(args)
     limit = args.limit if args.limit is not None else get_limit()
     base = args.base if args.base is not None else get_base()
     if args.base is not None:
@@ -273,7 +281,7 @@ def cmd_execute(args: argparse.Namespace) -> None:
         parse_execute_md(project_name, iteration_num=i + 1, max_iterations=limit)
         for i in range(limit)
     ]
-    Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit)
+    Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit, asynchronous=asynchronous)
 
 
 def cmd_oneshot(args: argparse.Namespace) -> None:
@@ -561,6 +569,14 @@ def main() -> None:
         metavar="PROVIDER",
         help="Persist provider setting to .ralph/settings.json (github/gitlab)",
     )
+    parser.add_argument(
+        "--asynchronous", "-a",
+        choices=["true", "false"],
+        default=None,
+        dest="global_asynchronous",
+        metavar="BOOL",
+        help="Persist asynchronous setting to .ralph/settings.json (true/false)",
+    )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -647,6 +663,13 @@ def main() -> None:
         action="store_true",
         help="Allow the agent to resume execution from an existing branch",
     )
+    execute_parser.add_argument(
+        "--asynchronous", "-a",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable asynchronous agent execution for this invocation only",
+    )
     execute_parser.set_defaults(func=cmd_execute)
 
     # ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL]
@@ -701,10 +724,12 @@ def main() -> None:
     if args.global_base is not None:
         _validate_branch_exists(args.global_base)
         set_base(args.global_base)
+    if args.global_asynchronous is not None:
+        set_asynchronous(args.global_asynchronous == "true")
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None:
+        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None and args.global_asynchronous is None:
             print()
             print(RALPH_BANNER)
             print()
