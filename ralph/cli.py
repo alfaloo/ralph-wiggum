@@ -161,6 +161,25 @@ def cmd_init(args: argparse.Namespace) -> None:
         json.dump({}, f)
 
     ensure_defaults()
+
+    # Branch mismatch check: compare current branch with the persisted base branch.
+    branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+    if branch_result.returncode == 0 and branch_result.stdout.strip():
+        current_branch = branch_result.stdout.strip()
+        base_branch = get_base()
+        if current_branch != base_branch:
+            print(
+                f"[ralph] Heads up — you're on branch '{current_branch}' but your base branch is set to '{base_branch}'."
+            )
+            while True:
+                answer = input(f"Update base branch to '{current_branch}'? (y/n): ").strip().lower()
+                if answer in ("y", "yes"):
+                    set_base(current_branch)
+                    print(f"[ralph] Base branch updated to '{current_branch}'.")
+                    break
+                elif answer in ("n", "no"):
+                    break
+
     print(f"[ralph] Init complete. Project '{project_name}' created in '{ralph_dir}'.")
 
 
