@@ -3,12 +3,13 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from typing import Callable
 
 from ralph.config import ensure_defaults, get_asynchronous, get_base, get_limit, get_provider, get_rounds, get_verbose, set_asynchronous, set_base, set_limit, set_provider, set_rounds, set_verbose
-from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md
+from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md, parse_validate_md
 from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
@@ -309,9 +310,97 @@ def cmd_execute(args: argparse.Namespace) -> None:
     Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit, asynchronous=asynchronous)
 
 
+def cmd_validate(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+
+    # Check pr-description.md exists.
+    pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
+    if not os.path.exists(pr_desc_path):
+        print(
+            f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
+            "Run 'ralph execute' first to generate the PR description.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check all tasks in tasks.json are completed.
+    tasks_path = os.path.join(".ralph", args.project_name, "tasks.json")
+    with open(tasks_path) as f:
+        tasks_data = json.load(f)
+    incomplete = [t for t in tasks_data.get("tasks", []) if t.get("status") != "completed"]
+    if incomplete:
+        print(
+            f"[ralph] Not all tasks are completed for project '{args.project_name}'. "
+            "Run 'ralph execute' to complete all tasks first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check that the project branch exists.
+    _validate_branch_exists(args.project_name)
+
+    # If validation.md already exists, ask whether to overwrite.
+    validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+    if os.path.exists(validation_path):
+        while True:
+            answer = input(f"'{validation_path}' already exists. Overwrite? (y/n): ").strip().lower()
+            if answer in ("y", "yes"):
+                break
+            elif answer in ("n", "no"):
+                sys.exit(1)
+
+    # Checkout the project branch.
+    checkout_result = subprocess.run(["git", "checkout", args.project_name], capture_output=True, text=True)
+    if checkout_result.returncode != 0:
+        print(
+            f"[ralph] I couldn't check out branch '{args.project_name}': {checkout_result.stderr.strip()}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Render the validate prompt and run the validation agent.
+    prompt = parse_validate_md(args.project_name)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+
+
 def cmd_oneshot(args: argparse.Namespace) -> None:
     cmd_enrich(args)
     cmd_execute(args)
+    cmd_validate(args)
+
+    # Read validation.md and parse the rating.
+    validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+    rating = None
+    try:
+        with open(validation_path) as f:
+            for line in f:
+                m = re.match(r"#\s*Rating:\s*(.+)", line.strip(), re.IGNORECASE)
+                if m:
+                    rating = m.group(1).strip().lower()
+                    break
+    except OSError:
+        pass
+
+    if rating is None:
+        print(
+            f"[ralph] Warning: could not read or parse the rating from '{validation_path}'. "
+            "Aborting before creating PR.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if rating == "failed":
+        print(
+            f"[ralph] Warning: validation failed. Review '{validation_path}' and fix the issues before creating a PR.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if rating == "requires attention":
+        print(
+            f"[ralph] Warning: validation requires attention. Review '{validation_path}' for details. Proceeding to create PR.",
+        )
+
     cmd_pr(args)
 
 
@@ -698,6 +787,20 @@ def main() -> None:
         help="Provider to use for this invocation only (github/gitlab)",
     )
     pr_parser.set_defaults(func=cmd_pr)
+
+    # ralph validate <project-name> [--verbose BOOL]
+    validate_parser = subparsers.add_parser(
+        "validate", help="Run a validation agent to assess whether execute correctly solved the project"
+    )
+    validate_parser.add_argument("project_name", metavar="<project-name>")
+    validate_parser.add_argument(
+        "--verbose", "-v",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
+    validate_parser.set_defaults(func=cmd_validate)
 
     args = parser.parse_args()
 
