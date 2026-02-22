@@ -7,7 +7,7 @@ import subprocess
 import sys
 from typing import Callable
 
-from ralph.config import ensure_defaults, get_base, get_limit, get_rounds, get_verbose, set_base, set_limit, set_rounds, set_verbose
+from ralph.config import ensure_defaults, get_base, get_limit, get_provider, get_rounds, get_verbose, set_base, set_limit, set_provider, set_rounds, set_verbose
 from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md
 from ralph.run import Runner
 
@@ -57,6 +57,13 @@ def _resolve_verbose(args: argparse.Namespace) -> bool:
     if args.verbose is not None:
         return args.verbose == "true"
     return get_verbose()
+
+
+def _resolve_provider(args: argparse.Namespace) -> str:
+    """Return effective provider: per-command CLI flag > persisted setting."""
+    if getattr(args, "provider", None) is not None:
+        return args.provider
+    return get_provider()
 
 
 def _validate_provider_cli(provider: str) -> bool:
@@ -306,7 +313,7 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # PR step.
-    fake_args = argparse.Namespace(project_name=project_name)
+    fake_args = argparse.Namespace(project_name=project_name, provider=None)
     try:
         cmd_pr(fake_args)
     except SystemExit as exc:
@@ -317,6 +324,8 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
 
 def cmd_pr(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
+
+    provider = _resolve_provider(args)
 
     # Check gh CLI is installed.
     gh_check = subprocess.run(["gh", "--version"], capture_output=True)
@@ -439,6 +448,14 @@ def main() -> None:
         metavar="BRANCH",
         help="Persist base branch setting to .ralph/settings.json",
     )
+    parser.add_argument(
+        "--provider", "-p",
+        type=str,
+        default=None,
+        dest="global_provider",
+        metavar="PROVIDER",
+        help="Persist provider setting to .ralph/settings.json (github/gitlab)",
+    )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -555,9 +572,16 @@ def main() -> None:
     )
     oneshot_parser.set_defaults(func=cmd_oneshot)
 
-    # ralph pr <project-name>
-    pr_parser = subparsers.add_parser("pr", help="Create a GitHub pull request for the project")
+    # ralph pr <project-name> [--provider PROVIDER]
+    pr_parser = subparsers.add_parser("pr", help="Create a pull request for the project")
     pr_parser.add_argument("project_name", metavar="<project-name>")
+    pr_parser.add_argument(
+        "--provider", "-p",
+        type=str,
+        default=None,
+        metavar="PROVIDER",
+        help="Provider to use for this invocation only (github/gitlab)",
+    )
     pr_parser.set_defaults(func=cmd_pr)
 
     args = parser.parse_args()
@@ -575,10 +599,19 @@ def main() -> None:
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None:
+        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None:
             parser.print_help()
             sys.exit(1)
+        # Provider requires validation before global persist.
+        if args.global_provider is not None:
+            if not _validate_provider_cli(args.global_provider):
+                sys.exit(1)
+            set_provider(args.global_provider)
         return
+
+    # With a subcommand present, persist global provider if provided.
+    if args.global_provider is not None:
+        set_provider(args.global_provider)
 
     try:
         args.func(args)
