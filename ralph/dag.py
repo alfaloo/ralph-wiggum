@@ -1,5 +1,7 @@
 """DAG dependency parser for ralph task orchestration."""
 
+from __future__ import annotations
+
 
 def get_ready_tasks(tasks: list[dict]) -> list[dict]:
     """Return all tasks that are ready to be executed.
