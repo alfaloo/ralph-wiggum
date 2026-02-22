@@ -705,10 +705,12 @@ def main() -> None:
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
         if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None:
+            print()
             print(RALPH_BANNER)
             print()
             print("Author: Zhiyang Lu")
             print("Version: 0.2.0")
+            print()
             sys.exit(0)
         # Provider requires validation before global persist.
         if args.global_provider is not None:
