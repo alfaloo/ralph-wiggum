@@ -12,7 +12,7 @@ from typing import Callable
 
 from ralph import dag
 from ralph import locks
-from ralph.parse import parse_summarise_md, parse_execute_async_md
+from ralph.parse import parse_summarise_md, parse_execute_async_md, parse_execute_md
 
 
 def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
@@ -21,6 +21,16 @@ def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
     Invokes `claude` with --print so output is piped back.
     """
     cmd = ["claude", "--dangerously-skip-permissions", "--print", prompt]
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+
+def run_noninteractive_json(prompt: str) -> subprocess.CompletedProcess:
+    """Run Claude Code in non-interactive mode with JSON output format.
+
+    Like run_noninteractive() but adds --output-format json so that stdout is
+    a JSON object containing the result text and token usage information.
+    """
+    cmd = ["claude", "--dangerously-skip-permissions", "--print", "--output-format", "json", prompt]
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
@@ -114,13 +124,13 @@ class Runner:
         else:
             print("[ralph] I had some trouble writing the summary.", file=sys.stderr)
 
-    def run_comment(self, prompt: str) -> None:
-        """Run the comment agent as a single headless invocation."""
-        print(f"[ralph] Comment agent has started working on '{self.project_name}'...")
+    def run_prompt(self, prompt: str, command_name: str) -> None:
+        """Run a single headless agent invocation for the given command."""
+        print(f"[ralph] {command_name.capitalize()} agent has started working on '{self.project_name}'...")
         result = run_noninteractive(prompt)
         self._handle_result(result)
         if result.returncode != 0:
-            print("[ralph] The comment agent ran into some trouble.", file=sys.stderr)
+            print(f"[ralph] The {command_name} agent ran into some trouble.", file=sys.stderr)
 
     def run_interview_loop(
         self,
@@ -273,9 +283,14 @@ class Runner:
                                 t["attempts"] = t.get("attempts", 0) + 1
                                 break
                     prompt = parse_execute_async_md(
-                        self.project_name, task_id, 1, max_iterations
+                        self.project_name,
+                        task_id,
+                        1,
+                        max_iterations,
+                        task_title=task.get("title", ""),
+                        task_description=task.get("description", ""),
                     )
-                    print(f'[ralph] Spawned execute agent to attempt task {task['id']} "{task['title']}"')
+                    print(f"[ralph] Spawning execute agent for task {task['id']} \"{task['title']}\"...")
 
                     def _worker(p=prompt):
                         return run_noninteractive(p).returncode
@@ -287,10 +302,10 @@ class Runner:
         finally:
             executor.shutdown(wait=False)
 
-    def run_execute_loop(self, prompts: list[str], max_iterations: int, asynchronous: bool = False) -> None:
+    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
         if asynchronous:
-            self.run_execute_loop_async(prompts, max_iterations)
+            self.run_execute_loop_async([], max_iterations)
             return
 
         # Pre-check: skip spawning agents if all tasks are already complete.
@@ -303,12 +318,79 @@ class Runner:
         exit_reason = f"Reached maximum iteration limit ({max_iterations})."
 
         for iteration in range(1, max_iterations + 1):
-            prompt = prompts[min(iteration - 1, len(prompts) - 1)]
+            # Load tasks.json and select the next ready task via dag.get_ready_tasks().
+            with open(self._tasks_path) as f:
+                tasks_data = json.load(f)
+            tasks = tasks_data.get("tasks", [])
 
-            print(f"\n[ralph] Execute agent has started working (iteration {iteration}/{max_iterations})...")
-            agent_response = self._handle_result(run_noninteractive(prompt))
+            ready_tasks = dag.get_ready_tasks(tasks)
+            if not ready_tasks:
+                exit_reason = (
+                    "No tasks are ready to execute — all remaining tasks are blocked or have unmet dependencies."
+                )
+                print(f"\n[ralph] {exit_reason}")
+                break
 
-            if "You've hit your limit" in agent_response:
+            task = ready_tasks[0]
+            task_id = task["id"]
+            task_title = task.get("title", "")
+            task_description = task.get("description", "")
+
+            # Pre-update tasks.json: mark selected task as in_progress and increment attempts.
+            for t in tasks_data["tasks"]:
+                if t["id"] == task_id:
+                    t["status"] = "in_progress"
+                    t["attempts"] = t.get("attempts", 0) + 1
+                    break
+            with open(self._tasks_path, "w") as f:
+                json.dump(tasks_data, f, indent=2)
+
+            # Build the prompt with the pre-assigned task injected.
+            prompt = parse_execute_md(
+                self.project_name,
+                iteration_num=iteration,
+                max_iterations=max_iterations,
+                task_id=task_id,
+                task_title=task_title,
+                task_description=task_description,
+            )
+
+            print(
+                f"\n[ralph] Execute agent has started working on task {task_id} \"{task_title}\""
+                f" (iteration {iteration}/{max_iterations})..."
+            )
+            result = run_noninteractive_json(prompt)
+
+            # Handle errors from the subprocess.
+            if result.returncode != 0 and result.stderr:
+                print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
+
+            # Parse JSON output for the agent's text response and context window usage.
+            agent_text = result.stdout
+            try:
+                data = json.loads(result.stdout)
+                agent_text = data.get("result", result.stdout)
+
+                if self.verbose and agent_text:
+                    print(agent_text)
+
+                # Log context window usage from the completed agent.
+                usage = data.get("usage", {})
+                input_tokens = usage.get("input_tokens", 0)
+                output_tokens = usage.get("output_tokens", 0)
+                total_tokens = input_tokens + output_tokens
+                model_usage = data.get("modelUsage", {})
+                context_window = model_usage.get("contextWindow", 200000)
+                pct = (total_tokens / context_window * 100) if context_window > 0 else 0
+                print(
+                    f"[ralph] Agent used {total_tokens:,}/{context_window:,} tokens"
+                    f" ({pct:.1f}%) of context window."
+                )
+            except (json.JSONDecodeError, ValueError):
+                if self.verbose and result.stdout:
+                    print(result.stdout)
+
+            if "You've hit your limit" in agent_text:
                 exit_reason = "Claude Code usage limit has been reached."
                 print("\n[ralph] Looks like the Claude Code usage limit has been reached.")
                 break

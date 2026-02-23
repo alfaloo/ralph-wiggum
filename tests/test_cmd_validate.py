@@ -81,7 +81,7 @@ def _make_subprocess_run(
 class TestCmdValidateProjectNotExist:
     def test_aborts_with_exit_code_1_when_project_missing(self):
         """cmd_validate exits with code 1 when the project does not exist."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)):
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_validate(_make_args())
 
@@ -89,9 +89,9 @@ class TestCmdValidateProjectNotExist:
 
     def test_no_further_checks_when_project_missing(self):
         """No subprocess or os.path.exists calls are made when the project does not exist."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)), \
-             patch("ralph.cli.subprocess.run") as mock_sub, \
-             patch("ralph.cli.os.path.exists") as mock_exists:
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)), \
+             patch("ralph.commands.subprocess.run") as mock_sub, \
+             patch("ralph.commands.os.path.exists") as mock_exists:
             with pytest.raises(SystemExit):
                 cmd_validate(_make_args())
 
@@ -101,12 +101,12 @@ class TestCmdValidateProjectNotExist:
     def test_runner_not_called_when_project_missing(self):
         """Runner is not invoked when the project does not exist."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_validate(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
 
 # ===========================================================================
@@ -122,8 +122,8 @@ class TestCmdValidatePrDescriptionMissing:
         def mock_exists(path):
             return "pr-description.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
 
@@ -138,13 +138,13 @@ class TestCmdValidatePrDescriptionMissing:
         def mock_exists(path):
             return "pr-description.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_validate(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
 
 # ===========================================================================
@@ -157,8 +157,8 @@ class TestCmdValidateIncompleteTask:
         """cmd_validate exits with code 1 when any task is not completed."""
         args = _make_args()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_SOME_INCOMPLETE_TASKS)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
@@ -171,21 +171,21 @@ class TestCmdValidateIncompleteTask:
         """Runner is not invoked when tasks are not all completed."""
         mock_runner = MagicMock()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_SOME_INCOMPLETE_TASKS)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_validate(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_no_subprocess_call_when_tasks_incomplete(self):
         """No subprocess calls are made when tasks are not all completed."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_SOME_INCOMPLETE_TASKS)), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_validate(_make_args())
 
@@ -205,10 +205,10 @@ class TestCmdValidateBranchNotExist:
         def mock_exists(path):
             return "validation.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
 
@@ -223,15 +223,15 @@ class TestCmdValidateBranchNotExist:
         def mock_exists(path):
             return "validation.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_validate(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
 
 # ===========================================================================
@@ -245,10 +245,10 @@ class TestCmdValidateOverwriteNo:
         project_name = "my-project"
         args = _make_args(project_name=project_name)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("builtins.input", return_value="n"), \
              pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
@@ -260,16 +260,16 @@ class TestCmdValidateOverwriteNo:
         mock_runner = MagicMock()
         project_name = "my-project"
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("builtins.input", return_value="n"), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_validate(_make_args(project_name=project_name))
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_input_loop_retries_until_valid_answer(self):
         """Input loop continues prompting until a valid y/n answer is provided."""
@@ -277,10 +277,10 @@ class TestCmdValidateOverwriteNo:
         args = _make_args(project_name=project_name)
         inputs = iter(["", "maybe", "no"])
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("builtins.input", side_effect=lambda _: next(inputs)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
@@ -300,17 +300,17 @@ class TestCmdValidateOverwriteYes:
         args = _make_args(project_name=project_name)
         mock_runner = MagicMock()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.parse_validate_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.parse_validate_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
-        mock_runner.run_comment.assert_called_once_with("mock prompt")
+        mock_runner.run_prompt.assert_called_once_with("mock prompt", "validate")
 
     def test_yes_answer_case_insensitive(self):
         """'YES' is accepted the same as 'y' to confirm overwrite."""
@@ -318,17 +318,17 @@ class TestCmdValidateOverwriteYes:
         args = _make_args(project_name=project_name)
         mock_runner = MagicMock()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("builtins.input", return_value="YES"), \
-             patch("ralph.cli.parse_validate_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.parse_validate_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
-        mock_runner.run_comment.assert_called_once()
+        mock_runner.run_prompt.assert_called_once()
 
 
 # ===========================================================================
@@ -346,18 +346,18 @@ class TestCmdValidateHappyPath:
         def mock_exists(path):
             return "validation.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("builtins.input") as mock_input, \
-             patch("ralph.cli.parse_validate_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.parse_validate_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
         mock_input.assert_not_called()
-        mock_runner.run_comment.assert_called_once_with("prompt")
+        mock_runner.run_prompt.assert_called_once_with("prompt", "validate")
 
     def test_runner_called_with_rendered_validate_prompt(self):
         """Runner.run_comment is called with the rendered validate.md prompt."""
@@ -368,19 +368,19 @@ class TestCmdValidateHappyPath:
         def mock_exists(path):
             return "validation.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
-             patch("ralph.cli.parse_validate_md", return_value="rendered validate prompt") as mock_parse, \
-             patch("ralph.cli.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.parse_validate_md", return_value="rendered validate prompt") as mock_parse, \
+             patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
         mock_parse.assert_called_once_with(project_name)
         mock_runner_cls.assert_called_once()
         assert mock_runner_cls.call_args[0][0] == project_name
-        mock_runner.run_comment.assert_called_once_with("rendered validate prompt")
+        mock_runner.run_prompt.assert_called_once_with("rendered validate prompt", "validate")
 
     def test_git_checkout_project_branch_is_called(self):
         """cmd_validate checks out the project branch before running the agent."""
@@ -397,13 +397,13 @@ class TestCmdValidateHappyPath:
         def mock_exists(path):
             return "validation.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
-             patch("ralph.cli.parse_validate_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.parse_validate_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
         assert ["git", "checkout", project_name] in checkout_calls
@@ -417,13 +417,13 @@ class TestCmdValidateHappyPath:
         def mock_exists(path):
             return "validation.md" not in path
 
-        with patch("ralph.cli._assert_project_exists") as mock_assert, \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists") as mock_assert, \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
-             patch("ralph.cli.parse_validate_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.parse_validate_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
         mock_assert.assert_called_once_with(project_name)
@@ -437,13 +437,13 @@ class TestCmdValidateHappyPath:
         def mock_exists(path):
             return "validation.md" not in path
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              patch("builtins.open", mock_open(read_data=_ALL_COMPLETED_TASKS)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
-             patch("ralph.cli.parse_validate_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
+             patch("ralph.commands.parse_validate_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
         assert mock_runner_cls.call_args[0][0] == project_name

@@ -32,9 +32,9 @@ class TestCmdInitCore:
         """cmd_init creates the .ralph/<project-name>/ directory."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -44,9 +44,9 @@ class TestCmdInitCore:
         """cmd_init writes spec.md inside the project directory."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -58,9 +58,9 @@ class TestCmdInitCore:
         """cmd_init writes state.json as an empty JSON list."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -71,9 +71,9 @@ class TestCmdInitCore:
         """cmd_init writes obstacles.json with an empty obstacles list."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -86,9 +86,9 @@ class TestCmdInitCore:
         """cmd_init writes tasks.json as an empty JSON dict."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -99,9 +99,9 @@ class TestCmdInitCore:
         """cmd_init calls ensure_defaults() to initialise settings.json."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults") as mock_ensure,
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults") as mock_ensure,
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -111,9 +111,9 @@ class TestCmdInitCore:
         """cmd_init creates exactly the four expected project files."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -174,9 +174,9 @@ class TestCmdInitBranchMismatch:
         """cmd_init warns the user when the current git branch differs from the base branch."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("feature-x")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("feature-x")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
             patch("builtins.input", return_value="n"),
         ):
             cmd_init(_make_args("myproject"))
@@ -189,9 +189,9 @@ class TestCmdInitBranchMismatch:
         """cmd_init does not print a mismatch warning when branch matches the base."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("main")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("main")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 
@@ -203,10 +203,10 @@ class TestCmdInitBranchMismatch:
         """cmd_init updates the persisted base branch when the user answers 'y'."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("feature-x")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
-            patch("ralph.cli.set_base") as mock_set_base,
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("feature-x")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
+            patch("ralph.commands.set_base") as mock_set_base,
             patch("builtins.input", return_value="y"),
         ):
             cmd_init(_make_args("myproject"))
@@ -217,10 +217,10 @@ class TestCmdInitBranchMismatch:
         """cmd_init does not update the base branch when the user answers 'n'."""
         monkeypatch.chdir(tmp_path)
         with (
-            patch("ralph.cli.subprocess.run", return_value=_git_branch_result("feature-x")),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
-            patch("ralph.cli.set_base") as mock_set_base,
+            patch("ralph.commands.subprocess.run", return_value=_git_branch_result("feature-x")),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
+            patch("ralph.commands.set_base") as mock_set_base,
             patch("builtins.input", return_value="n"),
         ):
             cmd_init(_make_args("myproject"))
@@ -235,9 +235,9 @@ class TestCmdInitBranchMismatch:
         empty_result.stdout = ""
 
         with (
-            patch("ralph.cli.subprocess.run", return_value=empty_result),
-            patch("ralph.cli.ensure_defaults"),
-            patch("ralph.cli.get_base", return_value="main"),
+            patch("ralph.commands.subprocess.run", return_value=empty_result),
+            patch("ralph.commands.ensure_defaults"),
+            patch("ralph.commands.get_base", return_value="main"),
         ):
             cmd_init(_make_args("myproject"))
 

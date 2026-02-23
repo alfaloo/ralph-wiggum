@@ -64,25 +64,24 @@ class TestCmdExecuteCore:
     @pytest.fixture(autouse=True)
     def _mock_tasks_json(self):
         """Satisfy the tasks.json existence/non-empty guard without touching the filesystem."""
-        with patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
             yield
 
     def test_assert_project_exists_is_called(self):
         """cmd_execute calls _assert_project_exists with the correct project name."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists") as mock_assert, \
-             patch("ralph.cli.subprocess.run", side_effect=[
+        with patch("ralph.commands._assert_project_exists") as mock_assert, \
+             patch("ralph.commands.subprocess.run", side_effect=[
                  _ok(),   # git branch --list my-project (empty → branch absent)
                  _ok(),   # git checkout main
                  _ok(),   # git checkout -b my-project
              ]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args())
 
         mock_assert.assert_called_once_with("my-project")
@@ -90,14 +89,13 @@ class TestCmdExecuteCore:
     def test_run_execute_loop_is_called(self):
         """cmd_execute calls Runner.run_execute_loop after setting up the branch."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args())
 
         mock_runner.run_execute_loop.assert_called_once()
@@ -105,34 +103,32 @@ class TestCmdExecuteCore:
     def test_run_execute_loop_receives_limit_from_settings(self):
         """cmd_execute passes the settings limit to run_execute_loop when --limit is absent."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=7), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=7), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(limit=None))
 
         pos_args, _ = mock_runner.run_execute_loop.call_args
-        assert pos_args[1] == 7
+        assert pos_args[0] == 7
 
     def test_limit_from_args_overrides_settings(self):
         """When --limit N is passed, it takes precedence over the persisted setting."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=999), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=999), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(limit=4))
 
         pos_args, _ = mock_runner.run_execute_loop.call_args
-        assert pos_args[1] == 4
+        assert pos_args[0] == 4
 
     def test_project_branch_created_via_git_checkout_b(self):
         """cmd_execute creates the project branch via 'git checkout -b <project>'."""
@@ -143,14 +139,13 @@ class TestCmdExecuteCore:
             subprocess_calls.append(cmd)
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=capture_subprocess), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=capture_subprocess), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(project_name="my-project"))
 
         assert ["git", "checkout", "-b", "my-project"] in subprocess_calls
@@ -165,14 +160,13 @@ class TestCmdExecuteCore:
                 checkout_calls.append(cmd)
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=capture_subprocess), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=capture_subprocess), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(project_name="my-project"))
 
         assert len(checkout_calls) == 2
@@ -182,32 +176,31 @@ class TestCmdExecuteCore:
     def test_runner_constructed_with_project_name(self):
         """Runner is instantiated with the correct project name."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(project_name="proj-123"))
 
         assert mock_runner_cls.call_args[0][0] == "proj-123"
 
-    def test_parse_execute_md_called_for_each_iteration(self):
-        """parse_execute_md is called once per iteration up to the limit."""
+    def test_run_execute_loop_receives_limit_as_first_positional_arg(self):
+        """run_execute_loop receives the limit as its first positional argument."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt") as mock_parse, \
-             patch("ralph.cli.get_limit", return_value=3), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=3), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args())
 
-        assert mock_parse.call_count == 3
+        pos_args, _ = mock_runner.run_execute_loop.call_args
+        assert pos_args[0] == 3
 
 
 # ===========================================================================
@@ -218,15 +211,15 @@ class TestCmdExecuteCore:
 class TestCmdExecuteProjectNotExist:
     def test_aborts_with_exit_code_1_when_project_missing(self):
         """cmd_execute exits with code 1 when _assert_project_exists raises SystemExit(1)."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)):
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_execute(_args())
         assert exc_info.value.code == 1
 
     def test_no_git_calls_when_project_missing(self):
         """No subprocess calls are made when the project does not exist."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)), \
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_execute(_args())
         mock_sub.assert_not_called()
@@ -234,8 +227,8 @@ class TestCmdExecuteProjectNotExist:
     def test_run_execute_loop_not_called_when_project_missing(self):
         """Runner.run_execute_loop is not called when the project is missing."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_execute(_args())
         mock_runner.run_execute_loop.assert_not_called()
@@ -249,12 +242,12 @@ class TestCmdExecuteProjectNotExist:
 class TestCmdExecuteBranchAlreadyExists:
     def test_aborts_when_project_branch_already_exists(self):
         """cmd_execute exits when the project branch exists and --resume is not passed."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", return_value=_ok(stdout="my-project\n")), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False), \
-             patch("ralph.cli.get_limit", return_value=1):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", return_value=_ok(stdout="my-project\n")), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False), \
+             patch("ralph.commands.get_limit", return_value=1):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_execute(_args(project_name="my-project", resume=False))
         assert exc_info.value.code == 1
@@ -262,13 +255,13 @@ class TestCmdExecuteBranchAlreadyExists:
     def test_run_execute_loop_not_called_when_branch_exists(self):
         """run_execute_loop is not called when the project branch already exists."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", return_value=_ok(stdout="my-project\n")), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False), \
-             patch("ralph.cli.get_limit", return_value=1):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", return_value=_ok(stdout="my-project\n")), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False), \
+             patch("ralph.commands.get_limit", return_value=1):
             with pytest.raises(SystemExit):
                 cmd_execute(_args(project_name="my-project", resume=False))
         mock_runner.run_execute_loop.assert_not_called()
@@ -283,17 +276,17 @@ class TestCmdExecuteBaseBranchNotExist:
     @pytest.fixture(autouse=True)
     def _mock_tasks_json(self):
         """Satisfy the tasks.json guard for tests that reach that code path."""
-        with patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
             yield
 
     def test_aborts_when_specified_base_branch_not_found(self):
         """cmd_execute exits when --base specifies a branch that does not exist in the repo."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", return_value=_ok(stdout="")), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", return_value=_ok(stdout="")), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_execute(_args(base="no-such-branch"))
         assert exc_info.value.code == 1
@@ -301,12 +294,12 @@ class TestCmdExecuteBaseBranchNotExist:
     def test_run_execute_loop_not_called_when_base_missing(self):
         """run_execute_loop is not called when the specified base branch does not exist."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", return_value=_ok(stdout="")), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", return_value=_ok(stdout="")), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             with pytest.raises(SystemExit):
                 cmd_execute(_args(base="no-such-branch"))
         mock_runner.run_execute_loop.assert_not_called()
@@ -323,14 +316,13 @@ class TestCmdExecuteBaseBranchNotExist:
             return _ok()
 
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=capture_subprocess), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=capture_subprocess), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(base="feature-branch"))
 
         # The first branch --list check should be for "feature-branch" (from _validate_branch_exists)
@@ -346,7 +338,7 @@ class TestCmdExecuteResumeFlag:
     @pytest.fixture(autouse=True)
     def _mock_tasks_json(self):
         """Satisfy the tasks.json guard for tests that reach that code path."""
-        with patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
             yield
 
@@ -362,14 +354,13 @@ class TestCmdExecuteResumeFlag:
                 return _ok(stdout="my-project\n")
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subproc), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subproc), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(project_name="my-project", resume=True))
 
         assert checkout_calls == [["git", "checkout", "my-project"]]
@@ -385,14 +376,13 @@ class TestCmdExecuteResumeFlag:
                 return _ok(stdout="my-project\n")
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subproc), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subproc), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(project_name="my-project", resume=True))
 
         create_branch_calls = [c for c in subprocess_calls if c[:3] == ["git", "checkout", "-b"]]
@@ -400,12 +390,12 @@ class TestCmdExecuteResumeFlag:
 
     def test_resume_aborts_when_project_branch_not_found(self):
         """With --resume, cmd_execute exits when the project branch does not exist."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", return_value=_ok(stdout="")), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False), \
-             patch("ralph.cli.get_limit", return_value=1):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", return_value=_ok(stdout="")), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False), \
+             patch("ralph.commands.get_limit", return_value=1):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_execute(_args(project_name="my-project", resume=True))
         assert exc_info.value.code == 1
@@ -419,14 +409,13 @@ class TestCmdExecuteResumeFlag:
                 return _ok(stdout="my-project\n")
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subproc), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subproc), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(project_name="my-project", resume=True))
 
         mock_runner.run_execute_loop.assert_called_once()
@@ -443,14 +432,13 @@ class TestCmdExecuteResumeFlag:
                 return _ok(stdout="my-project\n")
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subproc), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subproc), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(project_name="my-project", resume=True))
 
         base_checkouts = [c for c in checkout_calls if c == ["git", "checkout", "main"]]
@@ -466,21 +454,20 @@ class TestCmdExecuteAsynchronousFlag:
     @pytest.fixture(autouse=True)
     def _mock_tasks_json(self):
         """Satisfy the tasks.json guard for tests that reach that code path."""
-        with patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
             yield
 
     def test_asynchronous_true_forwarded_to_run_execute_loop(self):
         """When --asynchronous true is passed, run_execute_loop receives asynchronous=True."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=False):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False):
             cmd_execute(_args(asynchronous="true"))
 
         _, kw = mock_runner.run_execute_loop.call_args
@@ -489,14 +476,13 @@ class TestCmdExecuteAsynchronousFlag:
     def test_asynchronous_false_forwarded_to_run_execute_loop(self):
         """When --asynchronous false is passed, run_execute_loop receives asynchronous=False."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=True):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=True):
             cmd_execute(_args(asynchronous="false"))
 
         _, kw = mock_runner.run_execute_loop.call_args
@@ -505,14 +491,13 @@ class TestCmdExecuteAsynchronousFlag:
     def test_asynchronous_defaults_to_settings_when_not_passed(self):
         """When --asynchronous is absent, the value from settings.json is forwarded."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.parse_execute_md", return_value="prompt"), \
-             patch("ralph.cli.get_limit", return_value=1), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_verbose", return_value=False), \
-             patch("ralph.cli.get_asynchronous", return_value=True):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=True):
             cmd_execute(_args(asynchronous=None))
 
         _, kw = mock_runner.run_execute_loop.call_args

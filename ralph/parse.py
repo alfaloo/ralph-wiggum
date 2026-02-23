@@ -77,18 +77,33 @@ def parse_generate_tasks_md(
     return _substitute(template, PROJECT_NAME=project_name, USER_COMMENT=user_comment)
 
 
-def parse_execute_md(project_name: str, iteration_num: int, max_iterations: int) -> str:
+def parse_execute_md(
+    project_name: str,
+    iteration_num: int,
+    max_iterations: int,
+    task_id: str = "",
+    task_title: str = "",
+    task_description: str = "",
+) -> str:
     """Render the execute prompt template."""
     return _render(
         "execute.md",
         PROJECT_NAME=project_name,
         ITERATION_NUM=str(iteration_num),
         MAX_ITERATIONS=str(max_iterations),
+        TASK_ID=task_id,
+        TASK_TITLE=task_title,
+        TASK_DESCRIPTION=task_description,
     )
 
 
 def parse_execute_async_md(
-    project_name: str, task_id: str, iteration_num: int, max_iterations: int
+    project_name: str,
+    task_id: str,
+    iteration_num: int,
+    max_iterations: int,
+    task_title: str = "",
+    task_description: str = "",
 ) -> str:
     """Render the async execute prompt template for a pre-assigned task."""
     return _render(
@@ -97,6 +112,8 @@ def parse_execute_async_md(
         TASK_ID=task_id,
         ITERATION_NUM=str(iteration_num),
         MAX_ITERATIONS=str(max_iterations),
+        TASK_TITLE=task_title,
+        TASK_DESCRIPTION=task_description,
     )
 
 

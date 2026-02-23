@@ -78,7 +78,7 @@ def _make_subprocess_run(
 class TestCmdRetryProjectNotExist:
     def test_aborts_with_exit_code_1_when_project_missing(self):
         """cmd_retry exits with code 1 when the project does not exist."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)):
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_retry(_make_args())
 
@@ -86,9 +86,9 @@ class TestCmdRetryProjectNotExist:
 
     def test_no_further_checks_when_project_missing(self):
         """No subprocess or os.path.exists calls are made when the project does not exist."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)), \
-             patch("ralph.cli.subprocess.run") as mock_sub, \
-             patch("ralph.cli.os.path.exists") as mock_exists:
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)), \
+             patch("ralph.commands.subprocess.run") as mock_sub, \
+             patch("ralph.commands.os.path.exists") as mock_exists:
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
@@ -98,12 +98,12 @@ class TestCmdRetryProjectNotExist:
     def test_runner_not_called_when_project_missing(self):
         """Runner is not invoked when the project does not exist."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
 
 # ===========================================================================
@@ -114,8 +114,8 @@ class TestCmdRetryProjectNotExist:
 class TestCmdRetryValidationMissing:
     def test_aborts_when_validation_md_missing(self, capsys):
         """cmd_retry exits with code 1 when validation.md does not exist."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=False), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=False), \
              pytest.raises(SystemExit) as exc_info:
             cmd_retry(_make_args())
 
@@ -126,19 +126,19 @@ class TestCmdRetryValidationMissing:
     def test_runner_not_called_when_validation_missing(self):
         """Runner is not invoked when validation.md is missing."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=False), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=False), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_no_subprocess_when_validation_missing(self):
         """No subprocess calls are made when validation.md does not exist."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=False), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=False), \
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
@@ -154,30 +154,30 @@ class TestCmdRetryRatingRequiresAttention:
     def test_proceeds_without_force(self):
         """cmd_retry proceeds when rating is 'requires attention' without --force."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(force=False))  # Should not raise
 
-        mock_runner.run_comment.assert_called_once_with("mock prompt")
+        mock_runner.run_prompt.assert_called_once_with("mock prompt", "retry")
 
     def test_runner_called_when_requires_attention(self):
         """Runner.run_comment is called when rating is 'requires attention'."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="retry prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="retry prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args())
 
-        mock_runner.run_comment.assert_called_once()
+        mock_runner.run_prompt.assert_called_once()
 
 
 # ===========================================================================
@@ -188,8 +188,8 @@ class TestCmdRetryRatingRequiresAttention:
 class TestCmdRetryRatingPassed_NoForce:
     def test_aborts_when_rating_is_passed_without_force(self, capsys):
         """cmd_retry exits with code 1 when rating is 'passed' and --force is not provided."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_retry(_make_args(force=False))
@@ -201,21 +201,21 @@ class TestCmdRetryRatingPassed_NoForce:
     def test_runner_not_called_when_passed_no_force(self):
         """Runner is not invoked when rating is 'passed' and --force is not set."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args(force=False))
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_no_subprocess_when_passed_no_force(self):
         """No subprocess calls are made when rating is 'passed' and --force is not set."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args(force=False))
 
@@ -226,30 +226,30 @@ class TestCmdRetryRatingPassed_Force:
     def test_proceeds_when_rating_is_passed_with_force(self):
         """cmd_retry proceeds when rating is 'passed' and --force is True."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(force=True))  # Should not raise
 
-        mock_runner.run_comment.assert_called_once_with("mock prompt")
+        mock_runner.run_prompt.assert_called_once_with("mock prompt", "retry")
 
     def test_runner_called_when_passed_with_force(self):
         """Runner is called when rating is 'passed' and --force is True."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(force=True))
 
-        mock_runner.run_comment.assert_called_once()
+        mock_runner.run_prompt.assert_called_once()
 
 
 # ===========================================================================
@@ -260,8 +260,8 @@ class TestCmdRetryRatingPassed_Force:
 class TestCmdRetryRatingFailed_NoForce:
     def test_aborts_when_rating_is_failed_without_force(self, capsys):
         """cmd_retry exits with code 1 when rating is 'failed' and --force is not provided."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_retry(_make_args(force=False))
@@ -273,21 +273,21 @@ class TestCmdRetryRatingFailed_NoForce:
     def test_runner_not_called_when_failed_no_force(self):
         """Runner is not invoked when rating is 'failed' and --force is not set."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args(force=False))
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_no_subprocess_when_failed_no_force(self):
         """No subprocess calls are made when rating is 'failed' and --force is not set."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args(force=False))
 
@@ -295,8 +295,8 @@ class TestCmdRetryRatingFailed_NoForce:
 
     def test_message_mentions_undo_when_failed_no_force(self, capsys):
         """Error message mentions 'undo' when rating is 'failed' and --force not provided."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args(force=False))
@@ -309,30 +309,30 @@ class TestCmdRetryRatingFailed_Force:
     def test_proceeds_when_rating_is_failed_with_force(self):
         """cmd_retry proceeds when rating is 'failed' and --force is True."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(force=True))  # Should not raise
 
-        mock_runner.run_comment.assert_called_once_with("mock prompt")
+        mock_runner.run_prompt.assert_called_once_with("mock prompt", "retry")
 
     def test_runner_called_when_failed_with_force(self):
         """Runner is called when rating is 'failed' and --force is True."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(force=True))
 
-        mock_runner.run_comment.assert_called_once()
+        mock_runner.run_prompt.assert_called_once()
 
 
 # ===========================================================================
@@ -343,8 +343,8 @@ class TestCmdRetryRatingFailed_Force:
 class TestCmdRetryRatingNotFound_NoForce:
     def test_aborts_when_no_rating_found_without_force(self, capsys):
         """cmd_retry exits with code 1 when no rating found and --force is not provided."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_retry(_make_args(force=False))
@@ -356,21 +356,21 @@ class TestCmdRetryRatingNotFound_NoForce:
     def test_runner_not_called_when_no_rating_no_force(self):
         """Runner is not invoked when no rating found and --force is not set."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args(force=False))
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_no_subprocess_when_no_rating_no_force(self):
         """No subprocess calls made when no rating found and --force is not set."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args(force=False))
 
@@ -381,30 +381,30 @@ class TestCmdRetryRatingNotFound_Force:
     def test_proceeds_when_no_rating_with_force(self):
         """cmd_retry proceeds when no rating found and --force is True."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(force=True))  # Should not raise
 
-        mock_runner.run_comment.assert_called_once_with("mock prompt")
+        mock_runner.run_prompt.assert_called_once_with("mock prompt", "retry")
 
     def test_runner_called_when_no_rating_with_force(self):
         """Runner is called when no rating found and --force is True."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="mock prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="mock prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(force=True))
 
-        mock_runner.run_comment.assert_called_once()
+        mock_runner.run_prompt.assert_called_once()
 
 
 # ===========================================================================
@@ -415,10 +415,10 @@ class TestCmdRetryRatingNotFound_Force:
 class TestCmdRetryDirtyWorkingTree:
     def test_aborts_when_working_tree_is_dirty(self, capsys):
         """cmd_retry exits with code 1 when there are uncommitted changes."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(dirty_tree=True)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(dirty_tree=True)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_retry(_make_args())
 
@@ -429,15 +429,15 @@ class TestCmdRetryDirtyWorkingTree:
     def test_runner_not_called_when_dirty_tree(self):
         """Runner is not invoked when there are uncommitted changes."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(dirty_tree=True)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(dirty_tree=True)), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_branch_check_not_called_when_dirty_tree(self):
         """git branch --list is not called when working tree is dirty."""
@@ -450,10 +450,10 @@ class TestCmdRetryDirtyWorkingTree:
                 return _ok(stdout="M file.py\n")
             return _ok(stdout="")
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess):
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
@@ -468,10 +468,10 @@ class TestCmdRetryDirtyWorkingTree:
 class TestCmdRetryBranchMissing:
     def test_aborts_when_project_branch_not_found(self, capsys):
         """cmd_retry exits with code 1 when the project branch does not exist."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_retry(_make_args())
 
@@ -482,15 +482,15 @@ class TestCmdRetryBranchMissing:
     def test_runner_not_called_when_branch_missing(self):
         """Runner is not invoked when the project branch is missing."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(branch_exists=False)), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
     def test_checkout_not_called_when_branch_missing(self):
         """git checkout is not called when the project branch is missing."""
@@ -505,10 +505,10 @@ class TestCmdRetryBranchMissing:
                 return _ok(stdout="")
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess):
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
@@ -523,10 +523,10 @@ class TestCmdRetryBranchMissing:
 class TestCmdRetryCheckoutFails:
     def test_aborts_when_git_checkout_fails(self, capsys):
         """cmd_retry exits with code 1 when git checkout returns non-zero."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_retry(_make_args())
 
@@ -535,15 +535,15 @@ class TestCmdRetryCheckoutFails:
     def test_runner_not_called_when_checkout_fails(self):
         """Runner is not invoked when git checkout returns non-zero."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
-             patch("ralph.cli.Runner", return_value=mock_runner):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
+             patch("ralph.commands.Runner", return_value=mock_runner):
             with pytest.raises(SystemExit):
                 cmd_retry(_make_args())
 
-        mock_runner.run_comment.assert_not_called()
+        mock_runner.run_prompt.assert_not_called()
 
 
 # ===========================================================================
@@ -562,13 +562,13 @@ class TestCmdRetryHappyPath:
                 status_calls.append(list(cmd))
             return _make_subprocess_run()(cmd, **kwargs)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
-             patch("ralph.cli.parse_retry_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.parse_retry_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args())
 
         assert ["git", "status", "--porcelain"] in status_calls
@@ -583,13 +583,13 @@ class TestCmdRetryHappyPath:
                 branch_checks.append(list(cmd))
             return _make_subprocess_run()(cmd, **kwargs)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
-             patch("ralph.cli.parse_retry_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.parse_retry_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args())
 
         assert any(c[:3] == ["git", "branch", "--list"] for c in branch_checks)
@@ -604,13 +604,13 @@ class TestCmdRetryHappyPath:
                 checkout_calls.append(list(cmd))
             return _make_subprocess_run()(cmd, **kwargs)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
-             patch("ralph.cli.parse_retry_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.parse_retry_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args())
 
         assert ["git", "checkout", "my-project"] in checkout_calls
@@ -618,13 +618,13 @@ class TestCmdRetryHappyPath:
     def test_parse_retry_md_called_with_project_name(self):
         """parse_retry_md is called with the project name."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="prompt") as mock_parse, \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="prompt") as mock_parse, \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(project_name="my-project"))
 
         mock_parse.assert_called_once_with("my-project")
@@ -632,13 +632,13 @@ class TestCmdRetryHappyPath:
     def test_runner_constructed_with_project_name(self):
         """Runner is instantiated with the correct project name."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(project_name="proj-abc")), \
-             patch("ralph.cli.parse_retry_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name="proj-abc")), \
+             patch("ralph.commands.parse_retry_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(project_name="proj-abc"))
 
         assert mock_runner_cls.call_args[0][0] == "proj-abc"
@@ -646,30 +646,30 @@ class TestCmdRetryHappyPath:
     def test_runner_run_comment_called_with_rendered_prompt(self):
         """Runner.run_comment is called with the rendered retry.md prompt."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="rendered retry prompt") as mock_parse, \
-             patch("ralph.cli.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="rendered retry prompt") as mock_parse, \
+             patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args())
 
         mock_parse.assert_called_once_with("my-project")
         mock_runner_cls.assert_called_once()
         assert mock_runner_cls.call_args[0][0] == "my-project"
-        mock_runner.run_comment.assert_called_once_with("rendered retry prompt")
+        mock_runner.run_prompt.assert_called_once_with("rendered retry prompt", "retry")
 
     def test_assert_project_exists_called_with_project_name(self):
         """_assert_project_exists is called with the correct project name."""
         mock_runner = MagicMock()
-        with patch("ralph.cli._assert_project_exists") as mock_assert, \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists") as mock_assert, \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_REQUIRES_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.parse_retry_md", return_value="prompt"), \
-             patch("ralph.cli.Runner", return_value=mock_runner), \
-             patch("ralph.cli.get_verbose", return_value=False):
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.parse_retry_md", return_value="prompt"), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_verbose", return_value=False):
             cmd_retry(_make_args(project_name="my-project"))
 
         mock_assert.assert_called_once_with("my-project")
