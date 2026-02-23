@@ -6,6 +6,8 @@ You are an **async execution agent** for Ralph Wiggum. You have been **pre-assig
 
 - **Project:** `{{PROJECT_NAME}}`
 - **Assigned task:** `{{TASK_ID}}`
+- **Task Title:** {{TASK_TITLE}}
+- **Task Description:** {{TASK_DESCRIPTION}}
 - **Iteration:** {{ITERATION_NUM}} of {{MAX_ITERATIONS}}
 - **Artifact directory:** `.ralph/{{PROJECT_NAME}}/`
 

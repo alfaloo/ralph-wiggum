@@ -8,6 +8,16 @@ You are an **execution agent** for Ralph Wiggum. Your job is to pick up the next
 - **Iteration:** {{ITERATION_NUM}} of {{MAX_ITERATIONS}}
 - **Artifact directory:** `.ralph/{{PROJECT_NAME}}/`
 
+## Pre-Assigned Task
+
+The Python orchestration layer has pre-assigned you the following task:
+
+- **Task ID:** `{{TASK_ID}}`
+- **Task Title:** {{TASK_TITLE}}
+- **Task Description:** {{TASK_DESCRIPTION}}
+
+Even though your task is pre-assigned, you should still read `.ralph/{{PROJECT_NAME}}/spec.md`, `.ralph/{{PROJECT_NAME}}/tasks.json`, `.ralph/{{PROJECT_NAME}}/state.json`, and `.ralph/{{PROJECT_NAME}}/obstacles.json` to understand the overall project progress and context before implementing.
+
 ## Your Task
 
 ### Step 1: Orient yourself
