@@ -363,6 +363,119 @@ def cmd_validate(args: argparse.Namespace) -> None:
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
+def cmd_undo(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+
+    # Check that validation.md exists.
+    validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+    if not os.path.exists(validation_path):
+        print(
+            f"[ralph] I can't find 'validation.md' at '{validation_path}'. "
+            "Run 'ralph validate' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Parse the rating from validation.md.
+    rating = None
+    with open(validation_path) as f:
+        for line in f:
+            m = re.match(r"#\s*[Rr]ating:\s*(.+)", line.strip(), re.IGNORECASE)
+            if m:
+                rating = m.group(1).strip().lower()
+                break
+
+    if rating is None:
+        print(
+            f"[ralph] Warning: could not parse a rating from '{validation_path}'.",
+            file=sys.stderr,
+        )
+        if not args.force:
+            sys.exit(1)
+    elif rating != "failed":
+        print(
+            f"[ralph] Warning: validation rating is '{rating}', not 'failed'. "
+            "Use --force to undo anyway.",
+            file=sys.stderr,
+        )
+        if not args.force:
+            sys.exit(1)
+
+    # Resolve base branch.
+    base_branch = get_base()
+    if not base_branch:
+        set_base("main")
+        base_branch = "main"
+
+    # Abort if base branch and project branch are the same.
+    if base_branch == args.project_name:
+        print(
+            f"[ralph] Warning: base branch '{base_branch}' is the same as the project branch. Aborting.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Checkout the base branch.
+    checkout_result = subprocess.run(["git", "checkout", base_branch], capture_output=True, text=True)
+    if checkout_result.returncode != 0:
+        print(f"[ralph] I couldn't check out branch '{base_branch}': {checkout_result.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    # Prompt user for confirmation before deleting the project branch.
+    answer = input(f"Delete branch '{args.project_name}'? This cannot be undone. (y/n): ").strip().lower()
+    if answer not in ("y", "yes"):
+        print("[ralph] Undo cancelled.")
+        sys.exit(0)
+
+    # Force-delete the project branch.
+    delete_result = subprocess.run(["git", "branch", "-D", args.project_name], capture_output=True, text=True)
+    if delete_result.returncode != 0:
+        print(f"[ralph] I couldn't delete branch '{args.project_name}': {delete_result.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    ralph_dir = os.path.join(".ralph", args.project_name)
+
+    # Reset state.json.
+    state_path = os.path.join(ralph_dir, "state.json")
+    try:
+        with open(state_path, "w") as f:
+            json.dump([], f)
+    except OSError as e:
+        print(f"[ralph] Warning: could not reset '{state_path}': {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Reset obstacles.json.
+    obstacles_path = os.path.join(ralph_dir, "obstacles.json")
+    try:
+        with open(obstacles_path, "w") as f:
+            json.dump({"obstacles": []}, f)
+    except OSError as e:
+        print(f"[ralph] Warning: could not reset '{obstacles_path}': {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Reset tasks.json — reset task fields; preserve all other fields.
+    tasks_path = os.path.join(ralph_dir, "tasks.json")
+    tasks_existed = os.path.exists(tasks_path)
+    try:
+        if not tasks_existed:
+            with open(tasks_path, "w") as f:
+                json.dump({}, f)
+        else:
+            with open(tasks_path) as f:
+                tasks_data = json.load(f)
+            for task in tasks_data.get("tasks", []):
+                task["status"] = "pending"
+                task["attempts"] = 0
+                task["blocked"] = False
+            with open(tasks_path, "w") as f:
+                json.dump(tasks_data, f, indent=2)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"[ralph] Warning: could not reset '{tasks_path}': {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"[ralph] Undo complete. Project '{args.project_name}' has been reset.")
+
+
 def cmd_oneshot(args: argparse.Namespace) -> None:
     cmd_enrich(args)
     cmd_execute(args)
@@ -801,6 +914,12 @@ def main() -> None:
         help="Enable/disable verbose output for this invocation only",
     )
     validate_parser.set_defaults(func=cmd_validate)
+
+    # ralph undo <project-name> [--force]
+    undo_parser = subparsers.add_parser("undo", help="Undo code changes from a previous ralph execute")
+    undo_parser.add_argument("project_name", metavar="<project-name>")
+    undo_parser.add_argument("--force", "-f", action="store_true", default=False)
+    undo_parser.set_defaults(func=cmd_undo)
 
     args = parser.parse_args()
 
