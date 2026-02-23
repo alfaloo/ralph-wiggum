@@ -68,6 +68,32 @@ Before writing any code:
 
 After writing code, verify your implementation is complete and correct before moving to the commit step. Do not commit partial or broken work.
 
+### Step 5b: Verify via testing subagent
+
+If this project has tests relevant to the task you just implemented, spawn a testing subagent using the Task tool. Use the cheapest available model:
+
+**Subagent instructions:**
+> Check whether `.ralph/{{PROJECT_NAME}}/test-instructions.md` exists.
+> - If YES: read it and follow those instructions exactly to run the relevant tests.
+> - If NO: explore the repository for test infrastructure — look for `pytest.ini`, `setup.cfg`, `pyproject.toml [tool.pytest]`, a `tests/` directory, or any `*_test.py` / `test_*.py` files. Determine how to run the tests and run them.
+>
+> Write the complete raw test output to `.ralph/{{PROJECT_NAME}}/test-results.md` (overwrite if it exists).
+>
+> Return ONLY a compact summary:
+> - Overall: PASSED or FAILED
+> - X passed, Y failed, Z errors
+> - For each failure: [test name] — [error type]: [first 300 chars of the error message]
+>
+> Do not return the full output inline. Do not describe passing tests. Do not include warnings or coverage data.
+
+**Do not use background execution for the testing subagent.**
+
+If the subagent reports failures related to the task you just implemented, fix them before committing. You may re-run the testing subagent after fixing.
+
+**If you task does not implement a complete feature/result, you may ignore failing tests. Stay within the instructions of your task and do not over implement**
+
+If no test infrastructure exists in the repository, skip this step.
+
 ### Step 6: Commit changes
 
 Once the implementation is complete and verified, commit all changes via git:
