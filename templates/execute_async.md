@@ -74,7 +74,7 @@ If this project has tests relevant to the task you just implemented, spawn a tes
 
 If the subagent reports failures related to the task you just implemented, fix them before committing. You may re-run the testing subagent after fixing.
 
-**If you task does not implement a complete feature/result, you may ignore failing tests. Stay within the instructions of your task and do not over implement**
+**If your task does not implement a complete feature/result, you may ignore failing tests. Stay within the instructions of your task and do not over implement**
 
 If no test infrastructure exists in the repository, skip this step.
 
