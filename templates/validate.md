@@ -42,16 +42,31 @@ git diff main..{{PROJECT_NAME}}
 
 Read any relevant source files, tests, and configuration that were modified, as identified from the git diff and the task descriptions.
 
-### Step 3: Run the test suite
+### Step 3: Run the test suite via testing subagent
 
-Determine the appropriate test runner for this repository by examining configuration files (e.g., `pyproject.toml`, `setup.cfg`, `package.json`, `Makefile`, `pytest.ini`, etc.). Run the full test suite using the appropriate command. Common examples:
+If this project has tests relevant to the feature that was implemented, spawn a testing subagent using the Task tool. Use the cheapest available model:
 
-- Python (pytest): `pytest`
-- Node.js (npm): `npm test`
-- Go: `go test ./...`
-- Ruby: `bundle exec rspec`
+**Subagent instructions:**
+> Check whether `.ralph/{{PROJECT_NAME}}/test-instructions.md` exists.
+> - If YES: read it and follow those instructions exactly to run the relevant tests.
+> - If NO: explore the repository for test infrastructure — look for `pytest.ini`, `setup.cfg`, `pyproject.toml [tool.pytest]`, a `tests/` directory, or any `*_test.py` / `test_*.py` files. Determine how to run the tests and run them.
+>
+> Write the complete raw test output to `.ralph/{{PROJECT_NAME}}/test-results.md` (overwrite if it exists).
+>
+> Return ONLY a compact summary:
+> - Overall: PASSED or FAILED
+> - X passed, Y failed, Z errors
+> - For each failure: [test name] — [error type]: [first 300 chars of the error message]
+>
+> Do not return the full output inline. Do not describe passing tests. Do not include warnings or coverage data.
 
-If no tests are found, note this in the report.
+**Do not use background execution for the testing subagent.**
+
+If the subagent reports failures related to the task you just implemented, please document them in the report.
+
+If no test infrastructure exists in the repository, also note this in the report.
+
+**Please note you are not required to make code changes in an attempt to fix failed tests.**
 
 ### Step 4: Assess the implementation
 

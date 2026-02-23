@@ -47,6 +47,8 @@ Guidelines:
 - Only add information the user explicitly provided — do not infer, expand, or invent details.
 - Preserve the existing section headings and overall structure of the spec.
 
+If the user has included any questions in the spec.md or have instructed the claude agent to make a decision, you are welcome to replace them with a suitable answer. This should be done with carefully and only when you are confident the answer is appropriate. If the question requires more thorough investigation, then leave it as such so that tasks incorporate the question and it gets delegated later on to an execution agent.
+
 ## Step 3: Create or refresh tasks.json
 
 Always write `.ralph/{{PROJECT_NAME}}/tasks.json` after updating `spec.md`:

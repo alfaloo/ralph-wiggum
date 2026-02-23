@@ -45,6 +45,8 @@ RALPH_BANNER = """\
 "Me fail English? That's unpossible"\
 """
 
+RALPH_VERSION = "0.2.6"
+
 
 # ---------------------------------------------------------------------------
 # Backward-compatible thin wrappers
@@ -372,7 +374,7 @@ def main() -> None:
             print(RALPH_BANNER)
             print()
             print("Author: Zhiyang Lu")
-            print("Version: 0.2.0")
+            print(f"Version: {RALPH_VERSION}")
             print()
             sys.exit(0)
         # Provider requires validation before global persist.
