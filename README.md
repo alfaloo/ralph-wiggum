@@ -38,6 +38,8 @@ If the `pip install` fails, a possible solution would be to use `pipx install` i
 
 - Ralph currently invokes Claude Code with `--dangerously-skip-permissions`, which means the execute agents run without confirmation prompts. All file writes, shell commands, and git operations happen automatically. Run it on code you have committed or backed up.
 - The `ralph pr` command requires the [GitHub CLI (`gh`)](https://cli.github.com/) to be installed and authenticated.
+- GitLab support requires the [GitLab CLI (`glab`)](https://gitlab.com/gitlab-org/cli) to be installed and authenticated (`glab auth login`) before use. Ralph validates this when you set `--provider gitlab`.
+- When using `--asynchronous true`, concurrent Claude agents have no hard file locking on source-code files. It is theoretically possible for two agents to race and corrupt a source file if they both attempt to edit it at the same time. File locking is only guaranteed for `.json` artefact files. The probability is low — task generation mitigates this by encoding dependencies — but users should be aware of the risk.
 
 ## Commands
 
