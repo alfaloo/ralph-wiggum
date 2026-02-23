@@ -273,7 +273,12 @@ class Runner:
                                 t["attempts"] = t.get("attempts", 0) + 1
                                 break
                     prompt = parse_execute_async_md(
-                        self.project_name, task_id, 1, max_iterations
+                        self.project_name,
+                        task_id,
+                        1,
+                        max_iterations,
+                        task_title=task.get("title", ""),
+                        task_description=task.get("description", ""),
                     )
                     print(f'[ralph] Spawned execute agent to attempt task {task['id']} "{task['title']}"')
 
