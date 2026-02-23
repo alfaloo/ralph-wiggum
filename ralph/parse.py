@@ -113,3 +113,8 @@ def parse_summarise_md(project_name: str, ralph_dir: str, exit_reason: str) -> s
 def parse_validate_md(project_name: str) -> str:
     """Render the validate prompt template."""
     return _render("validate.md", PROJECT_NAME=project_name)
+
+
+def parse_retry_md(project_name: str) -> str:
+    """Render the retry prompt template."""
+    return _render("retry.md", PROJECT_NAME=project_name)

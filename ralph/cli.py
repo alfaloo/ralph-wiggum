@@ -9,7 +9,7 @@ import sys
 from typing import Callable
 
 from ralph.config import ensure_defaults, get_asynchronous, get_base, get_limit, get_provider, get_rounds, get_verbose, set_asynchronous, set_base, set_limit, set_provider, set_rounds, set_verbose
-from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md, parse_validate_md
+from ralph.parse import parse_execute_md, parse_generate_tasks_md, parse_questions_md, parse_retry_md, parse_validate_md
 from ralph.run import Runner
 
 _DEFAULT_LIMIT = 20
@@ -360,6 +360,194 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
     # Render the validate prompt and run the validation agent.
     prompt = parse_validate_md(args.project_name)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+
+
+def cmd_undo(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+
+    # Check that validation.md exists.
+    validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+    if not os.path.exists(validation_path):
+        print(
+            f"[ralph] I can't find 'validation.md' at '{validation_path}'. "
+            "Run 'ralph validate' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Parse the rating from validation.md.
+    rating = None
+    with open(validation_path) as f:
+        for line in f:
+            m = re.match(r"#\s*[Rr]ating:\s*(.+)", line.strip(), re.IGNORECASE)
+            if m:
+                rating = m.group(1).strip().lower()
+                break
+
+    if rating is None:
+        print(
+            f"[ralph] Warning: could not parse a rating from '{validation_path}'.",
+            file=sys.stderr,
+        )
+        if not args.force:
+            sys.exit(1)
+    elif rating != "failed":
+        print(
+            f"[ralph] Warning: validation rating is '{rating}', not 'failed'. "
+            "Use --force to undo anyway.",
+            file=sys.stderr,
+        )
+        if not args.force:
+            sys.exit(1)
+
+    # Prompt user for confirmation before deleting the project branch.
+    answer = input(f"Delete branch '{args.project_name}'? This cannot be undone. (y/n): ").strip().lower()
+    if answer not in ("y", "yes"):
+        print("[ralph] Undo cancelled.")
+        sys.exit(0)
+
+    # Resolve base branch.
+    base_branch = get_base()
+    if not base_branch:
+        set_base("main")
+        base_branch = "main"
+
+    # Abort if base branch and project branch are the same.
+    if base_branch == args.project_name:
+        print(
+            f"[ralph] Warning: base branch '{base_branch}' is the same as the project branch. Aborting.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Checkout the base branch.
+    checkout_result = subprocess.run(["git", "checkout", base_branch], capture_output=True, text=True)
+    if checkout_result.returncode != 0:
+        print(f"[ralph] I couldn't check out branch '{base_branch}': {checkout_result.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    # Force-delete the project branch.
+    delete_result = subprocess.run(["git", "branch", "-D", args.project_name], capture_output=True, text=True)
+    if delete_result.returncode != 0:
+        print(f"[ralph] I couldn't delete branch '{args.project_name}': {delete_result.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    ralph_dir = os.path.join(".ralph", args.project_name)
+
+    # Reset state.json.
+    state_path = os.path.join(ralph_dir, "state.json")
+    try:
+        with open(state_path, "w") as f:
+            json.dump([], f)
+    except OSError as e:
+        print(f"[ralph] Warning: could not reset '{state_path}': {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Reset obstacles.json.
+    obstacles_path = os.path.join(ralph_dir, "obstacles.json")
+    try:
+        with open(obstacles_path, "w") as f:
+            json.dump({"obstacles": []}, f)
+    except OSError as e:
+        print(f"[ralph] Warning: could not reset '{obstacles_path}': {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Reset tasks.json — reset task fields; preserve all other fields.
+    tasks_path = os.path.join(ralph_dir, "tasks.json")
+    tasks_existed = os.path.exists(tasks_path)
+    try:
+        if not tasks_existed:
+            with open(tasks_path, "w") as f:
+                json.dump({}, f)
+        else:
+            with open(tasks_path) as f:
+                tasks_data = json.load(f)
+            for task in tasks_data.get("tasks", []):
+                task["status"] = "pending"
+                task["attempts"] = 0
+                task["blocked"] = False
+            with open(tasks_path, "w") as f:
+                json.dump(tasks_data, f, indent=2)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"[ralph] Warning: could not reset '{tasks_path}': {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"[ralph] Undo complete. Project '{args.project_name}' has been reset.")
+
+
+def cmd_retry(args: argparse.Namespace) -> None:
+    _assert_project_exists(args.project_name)
+
+    # Check that validation.md exists.
+    validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+    if not os.path.exists(validation_path):
+        print(
+            f"[ralph] I can't find 'validation.md' at '{validation_path}'. "
+            "Run 'ralph validate' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Parse the rating from validation.md.
+    rating = None
+    with open(validation_path) as f:
+        for line in f:
+            m = re.match(r"#\s*[Rr]ating:\s*(.+)", line.strip(), re.IGNORECASE)
+            if m:
+                rating = m.group(1).strip().lower()
+                break
+
+    if rating is None:
+        print(
+            f"[ralph] Warning: could not parse a rating from '{validation_path}'.",
+            file=sys.stderr,
+        )
+        if not args.force:
+            sys.exit(1)
+    elif rating == "passed":
+        print(
+            "[ralph] Validation passed — everything looks successful! "
+            "Use --force to run retry anyway.",
+            file=sys.stderr,
+        )
+        if not args.force:
+            sys.exit(1)
+    elif rating == "failed":
+        print(
+            "[ralph] Validation failed. It is highly encouraged to run 'ralph undo' and "
+            "re-run 'ralph execute' for better results. "
+            "Use --force to run retry anyway.",
+            file=sys.stderr,
+        )
+        if not args.force:
+            sys.exit(1)
+    # "requires attention" proceeds normally without --force
+
+    # Check for a dirty working tree.
+    status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    if status_result.stdout.strip():
+        print(
+            "[ralph] There are uncommitted changes in the working tree. "
+            "Please commit or stash them before running retry.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check that the project branch exists.
+    branch_check = subprocess.run(["git", "branch", "--list", args.project_name], capture_output=True, text=True)
+    if not branch_check.stdout.strip():
+        print(f"[ralph] I can't find branch '{args.project_name}'. Aborting.", file=sys.stderr)
+        sys.exit(1)
+
+    # Checkout the project branch.
+    checkout_result = subprocess.run(["git", "checkout", args.project_name], capture_output=True, text=True)
+    if checkout_result.returncode != 0:
+        print(f"[ralph] I couldn't check out branch '{args.project_name}': {checkout_result.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    # Render the retry prompt and spawn the agent.
+    prompt = parse_retry_md(args.project_name)
     Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
 
 
@@ -801,6 +989,25 @@ def main() -> None:
         help="Enable/disable verbose output for this invocation only",
     )
     validate_parser.set_defaults(func=cmd_validate)
+
+    # ralph undo <project-name> [--force]
+    undo_parser = subparsers.add_parser("undo", help="Undo code changes from a previous ralph execute")
+    undo_parser.add_argument("project_name", metavar="<project-name>")
+    undo_parser.add_argument("--force", "-f", action="store_true", default=False)
+    undo_parser.set_defaults(func=cmd_undo)
+
+    # ralph retry <project-name> [--force] [--verbose BOOL]
+    retry_parser = subparsers.add_parser("retry", help="Spawn an agent to fix issues identified during validation")
+    retry_parser.add_argument("project_name", metavar="<project-name>")
+    retry_parser.add_argument("--force", "-f", action="store_true", default=False)
+    retry_parser.add_argument(
+        "--verbose", "-v",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Enable/disable verbose output for this invocation only",
+    )
+    retry_parser.set_defaults(func=cmd_retry)
 
     args = parser.parse_args()
 
