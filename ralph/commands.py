@@ -448,21 +448,26 @@ class UndoCommand(Command):
                     rating = m.group(1).strip().lower()
                     break
 
-        if rating is None:
+        if rating is None and not args.force:
             print(
-                f"[ralph] Warning: could not parse a rating from '{validation_path}'.",
+                f"[ralph] Warning: could not parse a rating from '{validation_path}'."
+                "Use --force to undo anyway.",
                 file=sys.stderr,
             )
-            if not args.force:
-                sys.exit(1)
-        elif rating != "failed":
+            sys.exit(1)
+        elif rating != "failed" and not args.force:
             print(
                 f"[ralph] Warning: validation rating is '{rating}', not 'failed'. "
                 "Use --force to undo anyway.",
                 file=sys.stderr,
             )
-            if not args.force:
-                sys.exit(1)
+            sys.exit(1)
+
+        # Prompt user for confirmation before deleting the project branch.
+        answer = input(f"Delete branch '{args.project_name}'? This cannot be undone. (y/n): ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("[ralph] Undo cancelled.")
+            sys.exit(0)
 
         # Resolve base branch.
         base_branch = get_base()
@@ -483,12 +488,6 @@ class UndoCommand(Command):
         if checkout_result.returncode != 0:
             print(f"[ralph] I couldn't check out branch '{base_branch}': {checkout_result.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
-
-        # Prompt user for confirmation before deleting the project branch.
-        answer = input(f"Delete branch '{args.project_name}'? This cannot be undone. (y/n): ").strip().lower()
-        if answer not in ("y", "yes"):
-            print("[ralph] Undo cancelled.")
-            sys.exit(0)
 
         # Force-delete the project branch.
         delete_result = subprocess.run(["git", "branch", "-D", args.project_name], capture_output=True, text=True)

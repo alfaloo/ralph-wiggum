@@ -346,6 +346,7 @@ class TestCmdUndoBaseBranchSameAsProject:
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
              patch("ralph.commands.get_base", return_value=project_name), \
              patch("ralph.commands.set_base"), \
+             patch("builtins.input", return_value="y"), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args(project_name=project_name))
 
@@ -361,6 +362,7 @@ class TestCmdUndoBaseBranchSameAsProject:
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
              patch("ralph.commands.get_base", return_value=project_name), \
              patch("ralph.commands.set_base"), \
+             patch("builtins.input", return_value="y"), \
              patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args(project_name=project_name))
@@ -425,25 +427,26 @@ class TestCmdUndoGitCheckoutFails:
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
              patch("ralph.commands.get_base", return_value="main"), \
              patch("ralph.commands.set_base"), \
+             patch("builtins.input", return_value="y"), \
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args())
 
         assert exc_info.value.code == 1
 
-    def test_input_not_called_when_checkout_fails(self):
-        """input() is not called when git checkout fails."""
+    def test_input_called_before_checkout_attempt(self):
+        """input() is called for confirmation before the git checkout attempt."""
         with patch("ralph.commands._assert_project_exists"), \
              patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
              patch("ralph.commands.get_base", return_value="main"), \
              patch("ralph.commands.set_base"), \
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
-             patch("builtins.input") as mock_input:
+             patch("builtins.input", return_value="y") as mock_input:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args())
 
-        mock_input.assert_not_called()
+        mock_input.assert_called_once()
 
 
 # ===========================================================================
