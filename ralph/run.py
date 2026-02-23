@@ -290,7 +290,7 @@ class Runner:
                         task_title=task.get("title", ""),
                         task_description=task.get("description", ""),
                     )
-                    print(f"[ralph] Spawned execute agent to attempt task {task['id']} \"{task['title']}\"")
+                    print(f"[ralph] Spawning execute agent for task {task['id']} \"{task['title']}\"...")
 
                     def _worker(p=prompt):
                         return run_noninteractive(p).returncode
