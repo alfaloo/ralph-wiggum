@@ -12,7 +12,7 @@ from typing import Callable
 
 from ralph import dag
 from ralph import locks
-from ralph.parse import parse_summarise_md, parse_execute_async_md
+from ralph.parse import parse_summarise_md, parse_execute_async_md, parse_execute_md
 
 
 def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
@@ -292,10 +292,10 @@ class Runner:
         finally:
             executor.shutdown(wait=False)
 
-    def run_execute_loop(self, prompts: list[str], max_iterations: int, asynchronous: bool = False) -> None:
+    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
         if asynchronous:
-            self.run_execute_loop_async(prompts, max_iterations)
+            self.run_execute_loop_async([], max_iterations)
             return
 
         # Pre-check: skip spawning agents if all tasks are already complete.
@@ -308,9 +308,47 @@ class Runner:
         exit_reason = f"Reached maximum iteration limit ({max_iterations})."
 
         for iteration in range(1, max_iterations + 1):
-            prompt = prompts[min(iteration - 1, len(prompts) - 1)]
+            # Load tasks.json and select the next ready task via dag.get_ready_tasks().
+            with open(self._tasks_path) as f:
+                tasks_data = json.load(f)
+            tasks = tasks_data.get("tasks", [])
 
-            print(f"\n[ralph] Execute agent has started working (iteration {iteration}/{max_iterations})...")
+            ready_tasks = dag.get_ready_tasks(tasks)
+            if not ready_tasks:
+                exit_reason = (
+                    "No tasks are ready to execute — all remaining tasks are blocked or have unmet dependencies."
+                )
+                print(f"\n[ralph] {exit_reason}")
+                break
+
+            task = ready_tasks[0]
+            task_id = task["id"]
+            task_title = task.get("title", "")
+            task_description = task.get("description", "")
+
+            # Pre-update tasks.json: mark selected task as in_progress and increment attempts.
+            for t in tasks_data["tasks"]:
+                if t["id"] == task_id:
+                    t["status"] = "in_progress"
+                    t["attempts"] = t.get("attempts", 0) + 1
+                    break
+            with open(self._tasks_path, "w") as f:
+                json.dump(tasks_data, f, indent=2)
+
+            # Build the prompt with the pre-assigned task injected.
+            prompt = parse_execute_md(
+                self.project_name,
+                iteration_num=iteration,
+                max_iterations=max_iterations,
+                task_id=task_id,
+                task_title=task_title,
+                task_description=task_description,
+            )
+
+            print(
+                f"\n[ralph] Execute agent has started working on task {task_id} \"{task_title}\""
+                f" (iteration {iteration}/{max_iterations})..."
+            )
             agent_response = self._handle_result(run_noninteractive(prompt))
 
             if "You've hit your limit" in agent_response:

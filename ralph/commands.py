@@ -27,7 +27,6 @@ from ralph.config import (
     set_base,
 )
 from ralph.parse import (
-    parse_execute_md,
     parse_generate_tasks_md,
     parse_questions_md,
     parse_retry_md,
@@ -363,12 +362,7 @@ class ExecuteCommand(Command):
             )
             sys.exit(1)
 
-        # Pre-render all prompts; each references its iteration number
-        prompts = [
-            parse_execute_md(project_name, iteration_num=i + 1, max_iterations=limit)
-            for i in range(limit)
-        ]
-        Runner(project_name, verbose=verbose).run_execute_loop(prompts, limit, asynchronous=asynchronous)
+        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous)
 
 
 class ValidateCommand(Command):
