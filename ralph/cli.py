@@ -401,6 +401,12 @@ def cmd_undo(args: argparse.Namespace) -> None:
         if not args.force:
             sys.exit(1)
 
+    # Prompt user for confirmation before deleting the project branch.
+    answer = input(f"Delete branch '{args.project_name}'? This cannot be undone. (y/n): ").strip().lower()
+    if answer not in ("y", "yes"):
+        print("[ralph] Undo cancelled.")
+        sys.exit(0)
+
     # Resolve base branch.
     base_branch = get_base()
     if not base_branch:
@@ -420,12 +426,6 @@ def cmd_undo(args: argparse.Namespace) -> None:
     if checkout_result.returncode != 0:
         print(f"[ralph] I couldn't check out branch '{base_branch}': {checkout_result.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
-
-    # Prompt user for confirmation before deleting the project branch.
-    answer = input(f"Delete branch '{args.project_name}'? This cannot be undone. (y/n): ").strip().lower()
-    if answer not in ("y", "yes"):
-        print("[ralph] Undo cancelled.")
-        sys.exit(0)
 
     # Force-delete the project branch.
     delete_result = subprocess.run(["git", "branch", "-D", args.project_name], capture_output=True, text=True)
