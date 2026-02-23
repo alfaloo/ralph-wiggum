@@ -116,9 +116,9 @@ class TestCmdPrHappyPathGitHub:
         args = _make_args(project_name=project_name, provider="github")
         pr_body = "## My PR\nSome description."
 
-        with patch("ralph.cli.subprocess.run", side_effect=_make_github_run(project_name=project_name)), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=_make_github_run(project_name=project_name)), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data=pr_body)):
             cmd_pr(args)
 
@@ -136,9 +136,9 @@ class TestCmdPrHappyPathGitHub:
             calls.append(list(cmd))
             return _make_github_run(project_name=project_name)(cmd, **kwargs)
 
-        with patch("ralph.cli.subprocess.run", side_effect=mock_run), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=mock_run), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data=pr_body)):
             cmd_pr(args)
 
@@ -165,9 +165,9 @@ class TestCmdPrHappyPathGitHub:
                 call_order.append("pr_create")
             return _make_github_run(project_name=project_name)(cmd, **kwargs)
 
-        with patch("ralph.cli.subprocess.run", side_effect=mock_run), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=mock_run), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data="# PR")):
             cmd_pr(args)
 
@@ -184,9 +184,9 @@ class TestCmdPrHappyPathGitHub:
             calls.append(list(cmd))
             return _make_github_run(project_name=project_name)(cmd, **kwargs)
 
-        with patch("ralph.cli.subprocess.run", side_effect=mock_run), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=mock_run), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data=pr_body)):
             cmd_pr(args)
 
@@ -208,9 +208,9 @@ class TestCmdPrHappyPathGitLab:
         args = _make_args(project_name=project_name, provider="gitlab")
         pr_body = "## My MR"
 
-        with patch("ralph.cli.subprocess.run", side_effect=_make_gitlab_run(project_name=project_name)), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=_make_gitlab_run(project_name=project_name)), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data=pr_body)):
             cmd_pr(args)
 
@@ -229,9 +229,9 @@ class TestCmdPrHappyPathGitLab:
             calls.append(list(cmd))
             return _make_gitlab_run(project_name=project_name)(cmd, **kwargs)
 
-        with patch("ralph.cli.subprocess.run", side_effect=mock_run), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=mock_run), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data=pr_body)):
             cmd_pr(args)
 
@@ -256,7 +256,7 @@ class TestCmdPrProjectNotExist:
         """Exits with code 1 when the project directory does not exist."""
         args = _make_args(project_name="nonexistent-project", provider="github")
 
-        with patch("ralph.cli.os.path.exists", return_value=False), \
+        with patch("ralph.commands.os.path.exists", return_value=False), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -275,7 +275,7 @@ class TestCmdPrProjectNotExist:
                 return True  # project dir present
             return False  # spec.md and everything else missing
 
-        with patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
+        with patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -295,8 +295,8 @@ class TestCmdPrCliNotInstalled:
         project_name = "my-project"
         args = _make_args(project_name=project_name, provider="github")
 
-        with patch("ralph.cli.subprocess.run", side_effect=_make_github_run(gh_version_ok=False)), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands.subprocess.run", side_effect=_make_github_run(gh_version_ok=False)), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -309,8 +309,8 @@ class TestCmdPrCliNotInstalled:
         project_name = "my-project"
         args = _make_args(project_name=project_name, provider="gitlab")
 
-        with patch("ralph.cli.subprocess.run", side_effect=_make_gitlab_run(glab_version_ok=False)), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands.subprocess.run", side_effect=_make_gitlab_run(glab_version_ok=False)), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -332,9 +332,9 @@ class TestCmdPrBranchMismatch:
         args = _make_args(project_name=project_name, provider="github")
 
         with patch(
-            "ralph.cli.subprocess.run",
+            "ralph.commands.subprocess.run",
             side_effect=_make_github_run(project_name=project_name, branch_stdout="some-other-branch"),
-        ), patch("ralph.cli.os.path.exists", return_value=True), \
+        ), patch("ralph.commands.os.path.exists", return_value=True), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -349,9 +349,9 @@ class TestCmdPrBranchMismatch:
         args = _make_args(project_name=project_name, provider="gitlab")
 
         with patch(
-            "ralph.cli.subprocess.run",
+            "ralph.commands.subprocess.run",
             side_effect=_make_gitlab_run(project_name=project_name, branch_stdout="different-branch"),
-        ), patch("ralph.cli.os.path.exists", return_value=True), \
+        ), patch("ralph.commands.os.path.exists", return_value=True), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -372,9 +372,9 @@ class TestCmdPrDirtyWorkingTree:
         args = _make_args(project_name=project_name, provider="github")
 
         with patch(
-            "ralph.cli.subprocess.run",
+            "ralph.commands.subprocess.run",
             side_effect=_make_github_run(project_name=project_name, tree_dirty=True),
-        ), patch("ralph.cli.os.path.exists", return_value=True), \
+        ), patch("ralph.commands.os.path.exists", return_value=True), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -388,9 +388,9 @@ class TestCmdPrDirtyWorkingTree:
         args = _make_args(project_name=project_name, provider="gitlab")
 
         with patch(
-            "ralph.cli.subprocess.run",
+            "ralph.commands.subprocess.run",
             side_effect=_make_gitlab_run(project_name=project_name, tree_dirty=True),
-        ), patch("ralph.cli.os.path.exists", return_value=True), \
+        ), patch("ralph.commands.os.path.exists", return_value=True), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -414,9 +414,9 @@ class TestCmdPrDescriptionMissing:
         def mock_exists(path):
             return path != pr_desc_path  # False only for pr-description.md
 
-        with patch("ralph.cli.subprocess.run", side_effect=_make_github_run(project_name=project_name)), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=_make_github_run(project_name=project_name)), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
+             patch("ralph.commands.get_base", return_value="main"), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -433,9 +433,9 @@ class TestCmdPrDescriptionMissing:
         def mock_exists(path):
             return path != pr_desc_path  # False only for pr-description.md
 
-        with patch("ralph.cli.subprocess.run", side_effect=_make_gitlab_run(project_name=project_name)), \
-             patch("ralph.cli.os.path.exists", side_effect=mock_exists), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=_make_gitlab_run(project_name=project_name)), \
+             patch("ralph.commands.os.path.exists", side_effect=mock_exists), \
+             patch("ralph.commands.get_base", return_value="main"), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -456,10 +456,10 @@ class TestCmdPrMergeBaseMissing:
         args = _make_args(project_name=project_name, provider="github")
 
         with patch(
-            "ralph.cli.subprocess.run",
+            "ralph.commands.subprocess.run",
             side_effect=_make_github_run(project_name=project_name, merge_base_ok=False),
-        ), patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        ), patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              pytest.raises(SystemExit) as exc_info:
             cmd_pr(args)
 
@@ -484,9 +484,9 @@ class TestCmdPrProviderFlag:
             calls.append(tuple(cmd))
             return _make_gitlab_run(project_name=project_name)(cmd, **kwargs)
 
-        with patch("ralph.cli.subprocess.run", side_effect=mock_run), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=mock_run), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data="## MR")):
             cmd_pr(args)
 
@@ -505,9 +505,9 @@ class TestCmdPrProviderFlag:
             calls.append(tuple(cmd))
             return _make_github_run(project_name=project_name)(cmd, **kwargs)
 
-        with patch("ralph.cli.subprocess.run", side_effect=mock_run), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
+        with patch("ralph.commands.subprocess.run", side_effect=mock_run), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
              patch("builtins.open", mock_open(read_data="## PR")):
             cmd_pr(args)
 
@@ -527,10 +527,10 @@ class TestCmdPrProviderFlag:
             calls.append(tuple(cmd))
             return _make_github_run(project_name=project_name)(cmd, **kwargs)
 
-        with patch("ralph.cli.subprocess.run", side_effect=mock_run), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.get_provider", return_value="github"), \
+        with patch("ralph.commands.subprocess.run", side_effect=mock_run), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_provider", return_value="github"), \
              patch("builtins.open", mock_open(read_data="## PR")):
             cmd_pr(args)
 

@@ -94,7 +94,7 @@ def _make_subprocess_run(checkout_ok: bool = True, delete_ok: bool = True):
 class TestCmdUndoProjectNotExist:
     def test_aborts_with_exit_code_1_when_project_missing(self):
         """cmd_undo exits with code 1 when the project does not exist."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)):
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_undo(_make_args())
 
@@ -102,9 +102,9 @@ class TestCmdUndoProjectNotExist:
 
     def test_no_further_checks_when_project_missing(self):
         """No subprocess or os.path.exists calls are made when the project does not exist."""
-        with patch("ralph.cli._assert_project_exists", side_effect=SystemExit(1)), \
-             patch("ralph.cli.subprocess.run") as mock_sub, \
-             patch("ralph.cli.os.path.exists") as mock_exists:
+        with patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)), \
+             patch("ralph.commands.subprocess.run") as mock_sub, \
+             patch("ralph.commands.os.path.exists") as mock_exists:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args())
 
@@ -120,8 +120,8 @@ class TestCmdUndoProjectNotExist:
 class TestCmdUndoValidationMissing:
     def test_aborts_when_validation_md_missing(self, capsys):
         """cmd_undo exits with code 1 when validation.md does not exist."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=False), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=False), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args())
 
@@ -131,9 +131,9 @@ class TestCmdUndoValidationMissing:
 
     def test_no_subprocess_when_validation_missing(self):
         """No subprocess calls are made when validation.md does not exist."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=False), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=False), \
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args())
 
@@ -148,15 +148,15 @@ class TestCmdUndoValidationMissing:
 class TestCmdUndoRatingFailed:
     def test_proceeds_normally_with_failed_rating(self):
         """cmd_undo proceeds when validation rating is 'failed' without --force."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args(force=False))  # Should not raise
 
     def test_git_checkout_called_with_base_branch(self):
@@ -168,15 +168,15 @@ class TestCmdUndoRatingFailed:
                 checkout_calls.append(list(cmd))
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args())
 
         assert ["git", "checkout", "main"] in checkout_calls
@@ -190,30 +190,30 @@ class TestCmdUndoRatingFailed:
                 delete_calls.append(list(cmd))
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args())
 
         assert ["git", "branch", "-D", "my-project"] in delete_calls
 
     def test_input_prompt_called_for_confirmation(self):
         """cmd_undo calls input() to prompt for y/n confirmation."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y") as mock_input, \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args())
 
         mock_input.assert_called_once()
@@ -227,8 +227,8 @@ class TestCmdUndoRatingFailed:
 class TestCmdUndoRatingNotFailed_NoForce:
     def test_aborts_when_rating_is_passed_without_force(self, capsys):
         """cmd_undo exits with code 1 when rating is 'passed' and --force is not provided."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args(force=False))
@@ -239,8 +239,8 @@ class TestCmdUndoRatingNotFailed_NoForce:
 
     def test_aborts_when_rating_is_requires_attention_without_force(self, capsys):
         """cmd_undo exits with code 1 when rating is 'requires attention' and --force not set."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_ATTENTION_VALIDATION_MD)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args(force=False))
@@ -249,10 +249,10 @@ class TestCmdUndoRatingNotFailed_NoForce:
 
     def test_no_subprocess_when_non_failed_rating_no_force(self):
         """No subprocess calls are made when rating is not 'failed' and --force is not set."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args(force=False))
 
@@ -262,28 +262,28 @@ class TestCmdUndoRatingNotFailed_NoForce:
 class TestCmdUndoRatingNotFailed_Force:
     def test_proceeds_when_rating_is_passed_with_force(self):
         """cmd_undo proceeds when rating is 'passed' and --force is True."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_PASSED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args(force=True))  # Should not raise
 
     def test_proceeds_when_rating_is_requires_attention_with_force(self):
         """cmd_undo proceeds when rating is 'requires attention' and --force is True."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_ATTENTION_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args(force=True))  # Should not raise
 
 
@@ -295,8 +295,8 @@ class TestCmdUndoRatingNotFailed_Force:
 class TestCmdUndoRatingNotFound_NoForce:
     def test_aborts_when_no_rating_found_without_force(self, capsys):
         """cmd_undo exits with code 1 when no rating found and --force is not provided."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args(force=False))
@@ -307,10 +307,10 @@ class TestCmdUndoRatingNotFound_NoForce:
 
     def test_no_subprocess_when_no_rating_no_force(self):
         """No subprocess calls made when no rating found and --force is not set."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args(force=False))
 
@@ -320,15 +320,15 @@ class TestCmdUndoRatingNotFound_NoForce:
 class TestCmdUndoRatingNotFound_Force:
     def test_proceeds_when_no_rating_with_force(self):
         """cmd_undo proceeds when no rating found and --force is True."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_NO_RATING_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args(force=True))  # Should not raise
 
 
@@ -341,11 +341,11 @@ class TestCmdUndoBaseBranchSameAsProject:
     def test_aborts_when_base_branch_equals_project_name(self, capsys):
         """cmd_undo exits with code 1 when base branch == project_name."""
         project_name = "my-project"
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value=project_name), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.get_base", return_value=project_name), \
+             patch("ralph.commands.set_base"), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args(project_name=project_name))
 
@@ -356,12 +356,12 @@ class TestCmdUndoBaseBranchSameAsProject:
     def test_no_git_commands_when_base_same_as_project(self):
         """No git checkout or git branch -D is called when base branch == project name."""
         project_name = "my-project"
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value=project_name), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run") as mock_sub:
+             patch("ralph.commands.get_base", return_value=project_name), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run") as mock_sub:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args(project_name=project_name))
 
@@ -376,15 +376,15 @@ class TestCmdUndoBaseBranchSameAsProject:
 class TestCmdUndoBaseBranchNotSet:
     def test_set_base_called_with_main_when_base_is_empty(self):
         """When get_base() returns empty string, set_base('main') is called."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value=""), \
-             patch("ralph.cli.set_base") as mock_set_base, \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value=""), \
+             patch("ralph.commands.set_base") as mock_set_base, \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args())
 
         mock_set_base.assert_called_once_with("main")
@@ -398,15 +398,15 @@ class TestCmdUndoBaseBranchNotSet:
                 checkout_calls.append(list(cmd))
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value=""), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.get_base", return_value=""), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args())
 
         assert ["git", "checkout", "main"] in checkout_calls
@@ -420,12 +420,12 @@ class TestCmdUndoBaseBranchNotSet:
 class TestCmdUndoGitCheckoutFails:
     def test_aborts_when_git_checkout_fails(self, capsys):
         """cmd_undo exits with code 1 when git checkout returns non-zero."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args())
 
@@ -433,12 +433,12 @@ class TestCmdUndoGitCheckoutFails:
 
     def test_input_not_called_when_checkout_fails(self):
         """input() is not called when git checkout fails."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(checkout_ok=False)), \
              patch("builtins.input") as mock_input:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args())
@@ -454,12 +454,12 @@ class TestCmdUndoGitCheckoutFails:
 class TestCmdUndoUserConfirmationNo:
     def test_aborts_when_user_answers_no(self):
         """cmd_undo exits when the user enters 'n' at the confirmation prompt."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
              patch("builtins.input", return_value="n"), \
              pytest.raises(SystemExit):
             cmd_undo(_make_args())
@@ -473,12 +473,12 @@ class TestCmdUndoUserConfirmationNo:
                 delete_calls.append(list(cmd))
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
              patch("builtins.input", return_value="n"):
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args())
@@ -487,14 +487,14 @@ class TestCmdUndoUserConfirmationNo:
 
     def test_no_file_writes_when_user_answers_no(self):
         """No json.dump calls are made when user declines confirmation."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
              patch("builtins.input", return_value="n"), \
-             patch("ralph.cli.json.dump") as mock_dump:
+             patch("ralph.commands.json.dump") as mock_dump:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args())
 
@@ -516,30 +516,30 @@ class TestCmdUndoUserConfirmationYes:
                 delete_calls.append(list(cmd))
             return _ok()
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=track_subprocess), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args())
 
         assert ["git", "branch", "-D", "my-project"] in delete_calls
 
     def test_yes_answer_case_insensitive(self):
         """'YES' is accepted as a confirmation answer."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
              patch("builtins.input", return_value="YES"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args())  # Should not raise
 
 
@@ -551,12 +551,12 @@ class TestCmdUndoUserConfirmationYes:
 class TestCmdUndoGitBranchDeleteFails:
     def test_aborts_when_branch_delete_fails(self, capsys):
         """cmd_undo exits with code 1 when git branch -D returns non-zero."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(delete_ok=False)), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(delete_ok=False)), \
              patch("builtins.input", return_value="y"), \
              pytest.raises(SystemExit) as exc_info:
             cmd_undo(_make_args())
@@ -565,14 +565,14 @@ class TestCmdUndoGitBranchDeleteFails:
 
     def test_file_resets_not_performed_when_branch_delete_fails(self):
         """No json.dump calls are made when git branch -D fails."""
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run(delete_ok=False)), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(delete_ok=False)), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.dump") as mock_dump:
+             patch("ralph.commands.json.dump") as mock_dump:
             with pytest.raises(SystemExit):
                 cmd_undo(_make_args())
 
@@ -598,14 +598,14 @@ class TestCmdUndoMissingJsonFiles:
         def capture_dump(obj, f, **kwargs):
             json_dump_calls.append(obj)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", side_effect=exists_side_effect), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", side_effect=exists_side_effect), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.dump", side_effect=capture_dump):
             cmd_undo(_make_args())
 
         assert [] in json_dump_calls
@@ -626,15 +626,15 @@ class TestCmdUndoHappyPath:
         def capture_dump(obj, f, **kwargs):
             json_dump_calls.append(obj)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump", side_effect=capture_dump):
             cmd_undo(_make_args())
 
         assert [] in json_dump_calls
@@ -646,15 +646,15 @@ class TestCmdUndoHappyPath:
         def capture_dump(obj, f, **kwargs):
             json_dump_calls.append(obj)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump", side_effect=capture_dump):
             cmd_undo(_make_args())
 
         assert {"obstacles": []} in json_dump_calls
@@ -666,15 +666,15 @@ class TestCmdUndoHappyPath:
         def capture_dump(obj, f, **kwargs):
             json_dump_calls.append(obj)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump", side_effect=capture_dump):
             cmd_undo(_make_args())
 
         tasks_writes = [c for c in json_dump_calls if isinstance(c, dict) and "tasks" in c]
@@ -691,15 +691,15 @@ class TestCmdUndoHappyPath:
         def capture_dump(obj, f, **kwargs):
             json_dump_calls.append(obj)
 
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump", side_effect=capture_dump):
             cmd_undo(_make_args())
 
         tasks_writes = [c for c in json_dump_calls if isinstance(c, dict) and "tasks" in c]
@@ -715,15 +715,15 @@ class TestCmdUndoHappyPath:
 
     def test_assert_project_exists_called_with_project_name(self):
         """_assert_project_exists is called with the correct project name."""
-        with patch("ralph.cli._assert_project_exists") as mock_assert, \
-             patch("ralph.cli.os.path.exists", return_value=True), \
+        with patch("ralph.commands._assert_project_exists") as mock_assert, \
+             patch("ralph.commands.os.path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.cli.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("ralph.cli.get_base", return_value="main"), \
-             patch("ralph.cli.set_base"), \
+             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.cli.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.cli.json.dump"):
+             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
+             patch("ralph.commands.json.dump"):
             cmd_undo(_make_args(project_name="my-project"))
 
         mock_assert.assert_called_once_with("my-project")

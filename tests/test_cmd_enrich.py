@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ralph.cli import _ENRICH_COMMENT, cmd_enrich
+from ralph.cli import cmd_enrich
+from ralph.commands import _ENRICH_COMMENT
 
 
 # ---------------------------------------------------------------------------
@@ -32,20 +33,20 @@ class TestCmdEnrichCoreFunc:
     def test_assert_project_exists_called_with_project_name(self):
         """cmd_enrich calls _assert_project_exists with the correct project name."""
         args = _args()
-        with patch("ralph.cli._assert_project_exists") as mock_assert, \
-             patch("ralph.cli.parse_generate_tasks_md", return_value="prompt"), \
-             patch("ralph.cli.Runner") as MockRunner:
-            MockRunner.return_value.run_comment = MagicMock()
+        with patch("ralph.commands._assert_project_exists") as mock_assert, \
+             patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
+             patch("ralph.commands.Runner") as MockRunner:
+            MockRunner.return_value.run_prompt = MagicMock()
             cmd_enrich(args)
         mock_assert.assert_called_once_with("my-project")
 
     def test_parse_generate_tasks_md_called_with_enrich_comment(self):
         """cmd_enrich passes project_name and _ENRICH_COMMENT to parse_generate_tasks_md."""
         args = _args(project_name="test-proj")
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.parse_generate_tasks_md", return_value="the-prompt") as mock_parse, \
-             patch("ralph.cli.Runner") as MockRunner:
-            MockRunner.return_value.run_comment = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.parse_generate_tasks_md", return_value="the-prompt") as mock_parse, \
+             patch("ralph.commands.Runner") as MockRunner:
+            MockRunner.return_value.run_prompt = MagicMock()
             cmd_enrich(args)
         mock_parse.assert_called_once_with("test-proj", user_comment=_ENRICH_COMMENT)
 
@@ -53,31 +54,31 @@ class TestCmdEnrichCoreFunc:
         """cmd_enrich uses _ENRICH_COMMENT (not _ONESHOT_COMMENT) as the user_comment."""
         args = _args()
         captured = {}
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.parse_generate_tasks_md", side_effect=lambda name, *, user_comment: captured.update({"user_comment": user_comment}) or "prompt"), \
-             patch("ralph.cli.Runner") as MockRunner:
-            MockRunner.return_value.run_comment = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.parse_generate_tasks_md", side_effect=lambda name, *, user_comment: captured.update({"user_comment": user_comment}) or "prompt"), \
+             patch("ralph.commands.Runner") as MockRunner:
+            MockRunner.return_value.run_prompt = MagicMock()
             cmd_enrich(args)
         assert captured["user_comment"] == _ENRICH_COMMENT
 
     def test_runner_run_comment_called_with_generated_prompt(self):
         """cmd_enrich calls Runner.run_comment with the prompt returned by parse_generate_tasks_md."""
         args = _args()
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.parse_generate_tasks_md", return_value="generated-prompt"), \
-             patch("ralph.cli.Runner") as MockRunner:
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.parse_generate_tasks_md", return_value="generated-prompt"), \
+             patch("ralph.commands.Runner") as MockRunner:
             mock_instance = MagicMock()
             MockRunner.return_value = mock_instance
             cmd_enrich(args)
-        mock_instance.run_comment.assert_called_once_with("generated-prompt")
+        mock_instance.run_prompt.assert_called_once_with("generated-prompt", "enrich")
 
     def test_runner_initialised_with_correct_project_name(self):
         """cmd_enrich constructs Runner with the correct project_name."""
         args = _args(project_name="proj-xyz")
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.parse_generate_tasks_md", return_value="prompt"), \
-             patch("ralph.cli.Runner") as MockRunner:
-            MockRunner.return_value.run_comment = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
+             patch("ralph.commands.Runner") as MockRunner:
+            MockRunner.return_value.run_prompt = MagicMock()
             cmd_enrich(args)
         call_args, _ = MockRunner.call_args
         assert call_args[0] == "proj-xyz"
@@ -85,10 +86,10 @@ class TestCmdEnrichCoreFunc:
     def test_verbose_true_forwarded_to_runner(self):
         """cmd_enrich forwards verbose=True to Runner when --verbose true is passed."""
         args = _args(verbose="true")
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.parse_generate_tasks_md", return_value="prompt"), \
-             patch("ralph.cli.Runner") as MockRunner:
-            MockRunner.return_value.run_comment = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
+             patch("ralph.commands.Runner") as MockRunner:
+            MockRunner.return_value.run_prompt = MagicMock()
             cmd_enrich(args)
         _, kwargs = MockRunner.call_args
         assert kwargs["verbose"] is True
@@ -96,10 +97,10 @@ class TestCmdEnrichCoreFunc:
     def test_verbose_false_forwarded_to_runner(self):
         """cmd_enrich forwards verbose=False to Runner when --verbose false is passed."""
         args = _args(verbose="false")
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.parse_generate_tasks_md", return_value="prompt"), \
-             patch("ralph.cli.Runner") as MockRunner:
-            MockRunner.return_value.run_comment = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
+             patch("ralph.commands.Runner") as MockRunner:
+            MockRunner.return_value.run_prompt = MagicMock()
             cmd_enrich(args)
         _, kwargs = MockRunner.call_args
         assert kwargs["verbose"] is False
@@ -107,11 +108,11 @@ class TestCmdEnrichCoreFunc:
     def test_verbose_none_falls_back_to_persisted_setting(self):
         """When --verbose is absent, Runner receives the verbose value from settings.json."""
         args = _args(verbose=None)
-        with patch("ralph.cli._assert_project_exists"), \
-             patch("ralph.cli.parse_generate_tasks_md", return_value="prompt"), \
-             patch("ralph.cli.get_verbose", return_value=True), \
-             patch("ralph.cli.Runner") as MockRunner:
-            MockRunner.return_value.run_comment = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
+             patch("ralph.commands.get_verbose", return_value=True), \
+             patch("ralph.commands.Runner") as MockRunner:
+            MockRunner.return_value.run_prompt = MagicMock()
             cmd_enrich(args)
         _, kwargs = MockRunner.call_args
         assert kwargs["verbose"] is True
@@ -128,15 +129,15 @@ class TestCmdEnrichCoreFunc:
             call_log.append("parse")
             return "my-prompt"
 
-        with patch("ralph.cli._assert_project_exists", side_effect=mock_assert), \
-             patch("ralph.cli.parse_generate_tasks_md", side_effect=mock_parse), \
-             patch("ralph.cli.Runner") as MockRunner:
+        with patch("ralph.commands._assert_project_exists", side_effect=mock_assert), \
+             patch("ralph.commands.parse_generate_tasks_md", side_effect=mock_parse), \
+             patch("ralph.commands.Runner") as MockRunner:
             mock_instance = MagicMock()
-            mock_instance.run_comment.side_effect = lambda _: call_log.append("run_comment")
+            mock_instance.run_prompt.side_effect = lambda p, n: call_log.append("run_prompt")
             MockRunner.return_value = mock_instance
             cmd_enrich(args)
 
-        assert call_log == ["assert", "parse", "run_comment"]
+        assert call_log == ["assert", "parse", "run_prompt"]
 
 
 # ===========================================================================
@@ -150,7 +151,7 @@ class TestCmdEnrichFailcases:
     def test_missing_project_directory_aborts_with_exit_code_1(self):
         """cmd_enrich exits with code 1 when the project directory does not exist."""
         args = _args(project_name="no-such-project")
-        with patch("ralph.cli.os.path.exists", return_value=False):
+        with patch("ralph.commands.os.path.exists", return_value=False):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_enrich(args)
         assert exc_info.value.code == 1
@@ -165,7 +166,7 @@ class TestCmdEnrichFailcases:
                 return False
             return True
 
-        with patch("ralph.cli.os.path.exists", side_effect=exists_side_effect):
+        with patch("ralph.commands.os.path.exists", side_effect=exists_side_effect):
             with pytest.raises(SystemExit) as exc_info:
                 cmd_enrich(args)
         assert exc_info.value.code == 1
@@ -173,8 +174,8 @@ class TestCmdEnrichFailcases:
     def test_run_comment_not_called_when_project_missing(self):
         """Runner.run_comment is never invoked when the project does not exist."""
         args = _args()
-        with patch("ralph.cli.os.path.exists", return_value=False), \
-             patch("ralph.cli.Runner") as MockRunner:
+        with patch("ralph.commands.os.path.exists", return_value=False), \
+             patch("ralph.commands.Runner") as MockRunner:
             with pytest.raises(SystemExit):
                 cmd_enrich(args)
         MockRunner.assert_not_called()
@@ -182,8 +183,8 @@ class TestCmdEnrichFailcases:
     def test_parse_generate_tasks_md_not_called_when_project_missing(self):
         """parse_generate_tasks_md is never invoked when the project does not exist."""
         args = _args()
-        with patch("ralph.cli.os.path.exists", return_value=False), \
-             patch("ralph.cli.parse_generate_tasks_md") as mock_parse:
+        with patch("ralph.commands.os.path.exists", return_value=False), \
+             patch("ralph.commands.parse_generate_tasks_md") as mock_parse:
             with pytest.raises(SystemExit):
                 cmd_enrich(args)
         mock_parse.assert_not_called()
