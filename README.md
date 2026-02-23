@@ -265,3 +265,15 @@ ralph oneshot my-feature
 ```
 
 This runs enrich → execute → validate → PR in sequence. A `"failed"` validation rating aborts PR creation; a `"requires attention"` rating prints a warning but continues.
+
+---
+
+## Changelog
+
+### Version 1
+
+Initial release. Introduced the core agentic development workflow: `ralph init` to set up a project, `ralph interview` and `ralph comment` to refine the spec through clarifying questions, `ralph execute` to spawn fresh Claude Code agents per task (avoiding context window degradation), `ralph pr` to push the project branch and create a GitHub pull request, and `ralph oneshot` to run the full pipeline in a single command.
+
+### Version 2
+
+Added GitLab support and a `--provider / -p` flag for selecting the VCS platform. Introduced parallel task execution via `--asynchronous / -a`, dispatching independent tasks concurrently using a DAG-based orchestrator with `filelock`-protected JSON writes. Added four new commands: `ralph enrich` (enriches `spec.md` and regenerates `tasks.json`), `ralph validate` (produces a rated `validation.md` report via a Claude agent), `ralph undo` (rolls back a failed branch), and `ralph retry` (fixes a "requires attention" result with a single agent). `ralph oneshot` was updated to include enrich and validate steps. Synchronous task delegation moved to the Python/DAG layer; context window usage is logged after each agent run.
