@@ -24,6 +24,16 @@ def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+def run_noninteractive_json(prompt: str) -> subprocess.CompletedProcess:
+    """Run Claude Code in non-interactive mode with JSON output format.
+
+    Like run_noninteractive() but adds --output-format json so that stdout is
+    a JSON object containing the result text and token usage information.
+    """
+    cmd = ["claude", "--dangerously-skip-permissions", "--print", "--output-format", "json", prompt]
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+
 def _collect_user_answers() -> str:
     """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
 
@@ -349,9 +359,38 @@ class Runner:
                 f"\n[ralph] Execute agent has started working on task {task_id} \"{task_title}\""
                 f" (iteration {iteration}/{max_iterations})..."
             )
-            agent_response = self._handle_result(run_noninteractive(prompt))
+            result = run_noninteractive_json(prompt)
 
-            if "You've hit your limit" in agent_response:
+            # Handle errors from the subprocess.
+            if result.returncode != 0 and result.stderr:
+                print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
+
+            # Parse JSON output for the agent's text response and context window usage.
+            agent_text = result.stdout
+            try:
+                data = json.loads(result.stdout)
+                agent_text = data.get("result", result.stdout)
+
+                if self.verbose and agent_text:
+                    print(agent_text)
+
+                # Log context window usage from the completed agent.
+                usage = data.get("usage", {})
+                input_tokens = usage.get("input_tokens", 0)
+                output_tokens = usage.get("output_tokens", 0)
+                total_tokens = input_tokens + output_tokens
+                model_usage = data.get("modelUsage", {})
+                context_window = model_usage.get("contextWindow", 200000)
+                pct = (total_tokens / context_window * 100) if context_window > 0 else 0
+                print(
+                    f"[ralph] Agent used {total_tokens:,}/{context_window:,} tokens"
+                    f" ({pct:.1f}%) of context window."
+                )
+            except (json.JSONDecodeError, ValueError):
+                if self.verbose and result.stdout:
+                    print(result.stdout)
+
+            if "You've hit your limit" in agent_text:
                 exit_reason = "Claude Code usage limit has been reached."
                 print("\n[ralph] Looks like the Claude Code usage limit has been reached.")
                 break
