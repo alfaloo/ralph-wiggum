@@ -305,7 +305,7 @@ class Runner:
         for iteration in range(1, max_iterations + 1):
             prompt = prompts[min(iteration - 1, len(prompts) - 1)]
 
-            print(f'\n[ralph] Spawned execute agent to attempt task {task['id']} "{task['title']}" (iteration {iteration}/{max_iterations})...')
+            print(f'f"\n[ralph] Execute agent has started working (iteration {iteration}/{max_iterations})..."')
             agent_response = self._handle_result(run_noninteractive(prompt))
 
             if "You've hit your limit" in agent_response:
