@@ -114,13 +114,13 @@ class Runner:
         else:
             print("[ralph] I had some trouble writing the summary.", file=sys.stderr)
 
-    def run_comment(self, prompt: str) -> None:
-        """Run the comment agent as a single headless invocation."""
-        print(f"[ralph] Comment agent has started working on '{self.project_name}'...")
+    def run_prompt(self, prompt: str, command_name: str) -> None:
+        """Run a single headless agent invocation for the given command."""
+        print(f"[ralph] {command_name.capitalize()} agent has started working on '{self.project_name}'...")
         result = run_noninteractive(prompt)
         self._handle_result(result)
         if result.returncode != 0:
-            print("[ralph] The comment agent ran into some trouble.", file=sys.stderr)
+            print(f"[ralph] The {command_name} agent ran into some trouble.", file=sys.stderr)
 
     def run_interview_loop(
         self,

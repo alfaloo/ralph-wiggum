@@ -232,13 +232,13 @@ def cmd_interview(args: argparse.Namespace) -> None:
 def cmd_comment(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
     prompt = parse_generate_tasks_md(args.project_name, user_comment=args.comment)
-    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "comment")
 
 
 def cmd_enrich(args: argparse.Namespace) -> None:
     _assert_project_exists(args.project_name)
     prompt = parse_generate_tasks_md(args.project_name, user_comment=_ENRICH_COMMENT)
-    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "enrich")
 
 
 def cmd_execute(args: argparse.Namespace) -> None:
@@ -360,7 +360,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
     # Render the validate prompt and run the validation agent.
     prompt = parse_validate_md(args.project_name)
-    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "validate")
 
 
 def cmd_undo(args: argparse.Namespace) -> None:
@@ -548,7 +548,7 @@ def cmd_retry(args: argparse.Namespace) -> None:
 
     # Render the retry prompt and spawn the agent.
     prompt = parse_retry_md(args.project_name)
-    Runner(args.project_name, verbose=_resolve_verbose(args)).run_comment(prompt)
+    Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "retry")
 
 
 def cmd_oneshot(args: argparse.Namespace) -> None:
