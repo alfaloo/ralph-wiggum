@@ -66,6 +66,10 @@ _SPEC_MD_TEMPLATE = """\
 <!-- Any specific technologies, libraries, constraints, or design decisions -->
 """
 
+_TEST_INSTRUCTIONS_TEMPLATE = """\
+# Please define the instructions for how to run tests for this project
+"""
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -223,6 +227,10 @@ class InitCommand(Command):
         tasks_path = os.path.join(ralph_dir, "tasks.json")
         with open(tasks_path, "w") as f:
             json.dump({}, f)
+
+        test_instructions_path = os.path.join(ralph_dir, "test-instructions.md")
+        with open(test_instructions_path, "w") as f:
+            json.dump(_TEST_INSTRUCTIONS_TEMPLATE, f)
 
         ensure_defaults()
 
@@ -660,6 +668,135 @@ class OneshotCommand(Command):
             )
 
         PrCommand(args).execute()
+
+
+class StatusCommand(Command):
+    """ralph status — display project status, task progress, and obstacles."""
+
+    def execute(self) -> None:
+        args = self.args
+        _assert_project_exists(args.project_name)
+
+        project_name = args.project_name
+        ralph_dir = os.path.join(".ralph", project_name)
+
+        sep = "─" * 60
+
+        print()
+        print(f"[ralph] Project: {project_name}")
+        print(sep)
+
+        # --- Git branch info ---
+        branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+        current_branch = branch_result.stdout.strip()
+        base_branch = get_base()
+        print(f"[ralph] Current branch : {current_branch}")
+        print(f"[ralph] Base branch    : {base_branch}")
+
+        # --- Execution-relevant config flags ---
+        limit = get_limit()
+        asynchronous = get_asynchronous()
+        print(f"[ralph] Limit          : {limit}")
+        print(f"[ralph] Asynchronous   : {asynchronous}")
+
+        # --- Validation rating ---
+        validation_path = os.path.join(ralph_dir, "validation.md")
+        if os.path.exists(validation_path):
+            rating = None
+            with open(validation_path) as f:
+                for line in f:
+                    m = re.match(r"#\s*Rating:\s*(.+)", line.strip(), re.IGNORECASE)
+                    if m:
+                        rating = m.group(1).strip()
+                        break
+            if rating:
+                print(f"[ralph] Validation     : {rating}")
+
+        print(sep)
+
+        # --- Tasks ---
+        tasks_path = os.path.join(ralph_dir, "tasks.json")
+        tasks_data = None
+        if os.path.exists(tasks_path):
+            try:
+                with open(tasks_path) as f:
+                    tasks_data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                tasks_data = None
+
+        # Empty dict `{}` or missing file: no tasks to display
+        if not tasks_data or not isinstance(tasks_data, dict) or not tasks_data.get("tasks"):
+            print("[ralph] No tasks or obstacles detected.")
+            print()
+            return
+
+        tasks = tasks_data["tasks"]
+
+        print("[ralph] Tasks")
+        print(sep)
+
+        status_counts: dict[str, int] = {}
+        for task in tasks:
+            task_id = task.get("id", "?")
+            title = task.get("title", "(no title)")
+            status = task.get("status", "unknown")
+            blocked = task.get("blocked", False)
+
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+            suffix = ""
+            if status == "in_progress":
+                suffix = "  [BLOCKED]" if blocked else "  [running]"
+
+            print(f"[ralph]   {task_id:<4}  {status:<12}  {title}{suffix}")
+
+        print(sep)
+        total = len(tasks)
+        completed = status_counts.get("completed", 0)
+        in_progress = status_counts.get("in_progress", 0)
+        pending = status_counts.get("pending", 0)
+        print(f"[ralph] Summary: {completed} completed / {in_progress} in_progress / {pending} pending  (total: {total})")
+        print(sep)
+
+        # --- Obstacles ---
+        obstacles_path = os.path.join(ralph_dir, "obstacles.json")
+        obstacles_data = None
+        if os.path.exists(obstacles_path):
+            try:
+                with open(obstacles_path) as f:
+                    obstacles_data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                obstacles_data = None
+
+        obstacles = []
+        if isinstance(obstacles_data, dict):
+            obstacles = obstacles_data.get("obstacles", [])
+
+        if obstacles:
+            print("[ralph] Obstacles")
+            print(sep)
+
+            # Group by task_id
+            grouped: dict[str, list] = {}
+            for obs in obstacles:
+                tid = obs.get("task_id", "?")
+                grouped.setdefault(tid, []).append(obs)
+
+            for tid, obs_list in grouped.items():
+                print(f"[ralph]   Task {tid}:")
+                for obs in obs_list:
+                    resolved = obs.get("resolved", False)
+                    resolved_str = "resolved" if resolved else "unresolved"
+                    print(
+                        f"[ralph]     {obs.get('id', '?')}"
+                        f"  [iter {obs.get('iteration', '?')}]"
+                        f"  [{resolved_str}]"
+                        f"  {obs.get('message', '')}"
+                    )
+
+            print(sep)
+
+        print()
 
 
 class PrCommand(Command):

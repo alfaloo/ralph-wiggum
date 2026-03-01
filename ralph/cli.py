@@ -31,6 +31,7 @@ from ralph.commands import (
     RetryCommand,
     OneshotCommand,
     PrCommand,
+    StatusCommand,
 )
 
 RALPH_BANNER = """\
@@ -95,6 +96,10 @@ def cmd_oneshot(args: argparse.Namespace) -> None:
 
 def cmd_pr(args: argparse.Namespace) -> None:
     PrCommand(args).execute()
+
+
+def cmd_status(args: argparse.Namespace) -> None:
+    StatusCommand(args).execute()
 
 
 def main() -> None:
@@ -259,6 +264,11 @@ def main() -> None:
         help="Enable/disable asynchronous agent execution for this invocation only",
     )
     execute_parser.set_defaults(func=ExecuteCommand)
+
+    # ralph status <project-name>
+    status_parser = subparsers.add_parser("status", help="Show project status and task progress")
+    status_parser.add_argument("project_name", metavar="<project-name>")
+    status_parser.set_defaults(func=StatusCommand)
 
     # ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL] [--provider PROVIDER]
     oneshot_parser = subparsers.add_parser(
