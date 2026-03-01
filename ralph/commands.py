@@ -66,6 +66,10 @@ _SPEC_MD_TEMPLATE = """\
 <!-- Any specific technologies, libraries, constraints, or design decisions -->
 """
 
+_TEST_INSTRUCTIONS_TEMPLATE = """\
+# Please define the instructions for how to run tests for this project
+"""
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -223,6 +227,10 @@ class InitCommand(Command):
         tasks_path = os.path.join(ralph_dir, "tasks.json")
         with open(tasks_path, "w") as f:
             json.dump({}, f)
+
+        test_instructions_path = os.path.join(ralph_dir, "test-instructions.md")
+        with open(test_instructions_path, "w") as f:
+            json.dump(_TEST_INSTRUCTIONS_TEMPLATE, f)
 
         ensure_defaults()
 
