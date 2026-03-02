@@ -32,7 +32,7 @@ function sanitizeHtml(html: string): string {
 }
 
 // Regexes for PR/MR URL detection (non-global, used with exec loop)
-const PR_URL_PATTERN = /https:\/\/github\.com\/[^\s]+\/pull\/\d+|https:\/\/gitlab\.com\/[^\s]+\/merge_requests\/\d+/g;
+const PR_URL_PATTERN = /https:\/\/github\.com\/[^\s]+\/pull\/\d+|https:\/\/gitlab\.com\/[^\s]+\/-\/merge_requests\/\d+/g;
 
 function containsPrUrl(text: string): boolean {
   PR_URL_PATTERN.lastIndex = 0;
