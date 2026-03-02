@@ -1,0 +1,54 @@
+{
+  "name": "ralph-wiggum",
+  "displayName": "Ralph Wiggum",
+  "description": "GUI wrapper for the ralph CLI",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:.ralph"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ralph-sidebar",
+          "title": "Ralph Wiggum",
+          "icon": "media/ralph-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ralph-sidebar": [
+        {
+          "id": "ralph.projectList",
+          "name": "Projects"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "ralph.newProject",
+        "title": "Ralph: New Project"
+      },
+      {
+        "command": "ralph.openProject",
+        "title": "Ralph: Open Project"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "esbuild": "^0.20.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}
