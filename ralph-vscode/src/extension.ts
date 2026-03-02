@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
   const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
 
   const sidebar = new RalphSidebarProvider(workspaceRoot, context);
-  const panelManager = new RalphPanelManager(context, context.extensionUri);
+  const panelManager = new RalphPanelManager(context, context.extensionUri, workspaceRoot);
   const processManager = new RalphProcessManager(workspaceRoot);
   const fileWatcher = new RalphFileWatcher(panelManager, sidebar, workspaceRoot);
 

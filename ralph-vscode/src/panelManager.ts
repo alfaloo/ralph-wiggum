@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as crypto from 'crypto';
 
 const OPEN_PANELS_KEY = 'ralph.openPanels';
@@ -8,13 +10,15 @@ export class RalphPanelManager {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly extensionUri: vscode.Uri
+    private readonly extensionUri: vscode.Uri,
+    private readonly workspaceRoot: string
   ) {}
 
   openPanel(projectName: string): vscode.WebviewPanel {
     const existing = this.panels.get(projectName);
     if (existing) {
       existing.reveal(vscode.ViewColumn.One);
+      this.postSettings(projectName, existing);
       return existing;
     }
 
@@ -37,7 +41,20 @@ export class RalphPanelManager {
       this.persistOpenPanels();
     });
 
+    this.postSettings(projectName, panel);
+
     return panel;
+  }
+
+  private postSettings(projectName: string, panel: vscode.WebviewPanel): void {
+    try {
+      const settingsPath = path.join(this.workspaceRoot, '.ralph', projectName, 'settings.json');
+      const content = fs.readFileSync(settingsPath, 'utf-8');
+      const settings = JSON.parse(content);
+      panel.webview.postMessage({ type: 'settings_update', settings });
+    } catch {
+      // File missing or invalid JSON — no settings to pre-fill
+    }
   }
 
   getPanel(projectName: string): vscode.WebviewPanel | undefined {
