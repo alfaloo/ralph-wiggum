@@ -6,7 +6,7 @@
     "strict": true,
     "jsx": "react",
     "types": ["vscode", "node"],
-    "lib": ["ES2020"],
+    "lib": ["ES2020", "DOM"],
     "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true
