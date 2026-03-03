@@ -39,41 +39,45 @@ def _collect_user_answers() -> str:
 
     Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
     mouse-click cursor positioning, revisit previous lines). Falls back to
-    sys.stdin.read() if prompt_toolkit is not installed.
+    sys.stdin.read() if prompt_toolkit is not installed or if stdin is not a
+    TTY (e.g. when stdin is a pipe from the VSCode extension).
     """
+    if sys.stdin.isatty():
+        try:
+            from prompt_toolkit import prompt as pt_prompt
+            from prompt_toolkit.key_binding import KeyBindings
+
+            print("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:\n")
+
+            kb = KeyBindings()
+
+            @kb.add("c-d")
+            def _submit(event):
+                event.app.exit(result=event.app.current_buffer.text)
+
+            @kb.add("c-c")
+            def _abort(event):
+                event.app.exit(exception=KeyboardInterrupt())
+
+            try:
+                return pt_prompt("", multiline=True, key_bindings=kb, mouse_support=True).strip()
+            except KeyboardInterrupt:
+                print("\n[ralph] Ok, stopping the interview.")
+                sys.exit(0)
+            except EOFError:
+                return ""
+
+        except ImportError:
+            pass
+
+    print("Type your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
     try:
-        from prompt_toolkit import prompt as pt_prompt
-        from prompt_toolkit.key_binding import KeyBindings
-
-        print("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:\n")
-
-        kb = KeyBindings()
-
-        @kb.add("c-d")
-        def _submit(event):
-            event.app.exit(result=event.app.current_buffer.text)
-
-        @kb.add("c-c")
-        def _abort(event):
-            event.app.exit(exception=KeyboardInterrupt())
-
-        try:
-            return pt_prompt("", multiline=True, key_bindings=kb, mouse_support=True).strip()
-        except KeyboardInterrupt:
-            print("\n[ralph] Ok, stopping the interview.")
-            sys.exit(0)
-        except EOFError:
-            return ""
-
-    except ImportError:
-        print("Type your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
-        try:
-            return sys.stdin.read().strip()
-        except EOFError:
-            return ""
-        except KeyboardInterrupt:
-            print("\n[ralph] Ok, stopping the interview.")
-            sys.exit(0)
+        return sys.stdin.read().strip()
+    except EOFError:
+        return ""
+    except KeyboardInterrupt:
+        print("\n[ralph] Ok, stopping the interview.")
+        sys.exit(0)
 
 
 class Runner:
