@@ -70,8 +70,11 @@ export function activate(context: vscode.ExtensionContext) {
           if (!v || v.trim() === '') {
             return 'Project name cannot be empty';
           }
-          if (!/^[a-zA-Z0-9_-]+$/.test(v)) {
-            return 'Project name can only contain letters, numbers, hyphens, and underscores';
+          if (!/^[a-zA-Z]/.test(v)) {
+            return 'Project name must begin with a letter';
+          }
+          if (/[/\\:*?"<>|\x00]/.test(v)) {
+            return 'Project name cannot contain /, \\, :, *, ?, ", <, >, or |';
           }
           const projectPath = path.join(workspaceRoot, '.ralph', v);
           if (fs.existsSync(projectPath)) {

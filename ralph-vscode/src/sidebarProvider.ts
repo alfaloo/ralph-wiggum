@@ -85,9 +85,9 @@ export class RalphSidebarProvider implements vscode.TreeDataProvider<ProjectItem
         continue;
       }
 
-      // Criterion 1: name must not begin with a symbol character (first char must be letter or digit)
+      // Criterion 1: name must begin with a letter — ignores .archive, %archive, 1project, etc.
       const firstChar = entry.name[0];
-      if (!firstChar || !/[a-zA-Z0-9]/.test(firstChar)) {
+      if (!firstChar || !/[a-zA-Z]/.test(firstChar)) {
         continue;
       }
 
