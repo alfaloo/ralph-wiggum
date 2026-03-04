@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, createContext } from 'react';
 import { CommandBar } from './components/CommandBar';
-import { FlagPanel } from './components/FlagPanel';
 import { TaskProgress } from './components/TaskProgress';
 import { OutputArea } from './components/OutputArea';
 import { StdinInput } from './components/StdinInput';
@@ -30,13 +29,23 @@ export interface OutputLine {
   text: string;
 }
 
+function buildCommandString(cmd: string, args: string[]): string {
+  const parts = [`ralph ${cmd}`];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i + 1] === 'false') { i++; continue; }          // skip --flag false
+    if (args[i + 1] === 'true') { parts.push(args[i]); i++; continue; } // --flag (omit 'true')
+    parts.push(args[i]);
+  }
+  return parts.join(' ');
+}
+
 function App() {
   const [outputLines, setOutputLines] = useState<OutputLine[]>([]);
   const [taskData, setTaskData] = useState<object | null>(null);
   const [isInterviewMode, setIsInterviewMode] = useState(false);
-  const [activeCommand, setActiveCommand] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [lastCommand, setLastCommand] = useState<string | null>(null);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -66,11 +75,7 @@ function App() {
           break;
         case 'state_update':
           if (msg.file === 'tasks') {
-            try {
-              setTaskData(JSON.parse(msg.content));
-            } catch {
-              setTaskData(null);
-            }
+            try { setTaskData(JSON.parse(msg.content)); } catch { setTaskData(null); }
           }
           break;
         case 'settings_update':
@@ -79,10 +84,7 @@ function App() {
         case 'ralph_not_found':
           setOutputLines(lines => [
             ...lines,
-            {
-              type: 'error',
-              text: 'ralph not found on PATH. Please install the ralph CLI and ensure it is on your PATH.',
-            },
+            { type: 'error', text: 'ralph not found on PATH. Please install the ralph CLI and ensure it is on your PATH.' },
           ]);
           break;
       }
@@ -94,13 +96,11 @@ function App() {
 
   const handleRun = (cmd: string, args: string[]) => {
     setIsRunning(true);
-    setActiveCommand(null);
+    setLastCommand(buildCommandString(cmd, args));
     vscode.postMessage({ type: 'run_command', command: cmd, args });
   };
 
-  const handleStop = () => {
-    vscode.postMessage({ type: 'stop_command' });
-  };
+  const handleStop = () => vscode.postMessage({ type: 'stop_command' });
 
   const handleStdinSubmit = (text: string) => {
     setOutputLines(lines => [...lines, { type: 'user_answer', text }]);
@@ -108,28 +108,40 @@ function App() {
     setIsInterviewMode(false);
   };
 
-  const handleClearOutput = () => {
-    setOutputLines([]);
-  };
+  const handleClearOutput = () => setOutputLines([]);
 
   return (
     <VscodeContext.Provider value={{ postMessage: vscode.postMessage.bind(vscode) }}>
-      <CommandBar
-        activeCommand={activeCommand}
-        isRunning={isRunning}
-        onCommandSelect={setActiveCommand}
-        onStop={handleStop}
-        onRun={handleRun}
-      />
-      <FlagPanel
-        activeCommand={activeCommand}
-        settings={settings}
-        isRunning={isRunning}
-        onRun={handleRun}
-      />
-      <TaskProgress taskData={taskData} />
-      <OutputArea outputLines={outputLines} onClear={handleClearOutput} />
-      <StdinInput isInterviewMode={isInterviewMode} onSubmit={handleStdinSubmit} />
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* Top toolbar */}
+        <CommandBar
+          isRunning={isRunning}
+          settings={settings}
+          onRun={handleRun}
+          onStop={handleStop}
+        />
+
+        {/* Two-column main area */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: Task progress (~224px) */}
+          <div className="w-56 flex-shrink-0 overflow-hidden">
+            <TaskProgress taskData={taskData} />
+          </div>
+
+          {/* Right: Output + stdin */}
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <OutputArea
+              outputLines={outputLines}
+              lastCommand={lastCommand}
+              onClear={handleClearOutput}
+            />
+            <StdinInput
+              isInterviewMode={isInterviewMode}
+              onSubmit={handleStdinSubmit}
+            />
+          </div>
+        </div>
+      </div>
     </VscodeContext.Provider>
   );
 }

@@ -96,7 +96,7 @@ export class RalphPanelManager {
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webviewCssUri} 'unsafe-inline';"
+      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ralph Wiggum</title>
