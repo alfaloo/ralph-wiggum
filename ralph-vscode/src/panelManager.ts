@@ -85,6 +85,9 @@ export class RalphPanelManager {
     const webviewJsUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview.js')
     );
+    const webviewCssUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview.css')
+    );
     const nonce = crypto.randomBytes(16).toString('hex');
 
     return `<!DOCTYPE html>
@@ -93,10 +96,11 @@ export class RalphPanelManager {
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';"
+      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webviewCssUri} 'unsafe-inline';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ralph Wiggum</title>
+    <link rel="stylesheet" href="${webviewCssUri}" />
   </head>
   <body>
     <div id="root"></div>

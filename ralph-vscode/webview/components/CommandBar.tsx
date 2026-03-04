@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Layout from '../layouts/Layout';
 
 export interface CommandBarProps {
   activeCommand: string | null;
@@ -31,7 +32,7 @@ export function CommandBar({ activeCommand, isRunning, onCommandSelect, onStop, 
   }
 
   return (
-    <div className="command-bar">
+    <Layout>
       {COMMANDS.map(cmd => (
         <button
           key={cmd}
@@ -40,17 +41,17 @@ export function CommandBar({ activeCommand, isRunning, onCommandSelect, onStop, 
           style={
             cmd === 'undo'
               ? {
-                  color: 'var(--vscode-charts-orange, var(--vscode-editorWarning-foreground))',
-                  borderLeft: '3px solid var(--vscode-editorWarning-foreground)',
-                }
+                color: 'var(--vscode-charts-orange, var(--vscode-editorWarning-foreground))',
+                borderLeft: '3px solid var(--vscode-editorWarning-foreground)',
+              }
               : activeCommand === cmd
-              ? { outline: '1px solid var(--vscode-focusBorder)' }
-              : undefined
+                ? { outline: '1px solid var(--vscode-focusBorder)' }
+                : undefined
           }
         >
           {cmd === 'undo' ? '\u26A0 undo' : cmd}
         </button>
       ))}
-    </div>
+    </Layout>
   );
 }

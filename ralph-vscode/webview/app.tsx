@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { useState, useEffect, createContext } from 'react';
-import * as ReactDOM from 'react-dom';
 import { CommandBar } from './components/CommandBar';
 import { FlagPanel } from './components/FlagPanel';
 import { TaskProgress } from './components/TaskProgress';
 import { OutputArea } from './components/OutputArea';
 import { StdinInput } from './components/StdinInput';
+import { createRoot } from 'react-dom/client';
 
 // VS Code API bridge — acquireVsCodeApi() is injected by the VS Code webview runtime
 declare function acquireVsCodeApi(): {
@@ -22,7 +22,7 @@ export interface VscodeContextType {
 }
 
 export const VscodeContext = createContext<VscodeContextType>({
-  postMessage: () => {},
+  postMessage: () => { },
 });
 
 export interface OutputLine {
@@ -134,4 +134,10 @@ function App() {
   );
 }
 
-ReactDOM.render(<App />, document.getElementById('root'));
+const container = document.getElementById('root');
+
+if (!container) {
+  throw new Error('Root container not found');
+}
+
+createRoot(container).render(<App />);
