@@ -9,7 +9,7 @@ const extensionConfig = {
   outfile: 'dist/extension.js',
   platform: 'node',
   format: 'cjs',
-  external: ['vscode'],
+  external: ['vscode', 'node-pty'],
   bundle: true,
   sourcemap: true,
   minify: isProd,

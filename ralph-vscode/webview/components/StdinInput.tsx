@@ -25,8 +25,7 @@ export function StdinInput({ isInterviewMode, onSubmit }: StdinInputProps) {
       <p className="text-xs italic mb-2" style={{ color: 'var(--vscode-descriptionForeground)' }}>
         Interview — type your answers below, then press Submit
       </p>
-      <textarea rows={3} value={value} onChange={e => setValue(e.target.value)}
-        style={{ width: '100%', resize: 'vertical', marginBottom: 8 }} />
+      <textarea rows={3} value={value} onChange={e => setValue(e.target.value)} className='w-full reize-y text-base mb-2' />
       <Button onClick={handleSubmit}>Submit Answers</Button>
     </div>
   );

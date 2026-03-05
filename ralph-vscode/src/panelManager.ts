@@ -19,6 +19,7 @@ export class RalphPanelManager {
     if (existing) {
       existing.reveal(vscode.ViewColumn.One);
       this.postSettings(projectName, existing);
+      this.postInitialState(projectName, existing);
       return existing;
     }
 
@@ -29,6 +30,7 @@ export class RalphPanelManager {
       {
         enableScripts: true,
         localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'dist')],
+        retainContextWhenHidden: true,
       }
     );
 
@@ -43,7 +45,32 @@ export class RalphPanelManager {
 
     this.postSettings(projectName, panel);
 
+    // Webview hasn't mounted yet — wait for the ready signal before sending state
+    const readySub = panel.webview.onDidReceiveMessage(msg => {
+      if (msg.type === 'webview_ready') {
+        this.postInitialState(projectName, panel);
+        readySub.dispose();
+      }
+    });
+
     return panel;
+  }
+
+  private postInitialState(projectName: string, panel: vscode.WebviewPanel): void {
+    const files: Array<{ file: 'tasks' | 'validation' | 'spec'; name: string }> = [
+      { file: 'tasks', name: 'tasks.json' },
+      { file: 'validation', name: 'validation.md' },
+      { file: 'spec', name: 'spec.md' },
+    ];
+    for (const { file, name } of files) {
+      try {
+        const filePath = path.join(this.workspaceRoot, '.ralph', projectName, name);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        panel.webview.postMessage({ type: 'state_update', file, projectName, content });
+      } catch {
+        // File missing — skip
+      }
+    }
   }
 
   private postSettings(projectName: string, panel: vscode.WebviewPanel): void {

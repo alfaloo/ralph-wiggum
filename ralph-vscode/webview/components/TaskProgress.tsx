@@ -2,12 +2,18 @@ import * as React from 'react';
 
 export interface TaskProgressProps {
   taskData: object | null;
+  onTaskClick?: (task: Task) => void;
 }
 
-interface Task {
+export interface Task {
   id: string;
   title: string;
+  description: string;
+  dependencies: string[];
+  attempts: number;
+  max_attempts: number;
   status: 'pending' | 'in_progress' | 'completed' | 'blocked' | string;
+  blocked: boolean;
 }
 
 function getTasks(taskData: object | null): Task[] {
@@ -24,7 +30,7 @@ const STATUS_ICON: Record<string, string> = {
   pending: '○',
 };
 
-export function TaskProgress({ taskData }: TaskProgressProps) {
+export function TaskProgress({ taskData, onTaskClick }: TaskProgressProps) {
   const tasks = getTasks(taskData);
   const total = tasks.length;
   const completed = tasks.filter(t => t.status === 'completed').length;
@@ -60,7 +66,9 @@ export function TaskProgress({ taskData }: TaskProgressProps) {
           <ul className="list-none m-0 p-0">
             {tasks.map(task => (
               <li key={task.id}
-                className="flex items-start gap-1.5 px-3 py-1.5 text-xs border-b border-[var(--vscode-panel-border,var(--vscode-editorGroup-border))] last:border-0">
+                onClick={() => onTaskClick?.(task)}
+                className="flex items-start gap-1.5 px-3 py-1.5 text-xs border-b border-[var(--vscode-panel-border,var(--vscode-editorGroup-border))] last:border-0"
+                style={{ cursor: onTaskClick ? 'pointer' : 'default' }}>
                 <span className="flex-shrink-0 mt-px" style={{ color: 'var(--vscode-descriptionForeground)' }}>
                   {STATUS_ICON[task.status] ?? '○'}
                 </span>

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useState, useEffect, createContext } from 'react';
 import { CommandBar } from './components/CommandBar';
 import { TaskProgress } from './components/TaskProgress';
+import type { Task } from './components/TaskProgress';
 import { OutputArea } from './components/OutputArea';
 import { StdinInput } from './components/StdinInput';
 import { createRoot } from 'react-dom/client';
@@ -25,8 +26,9 @@ export const VscodeContext = createContext<VscodeContextType>({
 });
 
 export interface OutputLine {
-  type: 'stdout' | 'stderr' | 'error' | 'user_answer';
+  type: 'stdout' | 'stderr' | 'error' | 'user_answer' | 'task_detail';
   text: string;
+  task?: Task;
 }
 
 function buildCommandString(cmd: string, args: string[]): string {
@@ -46,6 +48,10 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [lastCommand, setLastCommand] = useState<string | null>(null);
+
+  useEffect(() => {
+    vscode.postMessage({ type: 'webview_ready' });
+  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -108,6 +114,10 @@ function App() {
     setIsInterviewMode(false);
   };
 
+  const handleTaskClick = (task: Task) => {
+    setOutputLines(lines => [...lines, { type: 'task_detail', text: '', task }]);
+  };
+
   const handleClearOutput = () => setOutputLines([]);
 
   return (
@@ -125,7 +135,7 @@ function App() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: Task progress (~224px) */}
           <div className="w-56 flex-shrink-0 overflow-hidden">
-            <TaskProgress taskData={taskData} />
+            <TaskProgress taskData={taskData} onTaskClick={handleTaskClick} />
           </div>
 
           {/* Right: Output + stdin */}
