@@ -57,10 +57,12 @@ export class RalphPanelManager {
   }
 
   private postInitialState(projectName: string, panel: vscode.WebviewPanel): void {
-    const files: Array<{ file: 'tasks' | 'validation' | 'spec'; name: string }> = [
+    const files: Array<{ file: 'tasks' | 'validation' | 'spec' | 'pr_description' | 'summary'; name: string }> = [
       { file: 'tasks', name: 'tasks.json' },
       { file: 'validation', name: 'validation.md' },
       { file: 'spec', name: 'spec.md' },
+      { file: 'pr_description', name: 'pr-description.md' },
+      { file: 'summary', name: 'summary.md' },
     ];
     for (const { file, name } of files) {
       try {

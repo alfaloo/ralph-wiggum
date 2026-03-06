@@ -48,6 +48,12 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [lastCommand, setLastCommand] = useState<string | null>(null);
+  const [fileFlags, setFileFlags] = useState({
+    hasTasks: false,
+    hasPrDescription: false,
+    hasSummary: false,
+    hasValidation: false,
+  });
 
   useEffect(() => {
     vscode.postMessage({ type: 'webview_ready' });
@@ -58,7 +64,29 @@ function App() {
       const msg = event.data;
       switch (msg.type) {
         case 'stdout':
-          setOutputLines(lines => [...lines, { type: 'stdout', text: msg.chunk }]);
+          setOutputLines(lines => {
+            // Strip ALL whitespace for echo comparison — PTY wraps at col 120,
+            // inserting \r\n mid-word, so trimEnd() comparisons fail.
+            const normWS = (s: string) => s.replace(/\s+/g, '');
+            const last = lines[lines.length - 1];
+
+            // Merge with previous stdout first, then check (handles multi-chunk echoes)
+            const merged = last?.type === 'stdout' ? last.text + msg.chunk : null;
+            const candidate = merged ?? msg.chunk;
+            const normCandidate = normWS(candidate);
+
+            // Suppress PTY echo and ralph's own answer reprint
+            if (normCandidate.length > 20 &&
+              lines.some(l => l.type === 'user_answer' && normWS(l.text) === normCandidate)) {
+              // Remove the partial accumulated entry if we had started one
+              return merged !== null ? lines.slice(0, -1) : lines;
+            }
+
+            if (merged !== null) {
+              return [...lines.slice(0, -1), { ...last!, text: merged }];
+            }
+            return [...lines, { type: 'stdout', text: msg.chunk }];
+          });
           break;
         case 'stderr':
           setOutputLines(lines => [...lines, { type: 'stderr', text: msg.chunk }]);
@@ -71,6 +99,11 @@ function App() {
               ...lines,
               { type: 'error', text: `Command exited with code ${msg.exitCode}` },
             ]);
+          } else if (lastCommand?.includes('enrich')) {
+            setOutputLines(lines => [
+              ...lines,
+              { type: 'stdout', text: `Command ${lastCommand ?? ''} completed successfully`}
+            ])
           }
           break;
         case 'process_started':
@@ -81,7 +114,18 @@ function App() {
           break;
         case 'state_update':
           if (msg.file === 'tasks') {
-            try { setTaskData(JSON.parse(msg.content)); } catch { setTaskData(null); }
+            try {
+              const data = JSON.parse(msg.content);
+              setTaskData(data);
+              const hasTasks = Array.isArray(data?.tasks) && data.tasks.length > 0;
+              setFileFlags(f => ({ ...f, hasTasks }));
+            } catch { setTaskData(null); setFileFlags(f => ({ ...f, hasTasks: false })); }
+          } else if (msg.file === 'pr_description') {
+            setFileFlags(f => ({ ...f, hasPrDescription: !!msg.content?.trim() }));
+          } else if (msg.file === 'summary') {
+            setFileFlags(f => ({ ...f, hasSummary: !!msg.content?.trim() }));
+          } else if (msg.file === 'validation') {
+            setFileFlags(f => ({ ...f, hasValidation: !!msg.content?.trim() }));
           }
           break;
         case 'settings_update':
@@ -98,7 +142,7 @@ function App() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [lastCommand]);
 
   const handleRun = (cmd: string, args: string[]) => {
     setIsRunning(true);
@@ -120,6 +164,19 @@ function App() {
 
   const handleClearOutput = () => setOutputLines([]);
 
+  const commandEnabled: Record<string, boolean> = {
+    interview: true,
+    comment: true,
+    oneshot: true,
+    status: true,
+    enrich: fileFlags.hasTasks,
+    execute: fileFlags.hasTasks,
+    pr: fileFlags.hasPrDescription,
+    validate: fileFlags.hasSummary,
+    undo: fileFlags.hasValidation,
+    retry: fileFlags.hasValidation,
+  };
+
   return (
     <VscodeContext.Provider value={{ postMessage: vscode.postMessage.bind(vscode) }}>
       <div className="flex flex-col h-full overflow-hidden">
@@ -127,6 +184,7 @@ function App() {
         <CommandBar
           isRunning={isRunning}
           settings={settings}
+          commandEnabled={commandEnabled}
           onRun={handleRun}
           onStop={handleStop}
         />

@@ -96,8 +96,8 @@ export function OutputArea({ outputLines, lastCommand, onClear }: OutputAreaProp
 
     if (line.type === 'user_answer') {
       return (
-        <div key={index} style={{ fontStyle: 'italic', color: 'var(--vscode-descriptionForeground)', marginTop: '4px' }}>
-          {'You: '}{cleaned}
+        <div key={index} style={{ fontStyle: 'italic', color: 'var(--vscode-descriptionForeground)', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
+          {'You: '}<br />{cleaned}
         </div>
       );
     }
