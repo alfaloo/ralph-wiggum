@@ -1,0 +1,12 @@
+diff --git a/node_modules/node-pty/lib/utils.js b/node_modules/node-pty/lib/utils.js
+index 1234567..abcdefg 100644
+--- a/node_modules/node-pty/lib/utils.js
++++ b/node_modules/node-pty/lib/utils.js
+@@ -24,7 +24,7 @@ function loadNativeModule(name) {
+     for (var _a = 0, relative_1 = relative; _a < relative_1.length; _a++) {
+             var r = relative_1[_a];
+-            var dir = r + "/" + d + "/";
++            var dir = r + "/" + d;
+             try {
+                 return { dir: dir, module: require(dir + "/" + name + ".node") };
+             }

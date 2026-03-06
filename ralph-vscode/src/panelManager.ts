@@ -19,6 +19,7 @@ export class RalphPanelManager {
     if (existing) {
       existing.reveal(vscode.ViewColumn.One);
       this.postSettings(projectName, existing);
+      this.postInitialState(projectName, existing);
       return existing;
     }
 
@@ -29,6 +30,7 @@ export class RalphPanelManager {
       {
         enableScripts: true,
         localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'dist')],
+        retainContextWhenHidden: true,
       }
     );
 
@@ -43,7 +45,34 @@ export class RalphPanelManager {
 
     this.postSettings(projectName, panel);
 
+    // Webview hasn't mounted yet — wait for the ready signal before sending state
+    const readySub = panel.webview.onDidReceiveMessage(msg => {
+      if (msg.type === 'webview_ready') {
+        this.postInitialState(projectName, panel);
+        readySub.dispose();
+      }
+    });
+
     return panel;
+  }
+
+  private postInitialState(projectName: string, panel: vscode.WebviewPanel): void {
+    const files: Array<{ file: 'tasks' | 'validation' | 'spec' | 'pr_description' | 'summary'; name: string }> = [
+      { file: 'tasks', name: 'tasks.json' },
+      { file: 'validation', name: 'validation.md' },
+      { file: 'spec', name: 'spec.md' },
+      { file: 'pr_description', name: 'pr-description.md' },
+      { file: 'summary', name: 'summary.md' },
+    ];
+    for (const { file, name } of files) {
+      try {
+        const filePath = path.join(this.workspaceRoot, '.ralph', projectName, name);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        panel.webview.postMessage({ type: 'state_update', file, projectName, content });
+      } catch {
+        // File missing — skip
+      }
+    }
   }
 
   private postSettings(projectName: string, panel: vscode.WebviewPanel): void {
@@ -85,6 +114,9 @@ export class RalphPanelManager {
     const webviewJsUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview.js')
     );
+    const webviewCssUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview.css')
+    );
     const nonce = crypto.randomBytes(16).toString('hex');
 
     return `<!DOCTYPE html>
@@ -93,10 +125,11 @@ export class RalphPanelManager {
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';"
+      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ralph Wiggum</title>
+    <link rel="stylesheet" href="${webviewCssUri}" />
   </head>
   <body>
     <div id="root"></div>

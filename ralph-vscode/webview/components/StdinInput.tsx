@@ -1,23 +1,19 @@
 import * as React from 'react';
+import { Button } from './ui/button';
 
 export interface StdinInputProps {
   isInterviewMode: boolean;
   onSubmit: (text: string) => void;
 }
 
-export function StdinInput({ isInterviewMode, onSubmit }: StdinInputProps): React.ReactElement | null {
+export function StdinInput({ isInterviewMode, onSubmit }: StdinInputProps) {
   const [value, setValue] = React.useState('');
 
-  // Reset textarea whenever interview mode becomes active
   React.useEffect(() => {
-    if (isInterviewMode) {
-      setValue('');
-    }
+    if (isInterviewMode) setValue('');
   }, [isInterviewMode]);
 
-  if (!isInterviewMode) {
-    return null;
-  }
+  if (!isInterviewMode) return null;
 
   function handleSubmit() {
     onSubmit(value);
@@ -25,19 +21,12 @@ export function StdinInput({ isInterviewMode, onSubmit }: StdinInputProps): Reac
   }
 
   return (
-    <div className="stdin-input">
-      <div className="stdin-input-header">
+    <div className="flex-shrink-0 border-t border-[var(--vscode-panel-border,var(--vscode-editorGroup-border))] px-3 py-2">
+      <p className="text-xs italic mb-2" style={{ color: 'var(--vscode-descriptionForeground)' }}>
         Interview — type your answers below, then press Submit
-      </div>
-      <textarea
-        className="stdin-input-textarea"
-        rows={4}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-      />
-      <button className="btn" onClick={handleSubmit}>
-        Submit Answers
-      </button>
+      </p>
+      <textarea rows={3} value={value} onChange={e => setValue(e.target.value)} className='w-full reize-y text-base mb-2' />
+      <Button onClick={handleSubmit}>Submit Answers</Button>
     </div>
   );
 }

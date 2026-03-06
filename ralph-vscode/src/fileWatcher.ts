@@ -4,7 +4,7 @@ import * as path from 'path';
 import { RalphPanelManager } from './panelManager';
 import { RalphSidebarProvider } from './sidebarProvider';
 
-type FileType = 'tasks' | 'validation' | 'spec';
+type FileType = 'tasks' | 'validation' | 'spec' | 'pr_description' | 'summary';
 
 function extractProjectName(uri: vscode.Uri, workspaceRoot: string): string | undefined {
   const ralphDir = path.join(workspaceRoot, '.ralph');
@@ -40,6 +40,8 @@ export class RalphFileWatcher implements vscode.Disposable {
       ['.ralph/*/tasks.json', 'tasks'],
       ['.ralph/*/validation.md', 'validation'],
       ['.ralph/*/spec.md', 'spec'],
+      ['.ralph/*/pr-description.md', 'pr_description'],
+      ['.ralph/*/summary.md', 'summary'],
     ];
 
     for (const [pattern, fileType] of patterns) {

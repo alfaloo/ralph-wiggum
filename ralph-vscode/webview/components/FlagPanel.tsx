@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export interface FlagPanelProps {
   activeCommand: string | null;
@@ -55,17 +55,27 @@ export function FlagPanel({ activeCommand, settings, isRunning, onRun }: FlagPan
   const [force, setForce] = useState(false);
   const [provider, setProvider] = useState('github');
 
+  const setRoundsRef = useRef(setRounds);
+  const setVerboseRef = useRef(setVerbose);
+  const setCommentTextRef = useRef(setCommentText);
+  const setLimitRef = useRef(setLimit);
+  const setBaseRef = useRef(setBase);
+  const setResumeRef = useRef(setResume);
+  const setAsynchronousRef = useRef(setAsynchronous);
+  const setForceRef = useRef(setForce);
+  const setProviderRef = useRef(setProvider);
+
   useEffect(() => {
     const s = initState(settings);
-    setRounds(s.rounds);
-    setVerbose(s.verbose);
-    setCommentText('');
-    setLimit(s.limit);
-    setBase(s.base);
-    setResume(false);
-    setAsynchronous(s.asynchronous);
-    setForce(false);
-    setProvider(s.provider);
+    setRoundsRef.current(s.rounds);
+    setVerboseRef.current(s.verbose);
+    setCommentTextRef.current('');
+    setLimitRef.current(s.limit);
+    setBaseRef.current(s.base);
+    setResumeRef.current(false);
+    setAsynchronousRef.current(s.asynchronous);
+    setForceRef.current(false);
+    setProviderRef.current(s.provider);
   }, [activeCommand, settings]);
 
   if (!activeCommand || activeCommand === 'status') {
