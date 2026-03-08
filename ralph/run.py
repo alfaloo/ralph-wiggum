@@ -5,6 +5,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -78,6 +79,22 @@ def _collect_user_answers() -> str:
     except KeyboardInterrupt:
         print("\n[ralph] Ok, stopping the interview.")
         sys.exit(0)
+
+
+def _parse_questions_json(raw: str) -> list[dict] | None:
+    """Parse Claude's JSON output into a list of question dicts.
+
+    Returns None on parse failure so the caller can fall back gracefully.
+    """
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        data = json.loads(text)
+        return data.get("questions", [])
+    except (json.JSONDecodeError, AttributeError):
+        return None
 
 
 class Runner:
