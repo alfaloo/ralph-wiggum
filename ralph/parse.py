@@ -24,15 +24,15 @@ def _render(name: str, **vars: str) -> str:
     return _substitute(_load_template(name), **vars)
 
 
-def _resolve_questions_block(template: str, has_questions: bool) -> str:
-    """Replace {% if QUESTIONS %} ... {% else %} ... {% endif %} blocks."""
+def _resolve_qa_block(template: str, has_qa: bool) -> str:
+    """Replace {% if QA_JSON %} ... {% else %} ... {% endif %} blocks."""
     def replacer(match: re.Match) -> str:
         if_block = match.group(1)
         else_block = match.group(2)
-        return if_block.strip() if has_questions else else_block.strip()
+        return if_block.strip() if has_qa else else_block.strip()
 
     return re.sub(
-        r"\{%\s*if QUESTIONS\s*%\}(.*?)\{%\s*else\s*%\}(.*?)\{%\s*endif\s*%\}",
+        r"\{%\s*if QA_JSON\s*%\}(.*?)\{%\s*else\s*%\}(.*?)\{%\s*endif\s*%\}",
         replacer,
         template,
         flags=re.DOTALL,
@@ -54,25 +54,23 @@ def parse_generate_tasks_md(
     *,
     round_num: int = 0,
     total_rounds: int = 0,
-    questions: str = "",
-    answers: str = "",
+    qa_json: str = "",
     user_comment: str = "",
 ) -> str:
     """Render the generate_tasks prompt template.
 
-    In interview mode (questions supplied), incorporates Q&A and updates spec.md and tasks.json.
+    In interview mode (qa_json supplied), incorporates Q&A and updates spec.md and tasks.json.
     In comment mode (user_comment supplied), incorporates the comment and updates spec.md and tasks.json.
     """
     template = _load_template("generate_tasks.md")
-    template = _resolve_questions_block(template, has_questions=bool(questions))
-    if questions:
+    template = _resolve_qa_block(template, has_qa=bool(qa_json))
+    if qa_json:
         return _substitute(
             template,
             PROJECT_NAME=project_name,
             ROUND_NUM=str(round_num),
             TOTAL_ROUNDS=str(total_rounds),
-            QUESTIONS=questions,
-            ANSWERS=answers,
+            QA_JSON=qa_json,
         )
     return _substitute(template, PROJECT_NAME=project_name, USER_COMMENT=user_comment)
 
