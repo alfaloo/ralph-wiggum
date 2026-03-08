@@ -117,6 +117,126 @@ def _parse_questions_json(raw: str) -> list[dict] | None:
         return None
 
 
+def _collect_guided_answers(questions: list[dict]) -> str:
+    """Present questions one at a time with arrow-key or numbered selection.
+
+    Returns a JSON string of question–answer pairs suitable for passing to the
+    generate_tasks template.
+    """
+    DESCRIBE_YOURSELF = "Describe yourself..."
+    SEPARATOR = "\u2500" * 61
+    total = len(questions)
+    qa_pairs: list[dict] = []
+
+    def _tty_select(all_options: list[str]) -> str:
+        """Arrow-key selection via prompt_toolkit Application."""
+        from prompt_toolkit.application import Application
+        from prompt_toolkit.key_binding import KeyBindings
+        from prompt_toolkit.layout import Layout
+        from prompt_toolkit.layout.containers import Window
+        from prompt_toolkit.layout.controls import FormattedTextControl
+
+        cursor = [0]
+        result: list[str | None] = [None]
+
+        def get_text():
+            lines = []
+            for idx, opt in enumerate(all_options):
+                if idx == cursor[0]:
+                    lines.append(("class:cursor", f"  > {opt}\n"))
+                else:
+                    lines.append(("", f"    {opt}\n"))
+            lines.append(("", "\n\u2191\u2193 to move  Enter to select"))
+            return lines
+
+        kb = KeyBindings()
+
+        @kb.add("up")
+        def _up(event):
+            cursor[0] = (cursor[0] - 1) % len(all_options)
+
+        @kb.add("down")
+        def _down(event):
+            cursor[0] = (cursor[0] + 1) % len(all_options)
+
+        @kb.add("enter")
+        def _enter(event):
+            result[0] = all_options[cursor[0]]
+            event.app.exit()
+
+        @kb.add("c-c")
+        def _ctrl_c(event):
+            event.app.exit(exception=KeyboardInterrupt())
+
+        control = FormattedTextControl(get_text)
+        window = Window(content=control)
+        layout = Layout(window)
+        app = Application(layout=layout, key_bindings=kb, full_screen=True)
+        app.run()
+        return result[0] or ""
+
+    def _nontty_select(all_options: list[str]) -> str:
+        """Numbered-list selection via sys.stdin.readline()."""
+        k_plus_1 = len(all_options)
+        for idx, opt in enumerate(all_options, start=1):
+            print(f"  {idx}. {opt}")
+        print()
+        while True:
+            print(f"Select an option (1\u2013{k_plus_1}): ", end="", flush=True)
+            line = sys.stdin.readline()
+            if not line:
+                return ""
+            line = line.strip()
+            try:
+                choice = int(line)
+                if 1 <= choice <= k_plus_1:
+                    return all_options[choice - 1]
+            except ValueError:
+                pass
+            print(f"Invalid selection. Please enter a number between 1 and {k_plus_1}.")
+
+    try:
+        for i, q in enumerate(questions, start=1):
+            question_text = q.get("question", "")
+            options = list(q.get("options", []))
+            all_options = options + [DESCRIBE_YOURSELF]
+
+            print(f"Question {i} of {total}:\n{question_text}\n")
+
+            if not options:
+                # Empty options — fall back to multiline editor directly
+                answer = _open_multiline_editor(
+                    "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
+                )
+            elif sys.stdin.isatty():
+                selected = _tty_select(all_options)
+                if selected == DESCRIBE_YOURSELF:
+                    answer = _open_multiline_editor(
+                        "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
+                    )
+                else:
+                    answer = selected
+            else:
+                selected = _nontty_select(all_options)
+                if selected == DESCRIBE_YOURSELF:
+                    answer = _open_multiline_editor(
+                        "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
+                    )
+                else:
+                    answer = selected
+
+            qa_pairs.append({"question": question_text, "answer": answer})
+
+            if i < total:
+                print(f"\n{SEPARATOR}\n")
+
+    except KeyboardInterrupt:
+        print("\n[ralph] Ok, stopping the interview.")
+        sys.exit(0)
+
+    return json.dumps(qa_pairs)
+
+
 class Runner:
     """Orchestrator that manages agent invocations for a single project."""
 
