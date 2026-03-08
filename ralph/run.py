@@ -35,20 +35,24 @@ def run_noninteractive_json(prompt: str) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
-def _collect_user_answers() -> str:
-    """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
+def _open_multiline_editor(preamble: str) -> str:
+    """Open the multiline editor with the given preamble text.
 
-    Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
-    mouse-click cursor positioning, revisit previous lines). Falls back to
-    sys.stdin.read() if prompt_toolkit is not installed or if stdin is not a
-    TTY (e.g. when stdin is a pipe from the VSCode extension).
+    Internally determines whether stdin is a TTY and routes accordingly:
+    - TTY mode: opens the full prompt_toolkit multiline editor supporting
+      arrow key navigation, mouse-click cursor positioning, Enter for new
+      lines, Ctrl+D to submit, and Ctrl+C to abort.
+    - Non-TTY mode: reads multi-line input without exhausting stdin, so that
+      subsequent questions can still receive input (including further
+      "Describe yourself..." selections). Reads lines until a sentinel line
+      containing only "." is received.
     """
     if sys.stdin.isatty():
         try:
             from prompt_toolkit import prompt as pt_prompt
             from prompt_toolkit.key_binding import KeyBindings
 
-            print("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:\n")
+            print(f"{preamble}\n")
 
             kb = KeyBindings()
 
@@ -71,14 +75,30 @@ def _collect_user_answers() -> str:
         except ImportError:
             pass
 
-    print("Type your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
+    print(preamble)
+    print('(Enter "." on its own line to submit)\n')
+    lines = []
     try:
-        return sys.stdin.read().strip()
-    except EOFError:
-        return ""
+        while True:
+            line = sys.stdin.readline()
+            if not line or line.rstrip("\n") == ".":
+                break
+            lines.append(line.rstrip("\n"))
     except KeyboardInterrupt:
         print("\n[ralph] Ok, stopping the interview.")
         sys.exit(0)
+    return "\n".join(lines).strip()
+
+
+def _collect_user_answers() -> str:
+    """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
+
+    Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
+    mouse-click cursor positioning, revisit previous lines). Falls back to
+    sentinel-based line reading if stdin is not a TTY (e.g. when stdin is a
+    pipe from the VSCode extension).
+    """
+    return _open_multiline_editor("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:")
 
 
 def _parse_questions_json(raw: str) -> list[dict] | None:
