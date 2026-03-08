@@ -270,14 +270,13 @@ class InterviewCommand(Command):
             for i in range(rounds)
         ]
 
-        def make_amend_prompt(round_num: int) -> Callable[[str, str], str]:
-            def build(questions: str, answers: str) -> str:
+        def make_amend_prompt(round_num: int) -> Callable[[str], str]:
+            def build(qa_json: str) -> str:
                 return parse_generate_tasks_md(
                     args.project_name,
                     round_num=round_num,
                     total_rounds=rounds,
-                    questions=questions,
-                    answers=answers,
+                    qa_json=qa_json,
                 )
             return build
 
