@@ -296,15 +296,15 @@ class Runner:
     def run_interview_loop(
         self,
         question_prompts: list[str],
-        make_amend_prompts: list[Callable[[str, str], str]],
+        make_amend_prompts: list[Callable[[str], str]],
     ) -> None:
         """Run sequential two-phase interview agents, one per round.
 
         Each round:
-          Phase 1 — non-interactive agent outputs clarifying questions.
-          (user types answers via stdin)
-          Phase 2 — non-interactive agent receives questions + answers and
-                     amends spec.md and creates/refreshes tasks.json.
+          Phase 1 — non-interactive agent outputs clarifying questions (JSON).
+          (user answers questions via guided or free-form path)
+          Phase 2 — non-interactive agent receives Q&A JSON and amends
+                     spec.md and creates/refreshes tasks.json.
         """
         total = len(question_prompts)
 
@@ -315,20 +315,25 @@ class Runner:
             # Phase 1: generate questions
             print("[ralph] Interview agent has started working — generating questions...\n")
             result = run_noninteractive(q_prompt)
-            questions = result.stdout.strip()
+            raw_output = result.stdout.strip()
             if result.returncode != 0 and result.stderr:
                 print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
 
-            # Always display questions — user must read and answer them
-            print(questions)
-            print()
-
-            # Collect user answers
-            answers = _collect_user_answers()
+            # Try structured (guided) path first
+            questions_data = _parse_questions_json(raw_output)
+            if questions_data:
+                qa_json = _collect_guided_answers(questions_data)
+            else:
+                # Fallback: legacy free-form path
+                print("[ralph] Could not parse structured questions — falling back to free-form input.")
+                print(raw_output)
+                print()
+                answers = _collect_user_answers()
+                qa_json = json.dumps([{"question": raw_output, "answer": answers}])
 
             # Phase 2: amend spec with Q&A
             print("\n[ralph] Interview agent has started working — updating spec with your answers...")
-            result2 = run_noninteractive(make_amend_prompts[i](questions, answers))
+            result2 = run_noninteractive(make_amend_prompts[i](qa_json))
             self._handle_result(result2)
             if result2.returncode == 0:
                 print(f"[ralph] Round {round_num} complete.")
