@@ -63,10 +63,10 @@ def set_asynchronous(value) -> None:
         elif value.lower() == "false":
             value = False
         else:
-            print(f"[ralph] Error: '{value}' is not a valid value for asynchronous. Use true or false.")
+            print(f"[ralph] Oops! '{value}' is not a good value for asynchronous. Use true or false.")
             return
     elif not isinstance(value, bool):
-        print(f"[ralph] Error: '{value}' is not a valid value for asynchronous. Use true or false.")
+        print(f"[ralph] Oops! '{value}' is not a good value for asynchronous. Use true or false.")
         return
     data = _read_settings()
     data["asynchronous"] = value
@@ -156,7 +156,7 @@ def set_provider(value: str) -> None:
     supported providers.
     """
     if value not in _VALID_PROVIDERS:
-        print(f"[ralph] Error: '{value}' is not a supported provider. Choose from: {', '.join(_VALID_PROVIDERS)}.")
+        print(f"[ralph] Oops! '{value}' is not a supported provider. Pick from: {', '.join(_VALID_PROVIDERS)}.")
         return
     data = _read_settings()
     data["provider"] = value

@@ -67,7 +67,7 @@ def _open_multiline_editor(preamble: str) -> str:
             try:
                 return pt_prompt("", multiline=True, key_bindings=kb, mouse_support=True).strip()
             except KeyboardInterrupt:
-                print("\n[ralph] Ok, stopping the interview.")
+                print("\n[ralph] Okay, I'm stopping the interview now! Bye bye!")
                 sys.exit(0)
             except EOFError:
                 return ""
@@ -76,7 +76,7 @@ def _open_multiline_editor(preamble: str) -> str:
             pass
 
     print(preamble)
-    print('(Enter "." on its own line to submit)\n')
+    print('(Type your answer and put a "." all by itself on a new line when you\'re done!)\n')
     lines = []
     try:
         while True:
@@ -85,7 +85,7 @@ def _open_multiline_editor(preamble: str) -> str:
                 break
             lines.append(line.rstrip("\n"))
     except KeyboardInterrupt:
-        print("\n[ralph] Ok, stopping the interview.")
+        print("\n[ralph] Okay, I'm stopping the interview now! Bye bye!")
         sys.exit(0)
     return "\n".join(lines).strip()
 
@@ -98,7 +98,7 @@ def _collect_user_answers() -> str:
     sentinel-based line reading if stdin is not a TTY (e.g. when stdin is a
     pipe from the VSCode extension).
     """
-    return _open_multiline_editor("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:")
+    return _open_multiline_editor("Type your answers down here! Press Ctrl+D when you're all done, or Ctrl+C to stop:")
 
 
 def _parse_questions_json(raw: str) -> list[dict] | None:
@@ -171,7 +171,7 @@ def _collect_guided_answers(questions: list[dict]) -> str:
         control = FormattedTextControl(get_text)
         window = Window(content=control)
         layout = Layout(window)
-        app = Application(layout=layout, key_bindings=kb, full_screen=True)
+        app = Application(layout=layout, key_bindings=kb, full_screen=False)
         app.run()
         return result[0] or ""
 
@@ -182,7 +182,7 @@ def _collect_guided_answers(questions: list[dict]) -> str:
             print(f"  {idx}. {opt}")
         print()
         while True:
-            print(f"Select an option (1\u2013{k_plus_1}): ", end="", flush=True)
+            print(f"Pick one! (1\u2013{k_plus_1}): ", end="", flush=True)
             line = sys.stdin.readline()
             if not line:
                 return ""
@@ -193,7 +193,7 @@ def _collect_guided_answers(questions: list[dict]) -> str:
                     return all_options[choice - 1]
             except ValueError:
                 pass
-            print(f"Invalid selection. Please enter a number between 1 and {k_plus_1}.")
+            print(f"Oopsie! That's not right. Pick a number from 1 to {k_plus_1}.")
 
     try:
         for i, q in enumerate(questions, start=1):
@@ -201,7 +201,7 @@ def _collect_guided_answers(questions: list[dict]) -> str:
             options = list(q.get("options", []))
             all_options = options + [DESCRIBE_YOURSELF]
 
-            print(f"Question {i} of {total}:\n{question_text}\n")
+            print(f"Q{i}: {question_text}\n")
 
             if not options:
                 # Empty options — fall back to multiline editor directly
@@ -231,7 +231,7 @@ def _collect_guided_answers(questions: list[dict]) -> str:
                 print(f"\n{SEPARATOR}\n")
 
     except KeyboardInterrupt:
-        print("\n[ralph] Ok, stopping the interview.")
+        print("\n[ralph] Okay! I'm gonna stop the interview now. Bye!")
         sys.exit(0)
 
     return json.dumps(qa_pairs)
@@ -251,7 +251,7 @@ class Runner:
         if self.verbose and result.stdout:
             print(result.stdout)
         if result.returncode != 0 and result.stderr:
-            print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
+            print(f"[ralph] Uh oh, the agent did a bad thing: {result.stderr}", file=sys.stderr)
         return result.stdout
 
     def _all_tasks_complete(self) -> bool:
@@ -274,24 +274,41 @@ class Runner:
 
     def _run_summarise(self, exit_reason: str) -> None:
         """Spawn a summarise agent to write .ralph/<project-name>/summary.md."""
-        print("[ralph] Summarise agent has started working...")
+        print("[ralph] Ooh ooh, I'm writing the summary now!")
         prompt = parse_summarise_md(
             self.project_name, ralph_dir=self.ralph_dir, exit_reason=exit_reason
         )
         result = run_noninteractive(prompt)
         self._handle_result(result)
         if result.returncode == 0:
-            print("[ralph] Execution summary is ready.")
+            print("[ralph] The summary is all done! You can read it now!")
         else:
-            print("[ralph] I had some trouble writing the summary.", file=sys.stderr)
+            print("[ralph] Uh oh, I couldn't write the summary. Something went wrong.", file=sys.stderr)
 
-    def run_prompt(self, prompt: str, command_name: str) -> None:
-        """Run a single headless agent invocation for the given command."""
-        print(f"[ralph] {command_name.capitalize()} agent has started working on '{self.project_name}'...")
-        result = run_noninteractive(prompt)
+    def run_prompt(self, prompt: str, command_name: str, json_output: bool = False) -> str | None:
+        """Run a single headless agent invocation for the given command.
+
+        If json_output is True, invokes Claude with --output-format json and
+        returns the agent's result text string. Otherwise returns None.
+        """
+        print(f"[ralph] I'm doing the {command_name} thing for '{self.project_name}'! Here we go!")
+        if json_output:
+            result = run_noninteractive_json(prompt)
+        else:
+            result = run_noninteractive(prompt)
         self._handle_result(result)
-        if result.returncode != 0:
-            print(f"[ralph] The {command_name} agent ran into some trouble.", file=sys.stderr)
+        if result.returncode == 0:
+            print(f"[ralph] Yay! The {command_name} thing is all done for '{self.project_name}'!")
+        else:
+            print(f"[ralph] Uh oh, the {command_name} thing had a problem. Something went wrong.", file=sys.stderr)
+
+        if json_output:
+            try:
+                data = json.loads(result.stdout)
+                return data.get("result", result.stdout)
+            except (json.JSONDecodeError, AttributeError):
+                return result.stdout
+        return None
 
     def run_interview_loop(
         self,
@@ -307,17 +324,23 @@ class Runner:
                      spec.md and creates/refreshes tasks.json.
         """
         total = len(question_prompts)
+        print(f"[ralph] I'm doing the interview thing for '{self.project_name}'! There are {total} round(s)!")
 
         for i, q_prompt in enumerate(question_prompts):
             round_num = i + 1
-            print(f"\n[ralph] Interview round {round_num}/{total}")
+            print(f"\n[ralph] Interview round {round_num} of {total}! Here we go!")
 
-            # Phase 1: generate questions
-            print("[ralph] Interview agent has started working — generating questions...\n")
-            result = run_noninteractive(q_prompt)
-            raw_output = result.stdout.strip()
+            # Phase 1: generate questions (JSON output mode so result text is cleanly extracted)
+            print("[ralph] I'm thinking up some questions for you...\n")
+            result = run_noninteractive_json(q_prompt)
             if result.returncode != 0 and result.stderr:
-                print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
+                print(f"[ralph] Uh oh, the agent did a bad thing: {result.stderr}", file=sys.stderr)
+            raw_output = result.stdout.strip()
+            try:
+                json_data = json.loads(raw_output)
+                raw_output = json_data.get("result", raw_output)
+            except (json.JSONDecodeError, AttributeError):
+                pass
 
             # Try structured (guided) path first
             questions_data = _parse_questions_json(raw_output)
@@ -325,22 +348,22 @@ class Runner:
                 qa_json = _collect_guided_answers(questions_data)
             else:
                 # Fallback: legacy free-form path
-                print("[ralph] Could not parse structured questions — falling back to free-form input.")
+                print("[ralph] I couldn't make the questions come out right, so I'll just ask you normally.")
                 print(raw_output)
                 print()
                 answers = _collect_user_answers()
                 qa_json = json.dumps([{"question": raw_output, "answer": answers}])
 
             # Phase 2: amend spec with Q&A
-            print("\n[ralph] Interview agent has started working — updating spec with your answers...")
+            print("\n[ralph] Ooh, now I'm updating the spec with all your answers!")
             result2 = run_noninteractive(make_amend_prompts[i](qa_json))
             self._handle_result(result2)
             if result2.returncode == 0:
-                print(f"[ralph] Round {round_num} complete.")
+                print(f"[ralph] Yay! Round {round_num} is all done!")
             else:
-                print(f"[ralph] Round {round_num} ran into some trouble.", file=sys.stderr)
+                print(f"[ralph] Uh oh, round {round_num} had a problem. Something went wrong.", file=sys.stderr)
 
-        print("\n[ralph] All interview rounds complete.")
+        print("\n[ralph] Yay! All the interview rounds are done! Great job answering!")
 
     def run_execute_loop_async(self, prompts: list[str], max_iterations: int) -> None:
         """Run async execute agents in a concurrent polling loop.
@@ -373,7 +396,7 @@ class Runner:
                     except Exception as exc:
                         returncode = 1
                         print(
-                            f"[ralph] Agent for task {task_id} raised an exception: {exc}",
+                            f"[ralph] Uh oh, the agent for task {task_id} did something really bad: {exc}",
                             file=sys.stderr,
                         )
 
@@ -414,8 +437,8 @@ class Runner:
                                     t["status"] = "pending"
                                     break
                         print(
-                            f"[ralph] Agent for task {task_id} failed"
-                            f" (returncode {returncode}).",
+                            f"[ralph] Uh oh, the agent for task {task_id} didn't work"
+                            f" (returncode {returncode}). I'll try again later!",
                             file=sys.stderr,
                         )
 
@@ -432,7 +455,7 @@ class Runner:
                         f"Task {task['id']} ('{task['title']}') reached"
                         f" max_attempts ({task['max_attempts']})."
                     )
-                    print(f"\n[ralph] Stopping early — {exit_reason}")
+                    print(f"\n[ralph] I have to stop now — {exit_reason}")
                     self._run_summarise(exit_reason)
                     return
 
@@ -456,7 +479,7 @@ class Runner:
                         task_title=task.get("title", ""),
                         task_description=task.get("description", ""),
                     )
-                    print(f"[ralph] Spawning execute agent for task {task['id']} \"{task['title']}\"...")
+                    print(f"[ralph] I'm starting an agent for task {task['id']} \"{task['title']}\"! Yay!")
 
                     def _worker(p=prompt):
                         return run_noninteractive(p).returncode
@@ -468,8 +491,25 @@ class Runner:
         finally:
             executor.shutdown(wait=False)
 
-    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False) -> None:
+    def _reset_incomplete_tasks(self) -> None:
+        """Reset all non-completed tasks to pending state silently."""
+        if not os.path.exists(self._tasks_path):
+            return
+        with open(self._tasks_path) as f:
+            data = json.load(f)
+        for task in data.get("tasks", []):
+            if task.get("status") != "completed":
+                task["status"] = "pending"
+                task["attempts"] = 0
+                task["blocked"] = False
+        with open(self._tasks_path, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, resume: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
+        if resume:
+            self._reset_incomplete_tasks()
+
         if asynchronous:
             self.run_execute_loop_async([], max_iterations)
             return
@@ -477,7 +517,7 @@ class Runner:
         # Pre-check: skip spawning agents if all tasks are already complete.
         if self._all_tasks_complete():
             exit_reason = "All tasks completed successfully."
-            print("\n[ralph] All tasks are already done — nothing left to do!")
+            print("\n[ralph] All the tasks are already done — I didn't have to do anything! Neat!")
             self._run_summarise(exit_reason)
             return
 
@@ -494,7 +534,7 @@ class Runner:
                 exit_reason = (
                     "No tasks are ready to execute — all remaining tasks are blocked or have unmet dependencies."
                 )
-                print(f"\n[ralph] {exit_reason}")
+                print(f"\n[ralph] I can't do anything right now — all the tasks are stuck or waiting for other tasks!")
                 break
 
             task = ready_tasks[0]
@@ -522,14 +562,14 @@ class Runner:
             )
 
             print(
-                f"\n[ralph] Execute agent has started working on task {task_id} \"{task_title}\""
-                f" (iteration {iteration}/{max_iterations})..."
+                f"\n[ralph] I'm working on task {task_id} \"{task_title}\""
+                f" (round {iteration} of {max_iterations})! Here we go!"
             )
             result = run_noninteractive_json(prompt)
 
             # Handle errors from the subprocess.
             if result.returncode != 0 and result.stderr:
-                print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
+                print(f"[ralph] Uh oh, the agent did a bad thing: {result.stderr}", file=sys.stderr)
 
             # Parse JSON output for the agent's text response and context window usage.
             agent_text = result.stdout
@@ -549,8 +589,8 @@ class Runner:
                 context_window = model_usage.get("contextWindow", 200000)
                 pct = (total_tokens / context_window * 100) if context_window > 0 else 0
                 print(
-                    f"[ralph] Agent used {total_tokens:,}/{context_window:,} tokens"
-                    f" ({pct:.1f}%) of context window."
+                    f"[ralph] The agent used {total_tokens:,} out of {context_window:,} brain tokens"
+                    f" ({pct:.1f}% of the thinky space)."
                 )
             except (json.JSONDecodeError, ValueError):
                 if self.verbose and result.stdout:
@@ -558,21 +598,21 @@ class Runner:
 
             if "You've hit your limit" in agent_text:
                 exit_reason = "Claude Code usage limit has been reached."
-                print("\n[ralph] Looks like the Claude Code usage limit has been reached.")
+                print("\n[ralph] Uh oh! We ran out of Claude Code tokens. That's too bad.")
                 break
 
             if self._all_tasks_complete():
                 exit_reason = "All tasks completed successfully."
-                print("\n[ralph] All tasks are done!")
+                print("\n[ralph] Yay yay yay! All the tasks are done! We did it!")
                 break
 
             exceeded, task = self._any_task_exceeded_max_attempts()
             if exceeded:
                 exit_reason = f"Task {task['id']} ('{task['title']}') reached max_attempts ({task['max_attempts']})."
-                print(f"\n[ralph] Stopping early — {exit_reason}")
+                print(f"\n[ralph] I have to stop now — {exit_reason}")
                 break
         else:
             # for/else fires when all iterations were exhausted without breaking
-            print(f"\n[ralph] {exit_reason}")
+            print(f"\n[ralph] I used up all {max_iterations} rounds and I'm all tired out now.")
 
         self._run_summarise(exit_reason)
