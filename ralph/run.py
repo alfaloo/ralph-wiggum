@@ -171,7 +171,7 @@ def _collect_guided_answers(questions: list[dict]) -> str:
         control = FormattedTextControl(get_text)
         window = Window(content=control)
         layout = Layout(window)
-        app = Application(layout=layout, key_bindings=kb, full_screen=True)
+        app = Application(layout=layout, key_bindings=kb, full_screen=False)
         app.run()
         return result[0] or ""
 
@@ -201,7 +201,7 @@ def _collect_guided_answers(questions: list[dict]) -> str:
             options = list(q.get("options", []))
             all_options = options + [DESCRIBE_YOURSELF]
 
-            print(f"Question {i} of {total}:\n{question_text}\n")
+            print(f"Q{i}: {question_text}\n")
 
             if not options:
                 # Empty options — fall back to multiline editor directly
@@ -216,6 +216,8 @@ def _collect_guided_answers(questions: list[dict]) -> str:
                     )
                 else:
                     answer = selected
+                    print(f"\nQ{i}: {question_text}")
+                    print(f"You picked: {answer}\n")
             else:
                 selected = _nontty_select(all_options)
                 if selected == DESCRIBE_YOURSELF:
@@ -224,6 +226,8 @@ def _collect_guided_answers(questions: list[dict]) -> str:
                     )
                 else:
                     answer = selected
+                    print(f"\nQ{i}: {question_text}")
+                    print(f"You picked: {answer}\n")
 
             qa_pairs.append({"question": question_text, "answer": answer})
 
