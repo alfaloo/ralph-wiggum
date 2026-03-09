@@ -307,7 +307,8 @@ class TestCmdValidateOverwriteYes:
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.parse_validate_md", return_value="mock prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_runner.run_prompt.assert_called_once_with("mock prompt", "validate", json_output=True)
@@ -325,7 +326,8 @@ class TestCmdValidateOverwriteYes:
              patch("builtins.input", return_value="YES"), \
              patch("ralph.commands.parse_validate_md", return_value="mock prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_runner.run_prompt.assert_called_once()
@@ -353,7 +355,8 @@ class TestCmdValidateHappyPath:
              patch("builtins.input") as mock_input, \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_input.assert_not_called()
@@ -374,7 +377,8 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("ralph.commands.parse_validate_md", return_value="rendered validate prompt") as mock_parse, \
              patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_parse.assert_called_once_with(project_name)
@@ -403,7 +407,8 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         assert ["git", "checkout", project_name] in checkout_calls
@@ -423,7 +428,8 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_assert.assert_called_once_with(project_name)
@@ -443,7 +449,8 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         assert mock_runner_cls.call_args[0][0] == project_name

@@ -151,6 +151,65 @@ def _validate_provider_cli(provider: str) -> bool:
         return False
 
 
+def _print_validate_summary(project_name: str, json_result: str | None) -> None:
+    """Parse validate agent JSON output and pretty-print a summary matching ralph status style."""
+    if not json_result:
+        print("[ralph] Hmm, I didn't get any info back from the validation thingy. I can't show you a summary!", file=sys.stderr)
+        return
+
+    try:
+        data = json.loads(json_result)
+    except (json.JSONDecodeError, ValueError):
+        print("[ralph] Uh oh! The validation info came back all jumbled up and I can't read it. No summary for you!", file=sys.stderr)
+        return
+
+    sep = "─" * 60
+    overall_status = data.get("overall_status", "unknown")
+    tasks = data.get("tasks", [])
+    obstacles = data.get("obstacles", [])
+    error_description = data.get("error_description", "")
+
+    status_icon = "✓" if overall_status == "passed" else "✗"
+
+    print()
+    print(f"[ralph] Validation Summary for '{project_name}'")
+    print(sep)
+    print(f"[ralph] Overall Status  : {status_icon} {overall_status}")
+    print(sep)
+
+    if tasks:
+        print("[ralph] Tasks")
+        print(sep)
+        for task in tasks:
+            task_id = task.get("id", "?")
+            title = task.get("title", "(no title)")
+            task_status = task.get("status", "unknown")
+            issue = task.get("issue", "")
+            task_icon = "✓" if task_status == "completed" else "✗"
+            row = f"[ralph]   {task_id:<4}  {task_icon} {task_status:<12}  {title}"
+            if issue:
+                row += f"  — {issue}"
+            print(row)
+        print(sep)
+
+    if obstacles:
+        print("[ralph] Obstacles")
+        print(sep)
+        for obs in obstacles:
+            description = obs.get("description", "")
+            resolved = obs.get("resolved", False)
+            obs_icon = "✓" if resolved else "✗"
+            resolved_str = "resolved" if resolved else "unresolved"
+            print(f"[ralph]   {obs_icon} {resolved_str:<12}  {description}")
+        print(sep)
+
+    if overall_status in ("requires_attention", "failed") and error_description:
+        print(f"[ralph] What went wrong: {error_description}")
+        print(sep)
+
+    print()
+
+
 def _assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
     ralph_dir = os.path.join(".ralph", project_name)
@@ -437,7 +496,10 @@ class ValidateCommand(Command):
         # Render the validate prompt and run the validation agent with JSON output mode.
         prompt = parse_validate_md(args.project_name)
         runner = Runner(args.project_name, verbose=_resolve_verbose(args))
-        validate_json_result = runner.run_prompt(prompt, "validate", json_output=True)  # noqa: F841 (used by T4)
+        validate_json_result = runner.run_prompt(prompt, "validate", json_output=True)
+
+        # Pretty-print the validation summary to the console.
+        _print_validate_summary(args.project_name, validate_json_result)
 
 
 class UndoCommand(Command):
