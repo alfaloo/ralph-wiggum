@@ -920,7 +920,7 @@ class PrCommand(Command):
             # Detect base branch.
             base_branch = get_base()
             merge_base_result = subprocess.run(
-                ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
+                ["git", "merge-base", ":", base_branch], capture_output=True, text=True
             )
             if merge_base_result.returncode != 0:
                 print(
