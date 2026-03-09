@@ -451,6 +451,32 @@ class TestCollectGuidedAnswers:
         pairs = json.loads(result)
         assert pairs == [{"question": "Pick one?", "answer": "No"}]
 
+    def test_question_text_printed_as_preamble(self, capsys):
+        """Question text is printed to stdout before the option list (T7 display fix)."""
+        mock_stdin = self._make_non_tty_stdin(["1\n", "1\n"])  # select first option for each question
+
+        with patch("sys.stdin", mock_stdin):
+            _collect_guided_answers(self._QUESTIONS)
+
+        out = capsys.readouterr().out
+        # Q1 preamble must appear before options are listed
+        assert "Q1: Auth method?" in out
+        assert "Q2: Error display?" in out
+
+    def test_question_and_answer_printed_after_selection(self, capsys):
+        """After selecting a non-Describe-yourself option, question and answer are echoed to console (T7 display fix)."""
+        mock_stdin = self._make_non_tty_stdin(["1\n", "2\n"])  # Q1→Email only, Q2→Banner
+
+        with patch("sys.stdin", mock_stdin):
+            _collect_guided_answers(self._QUESTIONS)
+
+        out = capsys.readouterr().out
+        # Both question and selected answer must appear in output after selection
+        assert "Auth method?" in out
+        assert "Email only" in out
+        assert "Error display?" in out
+        assert "Banner" in out
+
 
 # ===========================================================================
 # Tests for run_interview_loop() — guided and fallback branches

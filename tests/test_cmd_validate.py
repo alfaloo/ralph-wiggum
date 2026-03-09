@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 
 from ralph.cli import cmd_validate
+from ralph.commands import _print_validate_summary
 
 
 # ---------------------------------------------------------------------------
@@ -454,3 +455,130 @@ class TestCmdValidateHappyPath:
             cmd_validate(args)
 
         assert mock_runner_cls.call_args[0][0] == project_name
+
+
+# ===========================================================================
+# _print_validate_summary — pretty-print console output
+# ===========================================================================
+
+
+class TestPrintValidateSummary:
+    """Tests for _print_validate_summary() in ralph/commands.py."""
+
+    _SEP = "─" * 60
+
+    def test_overall_status_appears_in_output(self, capsys):
+        """Overall status value is printed in the summary."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert "passed" in capsys.readouterr().out
+
+    def test_separator_style_matches_ralph_status(self, capsys):
+        """Output uses the ─── 60-char separator matching ralph status style."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert self._SEP in capsys.readouterr().out
+
+    def test_task_ids_and_statuses_in_output(self, capsys):
+        """Per-task IDs and statuses appear in printed output."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [
+                {"id": "T1", "title": "Alpha", "status": "completed"},
+                {"id": "T2", "title": "Beta", "status": "failed"},
+            ],
+            "obstacles": [],
+        }))
+        out = capsys.readouterr().out
+        assert "T1" in out
+        assert "T2" in out
+        assert "completed" in out
+        assert "failed" in out
+
+    def test_obstacles_appear_in_output(self, capsys):
+        """Obstacle descriptions and resolved status appear in output."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "requires_attention",
+            "tasks": [],
+            "obstacles": [
+                {"description": "Tests are broken", "resolved": False},
+                {"description": "Fixed the lint", "resolved": True},
+            ],
+        }))
+        out = capsys.readouterr().out
+        assert "Tests are broken" in out
+        assert "Fixed the lint" in out
+        assert "unresolved" in out
+        assert "resolved" in out
+
+    def test_error_description_shown_for_requires_attention(self, capsys):
+        """error_description appears in output when status is requires_attention."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "requires_attention",
+            "tasks": [],
+            "obstacles": [],
+            "error_description": "Two tests are failing",
+        }))
+        assert "Two tests are failing" in capsys.readouterr().out
+
+    def test_error_description_shown_for_failed(self, capsys):
+        """error_description appears in output when status is failed."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "failed",
+            "tasks": [],
+            "obstacles": [],
+            "error_description": "Build is broken",
+        }))
+        assert "Build is broken" in capsys.readouterr().out
+
+    def test_error_description_not_shown_for_passed(self, capsys):
+        """error_description is NOT printed when status is passed."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+            "error_description": "Should not appear",
+        }))
+        assert "Should not appear" not in capsys.readouterr().out
+
+    def test_passed_shows_checkmark_icon(self, capsys):
+        """'passed' overall_status shows a ✓ icon."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert "✓" in capsys.readouterr().out
+
+    def test_failed_shows_x_icon(self, capsys):
+        """Non-passed overall_status shows a ✗ icon."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "failed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert "✗" in capsys.readouterr().out
+
+    def test_invalid_json_logged_to_stderr_no_crash(self, capsys):
+        """Invalid JSON string writes a warning to stderr and does not raise."""
+        _print_validate_summary("my-project", "not valid json {{")
+        captured = capsys.readouterr()
+        assert captured.err
+
+    def test_none_json_logged_to_stderr_no_crash(self, capsys):
+        """None for json_result writes a warning to stderr and does not raise."""
+        _print_validate_summary("my-project", None)
+        captured = capsys.readouterr()
+        assert captured.err
+
+    def test_empty_string_json_logged_to_stderr_no_crash(self, capsys):
+        """Empty string for json_result writes a warning to stderr and does not raise."""
+        _print_validate_summary("my-project", "")
+        captured = capsys.readouterr()
+        assert captured.err
