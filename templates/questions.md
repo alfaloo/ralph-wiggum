@@ -1,6 +1,6 @@
 # Ralph Wiggum — Interview: Question Generation
 
-You are generating clarifying questions for a project spec. Your output will be shown to the user, who will answer the questions before the spec is updated.
+You are generating clarifying questions for a project spec. Your output will be parsed by a program — you must output only valid JSON.
 
 ## Context
 
@@ -26,16 +26,32 @@ Prioritise by impact: earlier rounds should address big-picture questions; later
 
 Questions must be **answerable by the user** — do not ask about implementation details the user cannot be expected to know.
 
-### Step 3: Output only your questions
+### Step 3: Generate answer options
 
-Output a numbered list of focused, specific questions. Where helpful, reference the exact part of the spec that is unclear.
+For each question, generate **2–3 concise, mutually exclusive answer options** representing the most common realistic choices for the project. Follow these rules for options:
 
-**Example format:**
-1. Under "Requirements — user authentication": should the system support OAuth providers, or only email/password login?
-2. What should happen when a user submits a form with missing required fields — inline error messages or a summary at the top?
+- Generate 2–3 options per question — no more.
+- Options must be concise (≤10 words each), distinct, and non-overlapping.
+- Options must represent realistic choices — not obviously wrong answers.
+- Cover only the most common choices; do not try to enumerate every possibility.
+- Do not include "it depends" or "ask the user" as options — those are not useful.
+
+### Step 4: Output only valid JSON
+
+Output ONLY valid JSON in the format below. No preamble, no markdown fences, no commentary before or after the JSON.
+
+**Required output format:**
+
+```
+{"questions": [{"id": 1, "question": "...", "options": ["...", "..."]}, ...]}
+```
+
+**Example output:**
+
+{"questions": [{"id": 1, "question": "Under \"Requirements — user authentication\": should the system support OAuth providers, or only email/password login?", "options": ["Email/password login only", "OAuth providers only (Google, GitHub)", "Both email/password and OAuth providers"]}, {"id": 2, "question": "What should happen when a user submits a form with missing required fields?", "options": ["Inline error messages next to each field", "A summary banner at the top of the form"]}]}
 
 ## Important Rules
 
-- **Output only the numbered list.** Do not include preamble, commentary, or a summary.
+- **Output only the JSON object.** Do not include preamble, commentary, or markdown fences.
 - **Do not create or amend any files.**
 - **Do not answer your own questions** — the user will answer them.

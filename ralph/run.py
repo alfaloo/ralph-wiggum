@@ -5,6 +5,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -34,20 +35,24 @@ def run_noninteractive_json(prompt: str) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
-def _collect_user_answers() -> str:
-    """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
+def _open_multiline_editor(preamble: str) -> str:
+    """Open the multiline editor with the given preamble text.
 
-    Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
-    mouse-click cursor positioning, revisit previous lines). Falls back to
-    sys.stdin.read() if prompt_toolkit is not installed or if stdin is not a
-    TTY (e.g. when stdin is a pipe from the VSCode extension).
+    Internally determines whether stdin is a TTY and routes accordingly:
+    - TTY mode: opens the full prompt_toolkit multiline editor supporting
+      arrow key navigation, mouse-click cursor positioning, Enter for new
+      lines, Ctrl+D to submit, and Ctrl+C to abort.
+    - Non-TTY mode: reads multi-line input without exhausting stdin, so that
+      subsequent questions can still receive input (including further
+      "Describe yourself..." selections). Reads lines until a sentinel line
+      containing only "." is received.
     """
     if sys.stdin.isatty():
         try:
             from prompt_toolkit import prompt as pt_prompt
             from prompt_toolkit.key_binding import KeyBindings
 
-            print("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:\n")
+            print(f"{preamble}\n")
 
             kb = KeyBindings()
 
@@ -70,14 +75,166 @@ def _collect_user_answers() -> str:
         except ImportError:
             pass
 
-    print("Type your answers below. Press Ctrl+D (macOS/Linux) or Ctrl+Z then Enter (Windows) when done:\n")
+    print(preamble)
+    print('(Enter "." on its own line to submit)\n')
+    lines = []
     try:
-        return sys.stdin.read().strip()
-    except EOFError:
-        return ""
+        while True:
+            line = sys.stdin.readline()
+            if not line or line.rstrip("\n") == ".":
+                break
+            lines.append(line.rstrip("\n"))
     except KeyboardInterrupt:
         print("\n[ralph] Ok, stopping the interview.")
         sys.exit(0)
+    return "\n".join(lines).strip()
+
+
+def _collect_user_answers() -> str:
+    """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
+
+    Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
+    mouse-click cursor positioning, revisit previous lines). Falls back to
+    sentinel-based line reading if stdin is not a TTY (e.g. when stdin is a
+    pipe from the VSCode extension).
+    """
+    return _open_multiline_editor("Type your answers below. Press Ctrl+D when you're done, or Ctrl+C to stop:")
+
+
+def _parse_questions_json(raw: str) -> list[dict] | None:
+    """Parse Claude's JSON output into a list of question dicts.
+
+    Returns None on parse failure so the caller can fall back gracefully.
+    """
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        data = json.loads(text)
+        return data.get("questions", [])
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
+def _collect_guided_answers(questions: list[dict]) -> str:
+    """Present questions one at a time with arrow-key or numbered selection.
+
+    Returns a JSON string of question–answer pairs suitable for passing to the
+    generate_tasks template.
+    """
+    DESCRIBE_YOURSELF = "Describe yourself..."
+    SEPARATOR = "\u2500" * 61
+    total = len(questions)
+    qa_pairs: list[dict] = []
+
+    def _tty_select(all_options: list[str]) -> str:
+        """Arrow-key selection via prompt_toolkit Application."""
+        from prompt_toolkit.application import Application
+        from prompt_toolkit.key_binding import KeyBindings
+        from prompt_toolkit.layout import Layout
+        from prompt_toolkit.layout.containers import Window
+        from prompt_toolkit.layout.controls import FormattedTextControl
+
+        cursor = [0]
+        result: list[str | None] = [None]
+
+        def get_text():
+            lines = []
+            for idx, opt in enumerate(all_options):
+                if idx == cursor[0]:
+                    lines.append(("class:cursor", f"  > {opt}\n"))
+                else:
+                    lines.append(("", f"    {opt}\n"))
+            lines.append(("", "\n\u2191\u2193 to move  Enter to select"))
+            return lines
+
+        kb = KeyBindings()
+
+        @kb.add("up")
+        def _up(event):
+            cursor[0] = (cursor[0] - 1) % len(all_options)
+
+        @kb.add("down")
+        def _down(event):
+            cursor[0] = (cursor[0] + 1) % len(all_options)
+
+        @kb.add("enter")
+        def _enter(event):
+            result[0] = all_options[cursor[0]]
+            event.app.exit()
+
+        @kb.add("c-c")
+        def _ctrl_c(event):
+            event.app.exit(exception=KeyboardInterrupt())
+
+        control = FormattedTextControl(get_text)
+        window = Window(content=control)
+        layout = Layout(window)
+        app = Application(layout=layout, key_bindings=kb, full_screen=True)
+        app.run()
+        return result[0] or ""
+
+    def _nontty_select(all_options: list[str]) -> str:
+        """Numbered-list selection via sys.stdin.readline()."""
+        k_plus_1 = len(all_options)
+        for idx, opt in enumerate(all_options, start=1):
+            print(f"  {idx}. {opt}")
+        print()
+        while True:
+            print(f"Select an option (1\u2013{k_plus_1}): ", end="", flush=True)
+            line = sys.stdin.readline()
+            if not line:
+                return ""
+            line = line.strip()
+            try:
+                choice = int(line)
+                if 1 <= choice <= k_plus_1:
+                    return all_options[choice - 1]
+            except ValueError:
+                pass
+            print(f"Invalid selection. Please enter a number between 1 and {k_plus_1}.")
+
+    try:
+        for i, q in enumerate(questions, start=1):
+            question_text = q.get("question", "")
+            options = list(q.get("options", []))
+            all_options = options + [DESCRIBE_YOURSELF]
+
+            print(f"Question {i} of {total}:\n{question_text}\n")
+
+            if not options:
+                # Empty options — fall back to multiline editor directly
+                answer = _open_multiline_editor(
+                    "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
+                )
+            elif sys.stdin.isatty():
+                selected = _tty_select(all_options)
+                if selected == DESCRIBE_YOURSELF:
+                    answer = _open_multiline_editor(
+                        "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
+                    )
+                else:
+                    answer = selected
+            else:
+                selected = _nontty_select(all_options)
+                if selected == DESCRIBE_YOURSELF:
+                    answer = _open_multiline_editor(
+                        "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
+                    )
+                else:
+                    answer = selected
+
+            qa_pairs.append({"question": question_text, "answer": answer})
+
+            if i < total:
+                print(f"\n{SEPARATOR}\n")
+
+    except KeyboardInterrupt:
+        print("\n[ralph] Ok, stopping the interview.")
+        sys.exit(0)
+
+    return json.dumps(qa_pairs)
 
 
 class Runner:
@@ -139,15 +296,15 @@ class Runner:
     def run_interview_loop(
         self,
         question_prompts: list[str],
-        make_amend_prompts: list[Callable[[str, str], str]],
+        make_amend_prompts: list[Callable[[str], str]],
     ) -> None:
         """Run sequential two-phase interview agents, one per round.
 
         Each round:
-          Phase 1 — non-interactive agent outputs clarifying questions.
-          (user types answers via stdin)
-          Phase 2 — non-interactive agent receives questions + answers and
-                     amends spec.md and creates/refreshes tasks.json.
+          Phase 1 — non-interactive agent outputs clarifying questions (JSON).
+          (user answers questions via guided or free-form path)
+          Phase 2 — non-interactive agent receives Q&A JSON and amends
+                     spec.md and creates/refreshes tasks.json.
         """
         total = len(question_prompts)
 
@@ -158,20 +315,25 @@ class Runner:
             # Phase 1: generate questions
             print("[ralph] Interview agent has started working — generating questions...\n")
             result = run_noninteractive(q_prompt)
-            questions = result.stdout.strip()
+            raw_output = result.stdout.strip()
             if result.returncode != 0 and result.stderr:
                 print(f"[ralph] Agent error: {result.stderr}", file=sys.stderr)
 
-            # Always display questions — user must read and answer them
-            print(questions)
-            print()
-
-            # Collect user answers
-            answers = _collect_user_answers()
+            # Try structured (guided) path first
+            questions_data = _parse_questions_json(raw_output)
+            if questions_data:
+                qa_json = _collect_guided_answers(questions_data)
+            else:
+                # Fallback: legacy free-form path
+                print("[ralph] Could not parse structured questions — falling back to free-form input.")
+                print(raw_output)
+                print()
+                answers = _collect_user_answers()
+                qa_json = json.dumps([{"question": raw_output, "answer": answers}])
 
             # Phase 2: amend spec with Q&A
             print("\n[ralph] Interview agent has started working — updating spec with your answers...")
-            result2 = run_noninteractive(make_amend_prompts[i](questions, answers))
+            result2 = run_noninteractive(make_amend_prompts[i](qa_json))
             self._handle_result(result2)
             if result2.returncode == 0:
                 print(f"[ralph] Round {round_num} complete.")

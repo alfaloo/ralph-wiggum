@@ -6,18 +6,14 @@ You are a **task-generation agent** for Ralph Wiggum. Your job is to incorporate
 
 - **Project:** `{{PROJECT_NAME}}`
 - **Artifact directory:** `.ralph/{{PROJECT_NAME}}/`
-{% if QUESTIONS %}
+{% if QA_JSON %}
 - **Interview round:** {{ROUND_NUM}} of {{TOTAL_ROUNDS}}
 
 ## Clarifying Q&A
 
-The following questions were asked and the user provided these answers:
+The following questions were asked and the user provided these answers (JSON array of `{question, answer}` pairs):
 
-**Questions:**
-{{QUESTIONS}}
-
-**User's Answers:**
-{{ANSWERS}}
+{{QA_JSON}}
 {% else %}
 ## User Comment
 
@@ -36,7 +32,7 @@ The following questions were asked and the user provided these answers:
 Update `.ralph/{{PROJECT_NAME}}/spec.md` to incorporate the input above.
 
 Guidelines:
-{% if QUESTIONS %}
+{% if QA_JSON %}
 - Integrate new details naturally into the relevant sections (do not append a "Round N answers" block).
 - Do not erase or contradict existing content unless the user's answers explicitly supersede it.
 {% else %}
