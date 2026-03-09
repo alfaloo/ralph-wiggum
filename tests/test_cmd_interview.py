@@ -427,7 +427,7 @@ class TestCollectGuidedAnswers:
                 _collect_guided_answers(self._QUESTIONS)
 
         captured = capsys.readouterr()
-        assert "[ralph] Ok, stopping the interview." in captured.out
+        assert "I'm gonna stop the interview now" in captured.out
 
     def test_result_is_valid_json_string(self):
         """Return value is always a valid JSON-encoded string."""
@@ -526,7 +526,7 @@ class TestRunInterviewLoop:
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
         captured = capsys.readouterr()
-        assert "Could not parse structured questions" in captured.out
+        assert "couldn't make the questions come out right" in captured.out
 
     def test_fallback_path_wraps_in_json_and_passes_to_amend_fn(self):
         """Fallback path: amend fn receives JSON-wrapped raw output + free-form answer."""
@@ -565,7 +565,7 @@ class TestRunInterviewLoop:
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
         captured = capsys.readouterr()
-        assert "Could not parse structured questions" in captured.out
+        assert "couldn't make the questions come out right" in captured.out
 
     def test_guided_path_not_called_on_fallback(self):
         """_collect_guided_answers must not be called on the fallback path."""

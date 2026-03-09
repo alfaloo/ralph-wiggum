@@ -147,7 +147,7 @@ class TestCmdInitProjectAlreadyExists:
             cmd_init(_make_args("myproject"))
 
         captured = capsys.readouterr()
-        assert "already exists" in captured.err
+        assert "already lives at" in captured.err
         assert "myproject" in captured.err
 
     def test_does_not_overwrite_existing_project_files(self, tmp_path, monkeypatch):
