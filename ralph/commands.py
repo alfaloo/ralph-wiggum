@@ -434,9 +434,10 @@ class ValidateCommand(Command):
             )
             sys.exit(1)
 
-        # Render the validate prompt and run the validation agent.
+        # Render the validate prompt and run the validation agent with JSON output mode.
         prompt = parse_validate_md(args.project_name)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "validate")
+        runner = Runner(args.project_name, verbose=_resolve_verbose(args))
+        validate_json_result = runner.run_prompt(prompt, "validate", json_output=True)  # noqa: F841 (used by T4)
 
 
 class UndoCommand(Command):

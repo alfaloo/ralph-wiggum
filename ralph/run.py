@@ -285,15 +285,30 @@ class Runner:
         else:
             print("[ralph] Uh oh, I couldn't write the summary. Something went wrong.", file=sys.stderr)
 
-    def run_prompt(self, prompt: str, command_name: str) -> None:
-        """Run a single headless agent invocation for the given command."""
+    def run_prompt(self, prompt: str, command_name: str, json_output: bool = False) -> str | None:
+        """Run a single headless agent invocation for the given command.
+
+        If json_output is True, invokes Claude with --output-format json and
+        returns the agent's result text string. Otherwise returns None.
+        """
         print(f"[ralph] I'm doing the {command_name} thing for '{self.project_name}'! Here we go!")
-        result = run_noninteractive(prompt)
+        if json_output:
+            result = run_noninteractive_json(prompt)
+        else:
+            result = run_noninteractive(prompt)
         self._handle_result(result)
         if result.returncode == 0:
             print(f"[ralph] Yay! The {command_name} thing is all done for '{self.project_name}'!")
         else:
             print(f"[ralph] Uh oh, the {command_name} thing had a problem. Something went wrong.", file=sys.stderr)
+
+        if json_output:
+            try:
+                data = json.loads(result.stdout)
+                return data.get("result", result.stdout)
+            except (json.JSONDecodeError, AttributeError):
+                return result.stdout
+        return None
 
     def run_interview_loop(
         self,

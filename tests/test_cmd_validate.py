@@ -310,7 +310,7 @@ class TestCmdValidateOverwriteYes:
              patch("ralph.commands.get_verbose", return_value=False):
             cmd_validate(args)
 
-        mock_runner.run_prompt.assert_called_once_with("mock prompt", "validate")
+        mock_runner.run_prompt.assert_called_once_with("mock prompt", "validate", json_output=True)
 
     def test_yes_answer_case_insensitive(self):
         """'YES' is accepted the same as 'y' to confirm overwrite."""
@@ -357,7 +357,7 @@ class TestCmdValidateHappyPath:
             cmd_validate(args)
 
         mock_input.assert_not_called()
-        mock_runner.run_prompt.assert_called_once_with("prompt", "validate")
+        mock_runner.run_prompt.assert_called_once_with("prompt", "validate", json_output=True)
 
     def test_runner_called_with_rendered_validate_prompt(self):
         """Runner.run_comment is called with the rendered validate.md prompt."""
@@ -380,7 +380,7 @@ class TestCmdValidateHappyPath:
         mock_parse.assert_called_once_with(project_name)
         mock_runner_cls.assert_called_once()
         assert mock_runner_cls.call_args[0][0] == project_name
-        mock_runner.run_prompt.assert_called_once_with("rendered validate prompt", "validate")
+        mock_runner.run_prompt.assert_called_once_with("rendered validate prompt", "validate", json_output=True)
 
     def test_git_checkout_project_branch_is_called(self):
         """cmd_validate checks out the project branch before running the agent."""
