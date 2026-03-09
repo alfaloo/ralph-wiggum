@@ -330,12 +330,17 @@ class Runner:
             round_num = i + 1
             print(f"\n[ralph] Interview round {round_num} of {total}! Here we go!")
 
-            # Phase 1: generate questions
+            # Phase 1: generate questions (JSON output mode so result text is cleanly extracted)
             print("[ralph] I'm thinking up some questions for you...\n")
-            result = run_noninteractive(q_prompt)
-            raw_output = result.stdout.strip()
+            result = run_noninteractive_json(q_prompt)
             if result.returncode != 0 and result.stderr:
                 print(f"[ralph] Uh oh, the agent did a bad thing: {result.stderr}", file=sys.stderr)
+            raw_output = result.stdout.strip()
+            try:
+                json_data = json.loads(raw_output)
+                raw_output = json_data.get("result", raw_output)
+            except (json.JSONDecodeError, AttributeError):
+                pass
 
             # Try structured (guided) path first
             questions_data = _parse_questions_json(raw_output)

@@ -36,9 +36,9 @@ For each question, generate **2–3 concise, mutually exclusive answer options**
 - Cover only the most common choices; do not try to enumerate every possibility.
 - Do not include "it depends" or "ask the user" as options — those are not useful.
 
-### Step 4: Output only valid JSON
+### Step 4: Return your response as a JSON string
 
-Output ONLY valid JSON in the format below. No preamble, no markdown fences, no commentary before or after the JSON.
+Return ONLY valid JSON as your **final result text** (the last thing you output). No preamble, no markdown fences, no commentary before or after the JSON.
 
 **Required output format:**
 

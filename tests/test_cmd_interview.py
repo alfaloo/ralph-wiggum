@@ -481,7 +481,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive", side_effect=[q_result, amend_result]),
+            patch("ralph.run.run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str) as mock_guided,
         ):
@@ -500,13 +501,34 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive", side_effect=[q_result, amend_result]),
+            patch("ralph.run.run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str),
         ):
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
         make_amend_fn.assert_called_once_with(qa_json_str)
+
+    def test_interview_phase1_uses_json_output_mode(self):
+        """Phase 1 (question generation) must use run_noninteractive_json, not run_noninteractive."""
+        runner = self._make_runner()
+        questions_data = [{"id": 1, "question": "Q?", "options": ["A"]}]
+        qa_json_str = json.dumps([{"question": "Q?", "answer": "A"}])
+
+        q_result = self._mock_noninteractive(stdout="raw output")
+        amend_result = self._mock_noninteractive()
+        make_amend_fn = MagicMock(return_value="amend-prompt")
+
+        with (
+            patch("ralph.run.run_noninteractive_json", return_value=q_result) as mock_json,
+            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run._parse_questions_json", return_value=questions_data),
+            patch("ralph.run._collect_guided_answers", return_value=qa_json_str),
+        ):
+            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+
+        mock_json.assert_called_once_with("q-prompt")
 
     def test_fallback_path_triggered_when_parse_returns_none(self, capsys):
         """Fallback path: activates when _parse_questions_json returns None."""
@@ -519,7 +541,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive", side_effect=[q_result, amend_result]),
+            patch("ralph.run.run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
             patch("ralph.run._collect_user_answers", return_value=free_form),
         ):
@@ -539,7 +562,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive", side_effect=[q_result, amend_result]),
+            patch("ralph.run.run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
             patch("ralph.run._collect_user_answers", return_value=free_form),
         ):
@@ -558,7 +582,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive", side_effect=[q_result, amend_result]),
+            patch("ralph.run.run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=[]),
             patch("ralph.run._collect_user_answers", return_value=free_form),
         ):
@@ -576,7 +601,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive", side_effect=[q_result, amend_result]),
+            patch("ralph.run.run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
             patch("ralph.run._collect_user_answers", return_value="answer"),
             patch("ralph.run._collect_guided_answers") as mock_guided,
@@ -593,17 +619,15 @@ class TestRunInterviewLoop:
         qa_json_round1 = json.dumps([{"question": "Q1?", "answer": "A"}])
         qa_json_round2 = json.dumps([{"question": "Q2?", "answer": "B"}])
 
-        mock_results = [
-            self._mock_noninteractive(stdout="raw1"),
-            self._mock_noninteractive(),
-            self._mock_noninteractive(stdout="raw2"),
-            self._mock_noninteractive(),
-        ]
+        q_result1 = self._mock_noninteractive(stdout="raw1")
+        q_result2 = self._mock_noninteractive(stdout="raw2")
+        amend_result = self._mock_noninteractive()
         make_amend_fn1 = MagicMock(return_value="amend1")
         make_amend_fn2 = MagicMock(return_value="amend2")
 
         with (
-            patch("ralph.run.run_noninteractive", side_effect=mock_results),
+            patch("ralph.run.run_noninteractive_json", side_effect=[q_result1, q_result2]),
+            patch("ralph.run.run_noninteractive", side_effect=[amend_result, amend_result]),
             patch("ralph.run._parse_questions_json", side_effect=[questions_round1, questions_round2]),
             patch("ralph.run._collect_guided_answers", side_effect=[qa_json_round1, qa_json_round2]),
         ):
