@@ -445,9 +445,7 @@ class ValidateCommand(Command):
     def execute(self) -> None:
         args = self.args
         _assert_project_exists(args.project_name)
-
-        print(f"[ralph] I'm gonna check if '{args.project_name}' is all done right!")
-
+        
         # Check pr-description.md exists.
         pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
         if not os.path.exists(pr_desc_path):

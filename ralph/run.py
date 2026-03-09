@@ -216,8 +216,6 @@ def _collect_guided_answers(questions: list[dict]) -> str:
                     )
                 else:
                     answer = selected
-                    print(f"\nQ{i}: {question_text}")
-                    print(f"You picked: {answer}\n")
             else:
                 selected = _nontty_select(all_options)
                 if selected == DESCRIBE_YOURSELF:
@@ -226,8 +224,6 @@ def _collect_guided_answers(questions: list[dict]) -> str:
                     )
                 else:
                     answer = selected
-                    print(f"\nQ{i}: {question_text}")
-                    print(f"You picked: {answer}\n")
 
             qa_pairs.append({"question": question_text, "answer": answer})
 
