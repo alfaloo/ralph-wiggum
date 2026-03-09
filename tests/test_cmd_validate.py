@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 
 from ralph.cli import cmd_validate
+from ralph.commands import _print_validate_summary
 
 
 # ---------------------------------------------------------------------------
@@ -307,10 +308,11 @@ class TestCmdValidateOverwriteYes:
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.parse_validate_md", return_value="mock prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
-        mock_runner.run_prompt.assert_called_once_with("mock prompt", "validate")
+        mock_runner.run_prompt.assert_called_once_with("mock prompt", "validate", json_output=True)
 
     def test_yes_answer_case_insensitive(self):
         """'YES' is accepted the same as 'y' to confirm overwrite."""
@@ -325,7 +327,8 @@ class TestCmdValidateOverwriteYes:
              patch("builtins.input", return_value="YES"), \
              patch("ralph.commands.parse_validate_md", return_value="mock prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_runner.run_prompt.assert_called_once()
@@ -353,11 +356,12 @@ class TestCmdValidateHappyPath:
              patch("builtins.input") as mock_input, \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_input.assert_not_called()
-        mock_runner.run_prompt.assert_called_once_with("prompt", "validate")
+        mock_runner.run_prompt.assert_called_once_with("prompt", "validate", json_output=True)
 
     def test_runner_called_with_rendered_validate_prompt(self):
         """Runner.run_comment is called with the rendered validate.md prompt."""
@@ -374,13 +378,14 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("ralph.commands.parse_validate_md", return_value="rendered validate prompt") as mock_parse, \
              patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_parse.assert_called_once_with(project_name)
         mock_runner_cls.assert_called_once()
         assert mock_runner_cls.call_args[0][0] == project_name
-        mock_runner.run_prompt.assert_called_once_with("rendered validate prompt", "validate")
+        mock_runner.run_prompt.assert_called_once_with("rendered validate prompt", "validate", json_output=True)
 
     def test_git_checkout_project_branch_is_called(self):
         """cmd_validate checks out the project branch before running the agent."""
@@ -403,7 +408,8 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         assert ["git", "checkout", project_name] in checkout_calls
@@ -423,7 +429,8 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner), \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         mock_assert.assert_called_once_with(project_name)
@@ -443,7 +450,135 @@ class TestCmdValidateHappyPath:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run(project_name=project_name)), \
              patch("ralph.commands.parse_validate_md", return_value="prompt"), \
              patch("ralph.commands.Runner", return_value=mock_runner) as mock_runner_cls, \
-             patch("ralph.commands.get_verbose", return_value=False):
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands._print_validate_summary"):
             cmd_validate(args)
 
         assert mock_runner_cls.call_args[0][0] == project_name
+
+
+# ===========================================================================
+# _print_validate_summary — pretty-print console output
+# ===========================================================================
+
+
+class TestPrintValidateSummary:
+    """Tests for _print_validate_summary() in ralph/commands.py."""
+
+    _SEP = "─" * 60
+
+    def test_overall_status_appears_in_output(self, capsys):
+        """Overall status value is printed in the summary."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert "passed" in capsys.readouterr().out
+
+    def test_separator_style_matches_ralph_status(self, capsys):
+        """Output uses the ─── 60-char separator matching ralph status style."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert self._SEP in capsys.readouterr().out
+
+    def test_task_ids_and_statuses_in_output(self, capsys):
+        """Per-task IDs and statuses appear in printed output."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [
+                {"id": "T1", "title": "Alpha", "status": "completed"},
+                {"id": "T2", "title": "Beta", "status": "failed"},
+            ],
+            "obstacles": [],
+        }))
+        out = capsys.readouterr().out
+        assert "T1" in out
+        assert "T2" in out
+        assert "completed" in out
+        assert "failed" in out
+
+    def test_obstacles_appear_in_output(self, capsys):
+        """Obstacle descriptions and resolved status appear in output."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "requires_attention",
+            "tasks": [],
+            "obstacles": [
+                {"description": "Tests are broken", "resolved": False},
+                {"description": "Fixed the lint", "resolved": True},
+            ],
+        }))
+        out = capsys.readouterr().out
+        assert "Tests are broken" in out
+        assert "Fixed the lint" in out
+        assert "unresolved" in out
+        assert "resolved" in out
+
+    def test_error_description_shown_for_requires_attention(self, capsys):
+        """error_description appears in output when status is requires_attention."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "requires_attention",
+            "tasks": [],
+            "obstacles": [],
+            "error_description": "Two tests are failing",
+        }))
+        assert "Two tests are failing" in capsys.readouterr().out
+
+    def test_error_description_shown_for_failed(self, capsys):
+        """error_description appears in output when status is failed."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "failed",
+            "tasks": [],
+            "obstacles": [],
+            "error_description": "Build is broken",
+        }))
+        assert "Build is broken" in capsys.readouterr().out
+
+    def test_error_description_not_shown_for_passed(self, capsys):
+        """error_description is NOT printed when status is passed."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+            "error_description": "Should not appear",
+        }))
+        assert "Should not appear" not in capsys.readouterr().out
+
+    def test_passed_shows_checkmark_icon(self, capsys):
+        """'passed' overall_status shows a ✓ icon."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "passed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert "✓" in capsys.readouterr().out
+
+    def test_failed_shows_x_icon(self, capsys):
+        """Non-passed overall_status shows a ✗ icon."""
+        _print_validate_summary("my-project", json.dumps({
+            "overall_status": "failed",
+            "tasks": [],
+            "obstacles": [],
+        }))
+        assert "✗" in capsys.readouterr().out
+
+    def test_invalid_json_logged_to_stderr_no_crash(self, capsys):
+        """Invalid JSON string writes a warning to stderr and does not raise."""
+        _print_validate_summary("my-project", "not valid json {{")
+        captured = capsys.readouterr()
+        assert captured.err
+
+    def test_none_json_logged_to_stderr_no_crash(self, capsys):
+        """None for json_result writes a warning to stderr and does not raise."""
+        _print_validate_summary("my-project", None)
+        captured = capsys.readouterr()
+        assert captured.err
+
+    def test_empty_string_json_logged_to_stderr_no_crash(self, capsys):
+        """Empty string for json_result writes a warning to stderr and does not raise."""
+        _print_validate_summary("my-project", "")
+        captured = capsys.readouterr()
+        assert captured.err

@@ -80,7 +80,7 @@ Evaluate the following:
 
 ### Step 5: Write the validation report
 
-Write the report to `.ralph/{{PROJECT_NAME}}/validation.md`. The report **must** begin with a rating header as the very first line, in exactly one of these three formats:
+Write the report to `.ralph/{{PROJECT_NAME}}/validation.md` using a tool call (e.g. the Write tool). The report **must** begin with a rating header as the very first line, in exactly one of these three formats:
 
 ```
 # Rating: passed
@@ -107,9 +107,35 @@ After the rating header, include a full explanation covering:
 - Whether all obstacles in `obstacles.md` were resolved
 - Any other findings or discrepancies
 
+### Step 6: Return a JSON summary as your final result
+
+After writing `validation.md` via tool calls, return a JSON string as your **final result text** (the last thing you output). This JSON must have the following structure:
+
+```json
+{
+  "overall_status": "passed|requires_attention|failed",
+  "tasks": [
+    {"id": "T1", "title": "...", "status": "completed|failed|..."},
+    {"id": "T2", "title": "...", "status": "completed|failed|...", "issue": "brief description of the problem"}
+  ],
+  "obstacles": [
+    {"description": "...", "resolved": true}
+  ],
+  "error_description": "brief description of what went wrong"
+}
+```
+
+Rules for the JSON:
+- `overall_status` must be one of: `"passed"`, `"requires_attention"`, or `"failed"` (use underscores, not spaces).
+- `tasks` must list every task from `tasks.json`, each with `id`, `title`, and `status`.
+- The `"issue"` field must only appear for tasks that have problems — omit it for tasks that are correctly completed.
+- `obstacles` should list each obstacle found in `obstacles.md` (empty array if none).
+- The `"error_description"` field must only appear when `overall_status` is `"requires_attention"` or `"failed"` — omit it when status is `"passed"`.
+- Output **only** the raw JSON string as your final message — no markdown code fences, no extra text before or after it.
+
 ## Important Rules
 
-- **Do NOT make any code changes.** Do not edit, create, or delete any source files. Do not make any git commits. Your only output is `.ralph/{{PROJECT_NAME}}/validation.md`.
+- **Do NOT make any code changes.** Do not edit, create, or delete any source files. Do not make any git commits. Your outputs are `.ralph/{{PROJECT_NAME}}/validation.md` (written via tool call) and the JSON string returned as your final result text.
 - **Do not modify** `tasks.json`, `state.json`, `obstacles.json`, `summary.md`, or `pr-description.md`.
 - The rating header must be the very first line of `validation.md`, with no blank lines before it.
 - Use only one of the three allowed ratings: `passed`, `failed`, or `requires attention`.

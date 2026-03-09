@@ -80,7 +80,7 @@ def _validate_branch_exists(branch: str) -> None:
     """Verify that the given branch exists in the current repo; exit if not."""
     result = subprocess.run(["git", "branch", "--list", branch], capture_output=True, text=True)
     if not result.stdout.strip():
-        print(f"[ralph] I can't find branch '{branch}' in this repo. Aborting.", file=sys.stderr)
+        print(f"[ralph] Uh oh! I looked everywhere but I can't find branch '{branch}'. I'm going home now.", file=sys.stderr)
         sys.exit(1)
 
 
@@ -115,15 +115,15 @@ def _validate_provider_cli(provider: str) -> bool:
             result = subprocess.run(["gh", "auth", "status"], capture_output=True)
         except FileNotFoundError:
             print(
-                "[ralph] I can't find the 'gh' CLI. "
-                "Install it from https://cli.github.com and run 'gh auth login'.",
+                "[ralph] I can't find the 'gh' thingy! "
+                "You gotta get it from https://cli.github.com and then do 'gh auth login'.",
                 file=sys.stderr,
             )
             return False
         if result.returncode != 0:
             print(
-                "[ralph] The 'gh' CLI isn't authenticated. "
-                "Run 'gh auth login' to sign in.",
+                "[ralph] The 'gh' thingy doesn't know who you are! "
+                "Do 'gh auth login' to tell it who you are.",
                 file=sys.stderr,
             )
             return False
@@ -133,22 +133,81 @@ def _validate_provider_cli(provider: str) -> bool:
             result = subprocess.run(["glab", "auth", "status"], capture_output=True)
         except FileNotFoundError:
             print(
-                "[ralph] I can't find the 'glab' CLI. "
-                "Install it from https://gitlab.com/gitlab-org/cli and run 'glab auth login'.",
+                "[ralph] I can't find the 'glab' thingy! "
+                "You gotta get it from https://gitlab.com/gitlab-org/cli and then do 'glab auth login'.",
                 file=sys.stderr,
             )
             return False
         if result.returncode != 0:
             print(
-                "[ralph] The 'glab' CLI isn't authenticated. "
-                "Run 'glab auth login' to sign in.",
+                "[ralph] The 'glab' thingy doesn't know who you are! "
+                "Do 'glab auth login' to tell it who you are.",
                 file=sys.stderr,
             )
             return False
         return True
     else:
-        print(f"[ralph] I don't know the provider '{provider}'. Try 'github' or 'gitlab'.", file=sys.stderr)
+        print(f"[ralph] I don't know what '{provider}' is! Try 'github' or 'gitlab'.", file=sys.stderr)
         return False
+
+
+def _print_validate_summary(project_name: str, json_result: str | None) -> None:
+    """Parse validate agent JSON output and pretty-print a summary matching ralph status style."""
+    if not json_result:
+        print("[ralph] Hmm, I didn't get any info back from the validation thingy. I can't show you a summary!", file=sys.stderr)
+        return
+
+    try:
+        data = json.loads(json_result)
+    except (json.JSONDecodeError, ValueError):
+        print("[ralph] Uh oh! The validation info came back all jumbled up and I can't read it. No summary for you!", file=sys.stderr)
+        return
+
+    sep = "─" * 60
+    overall_status = data.get("overall_status", "unknown")
+    tasks = data.get("tasks", [])
+    obstacles = data.get("obstacles", [])
+    error_description = data.get("error_description", "")
+
+    status_icon = "✓" if overall_status == "passed" else "✗"
+
+    print()
+    print(f"[ralph] Validation Summary for '{project_name}'")
+    print(sep)
+    print(f"[ralph] Overall Status  : {status_icon} {overall_status}")
+    print(sep)
+
+    if tasks:
+        print("[ralph] Tasks")
+        print(sep)
+        for task in tasks:
+            task_id = task.get("id", "?")
+            title = task.get("title", "(no title)")
+            task_status = task.get("status", "unknown")
+            issue = task.get("issue", "")
+            task_icon = "✓" if task_status == "completed" else "✗"
+            row = f"[ralph]   {task_id:<4}  {task_icon} {task_status:<12}  {title}"
+            if issue:
+                row += f"  — {issue}"
+            print(row)
+        print(sep)
+
+    if obstacles:
+        print("[ralph] Obstacles")
+        print(sep)
+        for obs in obstacles:
+            description = obs.get("description", "")
+            resolved = obs.get("resolved", False)
+            obs_icon = "✓" if resolved else "✗"
+            resolved_str = "resolved" if resolved else "unresolved"
+            print(f"[ralph]   {obs_icon} {resolved_str:<12}  {description}")
+        print(sep)
+
+    if overall_status in ("requires_attention", "failed") and error_description:
+        print(f"[ralph] What went wrong: {error_description}")
+        print(sep)
+
+    print()
 
 
 def _assert_project_exists(project_name: str) -> None:
@@ -156,17 +215,17 @@ def _assert_project_exists(project_name: str) -> None:
     ralph_dir = os.path.join(".ralph", project_name)
     if not os.path.exists(ralph_dir):
         print(
-            f"[ralph] I can't find project '{project_name}'. "
-            f"Expected directory '{ralph_dir}' to exist. "
-            "Run 'ralph init' first.",
+            f"[ralph] I can't find project '{project_name}'! "
+            f"I was looking for '{ralph_dir}' but it wasn't there. "
+            "Did you forget to run 'ralph init' first?",
             file=sys.stderr,
         )
         sys.exit(1)
     spec_path = os.path.join(ralph_dir, "spec.md")
     if not os.path.exists(spec_path):
         print(
-            f"[ralph] Project '{project_name}' is missing 'spec.md'. "
-            f"Expected '{spec_path}' to exist.",
+            f"[ralph] Project '{project_name}' doesn't have a 'spec.md'! "
+            f"I was looking for '{spec_path}' but it wasn't there.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -205,12 +264,14 @@ class InitCommand(Command):
         project_name = args.project_name
         ralph_dir = os.path.join(".ralph", project_name)
 
+        print(f"[ralph] Ooh, I'm making a new project called '{project_name}'!")
+
         if os.path.exists(ralph_dir):
-            print(f"[ralph] Project '{project_name}' already exists at '{ralph_dir}'. Aborting.", file=sys.stderr)
+            print(f"[ralph] A project called '{project_name}' already lives at '{ralph_dir}'! I can't make another one!", file=sys.stderr)
             sys.exit(1)
 
         os.makedirs(ralph_dir)
-        print(f"[ralph] Created project directory '{ralph_dir}'.")
+        print(f"[ralph] I made a brand new folder at '{ralph_dir}'!")
 
         spec_path = os.path.join(ralph_dir, "spec.md")
         with open(spec_path, "w") as f:
@@ -241,18 +302,18 @@ class InitCommand(Command):
             base_branch = get_base()
             if current_branch != base_branch:
                 print(
-                    f"[ralph] Heads up — you're on branch '{current_branch}' but your base branch is set to '{base_branch}'."
+                    f"[ralph] Hey! You're on branch '{current_branch}' but your base branch is '{base_branch}'. Those are different!"
                 )
                 while True:
-                    answer = input(f"Update base branch to '{current_branch}'? (y/n): ").strip().lower()
+                    answer = input(f"Should I change the base branch to '{current_branch}'? (y/n): ").strip().lower()
                     if answer in ("y", "yes"):
                         set_base(current_branch)
-                        print(f"[ralph] Base branch updated to '{current_branch}'.")
+                        print(f"[ralph] Okay! I changed the base branch to '{current_branch}'!")
                         break
                     elif answer in ("n", "no"):
                         break
 
-        print(f"[ralph] Project '{project_name}' is all set up in '{ralph_dir}'.")
+        print(f"[ralph] Yay! Project '{project_name}' is all set up in '{ralph_dir}'! You're all ready to go!")
 
 
 class InterviewCommand(Command):
@@ -264,6 +325,8 @@ class InterviewCommand(Command):
         verbose = _resolve_verbose(args)
         # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
         rounds = args.rounds if args.rounds is not None else get_rounds()
+
+        print(f"[ralph] Ooh, I'm doing the interview for '{args.project_name}'!")
 
         question_prompts = [
             parse_questions_md(args.project_name, round_num=i + 1, total_rounds=rounds)
@@ -290,6 +353,7 @@ class CommentCommand(Command):
     def execute(self) -> None:
         args = self.args
         _assert_project_exists(args.project_name)
+        print(f"[ralph] Okay, I'm adding your comment to '{args.project_name}'!")
         prompt = parse_generate_tasks_md(args.project_name, user_comment=args.comment)
         Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "comment")
 
@@ -300,6 +364,7 @@ class EnrichCommand(Command):
     def execute(self) -> None:
         args = self.args
         _assert_project_exists(args.project_name)
+        print(f"[ralph] I'm gonna make the spec for '{args.project_name}' even better!")
         prompt = parse_generate_tasks_md(args.project_name, user_comment=_ENRICH_COMMENT)
         Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "enrich")
 
@@ -319,43 +384,45 @@ class ExecuteCommand(Command):
 
         project_name = args.project_name
 
+        print(f"[ralph] Okay okay okay! I'm starting the execute for '{project_name}'! Exciting!")
+
         if args.resume:
             # Ensure that the project branch already exists; abort if not found.
             branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
             if not branch_check.stdout.strip():
-                print(f"[ralph] I can't find branch '{project_name}'. Aborting.", file=sys.stderr)
+                print(f"[ralph] I can't find branch '{project_name}'. I'm going home.", file=sys.stderr)
                 sys.exit(1)
 
             # Checkout to the existing project branch.
             checkout_branch = subprocess.run(["git", "checkout", project_name], capture_output=True, text=True)
             if checkout_branch.returncode != 0:
-                print(f"[ralph] I couldn't check out branch '{project_name}': {checkout_branch.stderr.strip()}", file=sys.stderr)
+                print(f"[ralph] I couldn't get to branch '{project_name}': {checkout_branch.stderr.strip()}", file=sys.stderr)
                 sys.exit(1)
         else:
             # Check whether the project branch already exists; abort if it does.
             branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
             if branch_check.stdout.strip():
-                print(f"[ralph] Branch '{project_name}' already exists. Aborting.", file=sys.stderr)
+                print(f"[ralph] Branch '{project_name}' already exists! I can't make another one!", file=sys.stderr)
                 sys.exit(1)
 
             # Checkout the base branch.
             checkout_base = subprocess.run(["git", "checkout", base], capture_output=True, text=True)
             if checkout_base.returncode != 0:
-                print(f"[ralph] I couldn't check out base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
+                print(f"[ralph] I couldn't get to base branch '{base}': {checkout_base.stderr.strip()}", file=sys.stderr)
                 sys.exit(1)
 
             # Create and checkout the project branch.
             create_branch = subprocess.run(["git", "checkout", "-b", project_name], capture_output=True, text=True)
             if create_branch.returncode != 0:
-                print(f"[ralph] I couldn't create branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
+                print(f"[ralph] I couldn't make branch '{project_name}': {create_branch.stderr.strip()}", file=sys.stderr)
                 sys.exit(1)
 
         # Verify tasks.json exists and has been populated (e.g. by ralph enrich or ralph comment).
         tasks_path = os.path.join(".ralph", project_name, "tasks.json")
         if not os.path.exists(tasks_path):
             print(
-                f"[ralph] No tasks.json found for project '{project_name}'. "
-                f"Run 'ralph enrich {project_name}' or 'ralph comment {project_name}' to generate tasks first.",
+                f"[ralph] I can't find a tasks.json for project '{project_name}'! "
+                f"Run 'ralph enrich {project_name}' or 'ralph comment {project_name}' to make some tasks first.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -363,13 +430,13 @@ class ExecuteCommand(Command):
             tasks_data = json.load(f)
         if not tasks_data.get("tasks"):
             print(
-                f"[ralph] No tasks found in tasks.json for project '{project_name}'. "
-                f"Run 'ralph enrich {project_name}' or 'ralph comment {project_name}' to generate tasks first.",
+                f"[ralph] There aren't any tasks in tasks.json for project '{project_name}'! "
+                f"Run 'ralph enrich {project_name}' or 'ralph comment {project_name}' to make some tasks first.",
                 file=sys.stderr,
             )
             sys.exit(1)
 
-        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous)
+        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous, resume=args.resume)
 
 
 class ValidateCommand(Command):
@@ -379,12 +446,14 @@ class ValidateCommand(Command):
         args = self.args
         _assert_project_exists(args.project_name)
 
+        print(f"[ralph] I'm gonna check if '{args.project_name}' is all done right!")
+
         # Check pr-description.md exists.
         pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
         if not os.path.exists(pr_desc_path):
             print(
-                f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
-                "Run 'ralph execute' first to generate the PR description.",
+                f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
+                "Did you run 'ralph execute' first?",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -396,8 +465,8 @@ class ValidateCommand(Command):
         incomplete = [t for t in tasks_data.get("tasks", []) if t.get("status") != "completed"]
         if incomplete:
             print(
-                f"[ralph] Not all tasks are completed for project '{args.project_name}'. "
-                "Run 'ralph execute' to complete all tasks first.",
+                f"[ralph] Not all the tasks are done for '{args.project_name}'! "
+                "Run 'ralph execute' to finish all the tasks first.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -409,7 +478,7 @@ class ValidateCommand(Command):
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
         if os.path.exists(validation_path):
             while True:
-                answer = input(f"'{validation_path}' already exists. Overwrite? (y/n): ").strip().lower()
+                answer = input(f"'{validation_path}' already exists! Should I write over it? (y/n): ").strip().lower()
                 if answer in ("y", "yes"):
                     break
                 elif answer in ("n", "no"):
@@ -419,14 +488,18 @@ class ValidateCommand(Command):
         checkout_result = subprocess.run(["git", "checkout", args.project_name], capture_output=True, text=True)
         if checkout_result.returncode != 0:
             print(
-                f"[ralph] I couldn't check out branch '{args.project_name}': {checkout_result.stderr.strip()}",
+                f"[ralph] I couldn't get to branch '{args.project_name}': {checkout_result.stderr.strip()}",
                 file=sys.stderr,
             )
             sys.exit(1)
 
-        # Render the validate prompt and run the validation agent.
+        # Render the validate prompt and run the validation agent with JSON output mode.
         prompt = parse_validate_md(args.project_name)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "validate")
+        runner = Runner(args.project_name, verbose=_resolve_verbose(args))
+        validate_json_result = runner.run_prompt(prompt, "validate", json_output=True)
+
+        # Pretty-print the validation summary to the console.
+        _print_validate_summary(args.project_name, validate_json_result)
 
 
 class UndoCommand(Command):
@@ -436,11 +509,13 @@ class UndoCommand(Command):
         args = self.args
         _assert_project_exists(args.project_name)
 
+        print(f"[ralph] Uh oh, we're doing the undo thing for '{args.project_name}'! This is a big deal!")
+
         # Check that validation.md exists.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
         if not os.path.exists(validation_path):
             print(
-                f"[ralph] I can't find 'validation.md' at '{validation_path}'. "
+                f"[ralph] I can't find 'validation.md' at '{validation_path}'! "
                 "Run 'ralph validate' first.",
                 file=sys.stderr,
             )
@@ -457,23 +532,23 @@ class UndoCommand(Command):
 
         if rating is None and not args.force:
             print(
-                f"[ralph] Warning: could not parse a rating from '{validation_path}'."
+                f"[ralph] Hmm, I couldn't find a rating in '{validation_path}'. "
                 "Use --force to undo anyway.",
                 file=sys.stderr,
             )
             sys.exit(1)
         elif rating != "failed" and not args.force:
             print(
-                f"[ralph] Warning: validation rating is '{rating}', not 'failed'. "
+                f"[ralph] The validation rating is '{rating}', not 'failed'. "
                 "Use --force to undo anyway.",
                 file=sys.stderr,
             )
             sys.exit(1)
 
         # Prompt user for confirmation before deleting the project branch.
-        answer = input(f"Delete branch '{args.project_name}'? This cannot be undone. (y/n): ").strip().lower()
+        answer = input(f"Do you really want to delete branch '{args.project_name}'? This cannot be undone! (y/n): ").strip().lower()
         if answer not in ("y", "yes"):
-            print("[ralph] Undo cancelled.")
+            print("[ralph] Okay! We're not doing the undo. Everything stays the same!")
             sys.exit(0)
 
         # Resolve base branch.
@@ -485,7 +560,7 @@ class UndoCommand(Command):
         # Abort if base branch and project branch are the same.
         if base_branch == args.project_name:
             print(
-                f"[ralph] Warning: base branch '{base_branch}' is the same as the project branch. Aborting.",
+                f"[ralph] Uh oh! The base branch '{base_branch}' is the same as the project branch! I can't do that!",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -493,7 +568,7 @@ class UndoCommand(Command):
         # Checkout the base branch.
         checkout_result = subprocess.run(["git", "checkout", base_branch], capture_output=True, text=True)
         if checkout_result.returncode != 0:
-            print(f"[ralph] I couldn't check out branch '{base_branch}': {checkout_result.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't get to branch '{base_branch}': {checkout_result.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
         # Force-delete the project branch.
@@ -510,7 +585,7 @@ class UndoCommand(Command):
             with open(state_path, "w") as f:
                 json.dump([], f)
         except OSError as e:
-            print(f"[ralph] Warning: could not reset '{state_path}': {e}", file=sys.stderr)
+            print(f"[ralph] Oops, I couldn't reset '{state_path}': {e}", file=sys.stderr)
             sys.exit(1)
 
         # Reset obstacles.json.
@@ -519,7 +594,7 @@ class UndoCommand(Command):
             with open(obstacles_path, "w") as f:
                 json.dump({"obstacles": []}, f)
         except OSError as e:
-            print(f"[ralph] Warning: could not reset '{obstacles_path}': {e}", file=sys.stderr)
+            print(f"[ralph] Oops, I couldn't reset '{obstacles_path}': {e}", file=sys.stderr)
             sys.exit(1)
 
         # Reset tasks.json — reset task fields; preserve all other fields.
@@ -539,10 +614,10 @@ class UndoCommand(Command):
                 with open(tasks_path, "w") as f:
                     json.dump(tasks_data, f, indent=2)
         except (OSError, json.JSONDecodeError) as e:
-            print(f"[ralph] Warning: could not reset '{tasks_path}': {e}", file=sys.stderr)
+            print(f"[ralph] Oops, I couldn't reset '{tasks_path}': {e}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"[ralph] Undo complete. Project '{args.project_name}' has been reset.")
+        print(f"[ralph] Yay! Undo is all done! Project '{args.project_name}' is all cleaned up and ready to start fresh!")
 
 
 class RetryCommand(Command):
@@ -552,11 +627,13 @@ class RetryCommand(Command):
         args = self.args
         _assert_project_exists(args.project_name)
 
+        print(f"[ralph] I'm gonna try to fix '{args.project_name}'! Here we go!")
+
         # Check that validation.md exists.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
         if not os.path.exists(validation_path):
             print(
-                f"[ralph] I can't find 'validation.md' at '{validation_path}'. "
+                f"[ralph] I can't find 'validation.md' at '{validation_path}'! "
                 "Run 'ralph validate' first.",
                 file=sys.stderr,
             )
@@ -573,24 +650,24 @@ class RetryCommand(Command):
 
         if rating is None:
             print(
-                f"[ralph] Warning: could not parse a rating from '{validation_path}'.",
+                f"[ralph] Hmm, I couldn't find a rating in '{validation_path}'.",
                 file=sys.stderr,
             )
             if not args.force:
                 sys.exit(1)
         elif rating == "passed":
             print(
-                "[ralph] Validation passed — everything looks successful! "
-                "Use --force to run retry anyway.",
+                "[ralph] The validation passed — everything is already good! "
+                "Use --force to retry anyway.",
                 file=sys.stderr,
             )
             if not args.force:
                 sys.exit(1)
         elif rating == "failed":
             print(
-                "[ralph] Validation failed. It is highly encouraged to run 'ralph undo' and "
-                "re-run 'ralph execute' for better results. "
-                "Use --force to run retry anyway.",
+                "[ralph] The validation failed! It would be better to run 'ralph undo' and then "
+                "'ralph execute' again for better results. "
+                "Use --force to retry anyway.",
                 file=sys.stderr,
             )
             if not args.force:
@@ -601,8 +678,8 @@ class RetryCommand(Command):
         status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
         if status_result.stdout.strip():
             print(
-                "[ralph] There are uncommitted changes in the working tree. "
-                "Please commit or stash them before running retry.",
+                "[ralph] There are uncommitted changes in the working tree! "
+                "Please put them away before doing retry.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -610,13 +687,13 @@ class RetryCommand(Command):
         # Check that the project branch exists.
         branch_check = subprocess.run(["git", "branch", "--list", args.project_name], capture_output=True, text=True)
         if not branch_check.stdout.strip():
-            print(f"[ralph] I can't find branch '{args.project_name}'. Aborting.", file=sys.stderr)
+            print(f"[ralph] I can't find branch '{args.project_name}'. I'm going home.", file=sys.stderr)
             sys.exit(1)
 
         # Checkout the project branch.
         checkout_result = subprocess.run(["git", "checkout", args.project_name], capture_output=True, text=True)
         if checkout_result.returncode != 0:
-            print(f"[ralph] I couldn't check out branch '{args.project_name}': {checkout_result.stderr.strip()}", file=sys.stderr)
+            print(f"[ralph] I couldn't get to branch '{args.project_name}': {checkout_result.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
         # Render the retry prompt and spawn the agent.
@@ -629,6 +706,9 @@ class OneshotCommand(Command):
 
     def execute(self) -> None:
         args = self.args
+
+        print(f"[ralph] Ooh ooh! I'm doing ALL the things for '{args.project_name}'! Enrich, execute, validate, and PR!")
+
         EnrichCommand(args).execute()
         ExecuteCommand(args).execute()
         ValidateCommand(args).execute()
@@ -648,22 +728,22 @@ class OneshotCommand(Command):
 
         if rating is None:
             print(
-                f"[ralph] Warning: could not read or parse the rating from '{validation_path}'. "
-                "Aborting before creating PR.",
+                f"[ralph] Hmm, I couldn't read or find the rating in '{validation_path}'. "
+                "I can't make the PR without it.",
                 file=sys.stderr,
             )
             sys.exit(1)
 
         if rating == "failed":
             print(
-                f"[ralph] Warning: validation failed. Review '{validation_path}' and fix the issues before creating a PR.",
+                f"[ralph] The validation failed! Look at '{validation_path}' and fix the problems before making a PR.",
                 file=sys.stderr,
             )
             sys.exit(1)
 
         if rating == "requires attention":
             print(
-                f"[ralph] Warning: validation requires attention. Review '{validation_path}' for details. Proceeding to create PR.",
+                f"[ralph] The validation needs attention! Look at '{validation_path}' for details. I'll make the PR anyway!"
             )
 
         PrCommand(args).execute()
@@ -725,7 +805,7 @@ class StatusCommand(Command):
 
         # Empty dict `{}` or missing file: no tasks to display
         if not tasks_data or not isinstance(tasks_data, dict) or not tasks_data.get("tasks"):
-            print("[ralph] No tasks or obstacles detected.")
+            print("[ralph] I don't see any tasks or obstacles here!")
             print()
             return
 
@@ -807,12 +887,14 @@ class PrCommand(Command):
 
         provider = _resolve_provider(args)
 
+        print(f"[ralph] I'm making a pull request for '{args.project_name}'! Exciting!")
+
         if provider == "github":
             # Check gh CLI is installed.
             gh_check = subprocess.run(["gh", "--version"], capture_output=True)
             if gh_check.returncode != 0:
                 print(
-                    "[ralph] I can't find the 'gh' CLI. Please install it from https://cli.github.com/",
+                    "[ralph] I can't find the 'gh' thingy! Please get it from https://cli.github.com/",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -822,8 +904,8 @@ class PrCommand(Command):
             current_branch = branch_result.stdout.strip()
             if current_branch != args.project_name:
                 print(
-                    f"[ralph] Current branch '{current_branch}' does not match project '{args.project_name}'. "
-                    "Please check out the correct branch.",
+                    f"[ralph] I'm on branch '{current_branch}' but the project is '{args.project_name}'. "
+                    "Please get on the right branch first!",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -832,7 +914,7 @@ class PrCommand(Command):
             status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
             if status_result.stdout:
                 print(
-                    "[ralph] There are uncommitted changes in the working tree. Please commit or stash them before creating a PR.",
+                    "[ralph] There are uncommitted changes in the working tree! Please put them away before making a PR.",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -844,7 +926,7 @@ class PrCommand(Command):
             )
             if merge_base_result.returncode != 0:
                 print(
-                    f"[ralph] I couldn't determine the merge base between HEAD and '{base_branch}'. "
+                    f"[ralph] I couldn't figure out where HEAD and '{base_branch}' come together. "
                     "Make sure the base branch exists and shares history with the current branch.",
                     file=sys.stderr,
                 )
@@ -854,8 +936,8 @@ class PrCommand(Command):
             pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
             if not os.path.exists(pr_desc_path):
                 print(
-                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
-                    "Run 'ralph execute' first to generate the PR description.",
+                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
+                    "Did you run 'ralph execute' first?",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -887,7 +969,7 @@ class PrCommand(Command):
                 print(result.stderr, file=sys.stderr)
                 sys.exit(1)
 
-            print("[ralph] Pull request created successfully.")
+            print("[ralph] The pull request is all done! You can see it now!")
             print(result.stdout)
 
         elif provider == "gitlab":
@@ -895,7 +977,7 @@ class PrCommand(Command):
             glab_check = subprocess.run(["glab", "--version"], capture_output=True)
             if glab_check.returncode != 0:
                 print(
-                    "[ralph] I can't find the 'glab' CLI. Please install it from https://gitlab.com/gitlab-org/cli",
+                    "[ralph] I can't find the 'glab' thingy! Please get it from https://gitlab.com/gitlab-org/cli",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -905,8 +987,8 @@ class PrCommand(Command):
             current_branch = branch_result.stdout.strip()
             if current_branch != args.project_name:
                 print(
-                    f"[ralph] Current branch '{current_branch}' does not match project '{args.project_name}'. "
-                    "Please check out the correct branch.",
+                    f"[ralph] I'm on branch '{current_branch}' but the project is '{args.project_name}'. "
+                    "Please get on the right branch first!",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -915,7 +997,7 @@ class PrCommand(Command):
             status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
             if status_result.stdout:
                 print(
-                    "[ralph] There are uncommitted changes in the working tree. Please commit or stash them before creating a MR.",
+                    "[ralph] There are uncommitted changes in the working tree! Please put them away before making a MR.",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -927,8 +1009,8 @@ class PrCommand(Command):
             pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
             if not os.path.exists(pr_desc_path):
                 print(
-                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'. "
-                    "Run 'ralph execute' first to generate the PR description.",
+                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
+                    "Did you run 'ralph execute' first?",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -960,5 +1042,5 @@ class PrCommand(Command):
                 print(result.stderr, file=sys.stderr)
                 sys.exit(1)
 
-            print("[ralph] Merge request created successfully.")
+            print("[ralph] The merge request is all done! You can see it now!")
             print(result.stdout)

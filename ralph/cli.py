@@ -401,7 +401,7 @@ def main() -> None:
     try:
         args.func(args).execute()
     except KeyboardInterrupt:
-        print("\n[ralph] Ok, stopping.", file=sys.stderr)
+        print("\n[ralph] Okay, I'm stopping now! Bye bye!", file=sys.stderr)
         sys.exit(1)
 
 

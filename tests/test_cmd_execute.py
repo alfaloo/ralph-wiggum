@@ -1,11 +1,13 @@
 """Unit tests for ralph/cli.py — cmd_execute / ralph execute subcommand."""
 
 import argparse
+import json
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
 from ralph.cli import cmd_execute
+from ralph.run import Runner
 
 # Minimal valid tasks.json content used to satisfy the tasks-exist guard in cmd_execute.
 _TASKS_JSON = '{"tasks": [{"id": "T1"}]}'
@@ -502,3 +504,125 @@ class TestCmdExecuteAsynchronousFlag:
 
         _, kw = mock_runner.run_execute_loop.call_args
         assert kw["asynchronous"] is True
+
+
+# ===========================================================================
+# Runner._reset_incomplete_tasks — resume reset behaviour
+# ===========================================================================
+
+
+class TestResetIncompleteTasks:
+    """Tests for Runner._reset_incomplete_tasks() and its integration with --resume."""
+
+    def _make_runner(self, tmp_path, tasks: list[dict]):
+        """Create a Runner whose _tasks_path points at a temp tasks.json."""
+        tasks_path = tmp_path / "tasks.json"
+        tasks_path.write_text(json.dumps({"tasks": tasks}))
+        runner = Runner("test-project")
+        runner._tasks_path = str(tasks_path)
+        return runner, tasks_path
+
+    def test_in_progress_task_reset_to_pending(self, tmp_path):
+        """in_progress task is reset to status=pending, attempts=0, blocked=False."""
+        tasks = [{"id": "T1", "status": "in_progress", "attempts": 2, "blocked": True}]
+        runner, tasks_path = self._make_runner(tmp_path, tasks)
+        runner._reset_incomplete_tasks()
+        result = json.loads(tasks_path.read_text())
+        task = result["tasks"][0]
+        assert task["status"] == "pending"
+        assert task["attempts"] == 0
+        assert task["blocked"] is False
+
+    def test_pending_task_attempts_and_blocked_reset(self, tmp_path):
+        """pending task gets attempts=0 and blocked=False even if already pending."""
+        tasks = [{"id": "T1", "status": "pending", "attempts": 1, "blocked": False}]
+        runner, tasks_path = self._make_runner(tmp_path, tasks)
+        runner._reset_incomplete_tasks()
+        result = json.loads(tasks_path.read_text())
+        task = result["tasks"][0]
+        assert task["status"] == "pending"
+        assert task["attempts"] == 0
+        assert task["blocked"] is False
+
+    def test_blocked_task_reset_to_pending(self, tmp_path):
+        """blocked task is reset to status=pending, attempts=0, blocked=False."""
+        tasks = [{"id": "T1", "status": "blocked", "attempts": 3, "blocked": True}]
+        runner, tasks_path = self._make_runner(tmp_path, tasks)
+        runner._reset_incomplete_tasks()
+        result = json.loads(tasks_path.read_text())
+        task = result["tasks"][0]
+        assert task["status"] == "pending"
+        assert task["attempts"] == 0
+        assert task["blocked"] is False
+
+    def test_completed_task_is_unchanged(self, tmp_path):
+        """completed task is not modified at all."""
+        tasks = [
+            {"id": "T1", "status": "completed", "attempts": 2, "blocked": False},
+            {"id": "T2", "status": "in_progress", "attempts": 1, "blocked": True},
+        ]
+        runner, tasks_path = self._make_runner(tmp_path, tasks)
+        runner._reset_incomplete_tasks()
+        result = json.loads(tasks_path.read_text())
+        completed = next(t for t in result["tasks"] if t["id"] == "T1")
+        assert completed["status"] == "completed"
+        assert completed["attempts"] == 2
+
+    def test_multiple_non_completed_all_reset(self, tmp_path):
+        """All non-completed tasks across different statuses are reset."""
+        tasks = [
+            {"id": "T1", "status": "in_progress", "attempts": 3, "blocked": True},
+            {"id": "T2", "status": "blocked", "attempts": 2, "blocked": True},
+            {"id": "T3", "status": "pending", "attempts": 1, "blocked": False},
+        ]
+        runner, tasks_path = self._make_runner(tmp_path, tasks)
+        runner._reset_incomplete_tasks()
+        result = json.loads(tasks_path.read_text())
+        for task in result["tasks"]:
+            assert task["status"] == "pending"
+            assert task["attempts"] == 0
+            assert task["blocked"] is False
+
+    def test_no_console_output_during_reset(self, tmp_path, capsys):
+        """_reset_incomplete_tasks prints nothing to stdout or stderr."""
+        tasks = [{"id": "T1", "status": "in_progress", "attempts": 2, "blocked": True}]
+        runner, _ = self._make_runner(tmp_path, tasks)
+        runner._reset_incomplete_tasks()
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+    def test_missing_tasks_file_does_not_crash(self, tmp_path):
+        """_reset_incomplete_tasks returns silently when tasks.json does not exist."""
+        runner = Runner("test-project")
+        runner._tasks_path = str(tmp_path / "nonexistent_tasks.json")
+        runner._reset_incomplete_tasks()  # must not raise
+
+    def test_run_execute_loop_calls_reset_when_resume_true(self, tmp_path):
+        """run_execute_loop triggers _reset_incomplete_tasks when resume=True."""
+        runner = Runner("test-project")
+        runner._tasks_path = str(tmp_path / "tasks.json")
+        runner.ralph_dir = str(tmp_path)
+
+        with patch.object(runner, "_reset_incomplete_tasks") as mock_reset, \
+             patch.object(runner, "_all_tasks_complete", return_value=True), \
+             patch.object(runner, "_run_summarise"):
+            runner.run_execute_loop(1, resume=True)
+
+        mock_reset.assert_called_once()
+
+    def test_run_execute_loop_no_reset_when_resume_false(self, tmp_path):
+        """run_execute_loop does NOT trigger _reset_incomplete_tasks when resume=False."""
+        runner = Runner("test-project")
+        runner._tasks_path = str(tmp_path / "tasks.json")
+        runner.ralph_dir = str(tmp_path)
+        (tmp_path / "tasks.json").write_text(
+            json.dumps({"tasks": [{"id": "T1", "status": "completed"}]})
+        )
+
+        with patch.object(runner, "_reset_incomplete_tasks") as mock_reset, \
+             patch.object(runner, "_all_tasks_complete", return_value=True), \
+             patch.object(runner, "_run_summarise"):
+            runner.run_execute_loop(1, resume=False)
+
+        mock_reset.assert_not_called()

@@ -123,7 +123,7 @@ class TestCmdPrHappyPathGitHub:
             cmd_pr(args)
 
         captured = capsys.readouterr()
-        assert "Pull request created successfully" in captured.out
+        assert "pull request is all done" in captured.out
 
     def test_calls_gh_pr_create_with_correct_args(self):
         """Verifies 'gh pr create' is called with --title, --body, --base, --head."""
@@ -215,7 +215,7 @@ class TestCmdPrHappyPathGitLab:
             cmd_pr(args)
 
         captured = capsys.readouterr()
-        assert "Merge request created successfully" in captured.out
+        assert "merge request is all done" in captured.out
 
     def test_calls_glab_mr_create_with_correct_args(self):
         """Verifies 'glab mr create' is called with --title, --description, --source-branch,
@@ -465,7 +465,7 @@ class TestCmdPrMergeBaseMissing:
 
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
-        assert "merge" in captured.err.lower()
+        assert "come together" in captured.err.lower()
 
 
 # ===========================================================================
