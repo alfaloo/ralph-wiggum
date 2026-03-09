@@ -369,7 +369,7 @@ class ExecuteCommand(Command):
             )
             sys.exit(1)
 
-        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous)
+        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous, resume=args.resume)
 
 
 class ValidateCommand(Command):

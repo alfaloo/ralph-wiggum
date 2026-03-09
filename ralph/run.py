@@ -468,8 +468,25 @@ class Runner:
         finally:
             executor.shutdown(wait=False)
 
-    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False) -> None:
+    def _reset_incomplete_tasks(self) -> None:
+        """Reset all non-completed tasks to pending state silently."""
+        if not os.path.exists(self._tasks_path):
+            return
+        with open(self._tasks_path) as f:
+            data = json.load(f)
+        for task in data.get("tasks", []):
+            if task.get("status") != "completed":
+                task["status"] = "pending"
+                task["attempts"] = 0
+                task["blocked"] = False
+        with open(self._tasks_path, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, resume: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
+        if resume:
+            self._reset_incomplete_tasks()
+
         if asynchronous:
             self.run_execute_loop_async([], max_iterations)
             return
