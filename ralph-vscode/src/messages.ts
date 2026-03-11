@@ -19,8 +19,9 @@ export interface ProcessStartedMessage {
   type: 'process_started';
 }
 
-export interface StdinReadyMessage {
-  type: 'stdin_ready';
+export interface StdinInterviewMessage {
+  type: 'stdin_interview';
+  questions: Array<{ question: string; options: string[] }>;
 }
 
 export interface ShowConfirmMessage {
@@ -49,7 +50,7 @@ export type ExtensionToWebviewMessage =
   | StderrMessage
   | ProcessDoneMessage
   | ProcessStartedMessage
-  | StdinReadyMessage
+  | StdinInterviewMessage
   | ShowConfirmMessage
   | StateUpdateMessage
   | SettingsUpdateMessage
@@ -77,8 +78,14 @@ export interface OpenUrlMessage {
   url: string;
 }
 
+export interface SubmitInterviewAnswersMessage {
+  type: 'submit_interview';
+  answers: Array<{ question: string; answer: string }>;
+}
+
 export type WebviewToExtensionMessage =
   | RunCommandMessage
   | StdinInputMessage
   | StopCommandMessage
-  | OpenUrlMessage;
+  | OpenUrlMessage
+  | SubmitInterviewAnswersMessage;

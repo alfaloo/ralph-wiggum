@@ -6,9 +6,13 @@ import { Button } from './ui/button';
 import type { Task } from './TaskProgress';
 
 export interface OutputLine {
-  type: 'stdout' | 'stderr' | 'error' | 'user_answer' | 'task_detail';
+  type: 'stdout' | 'stderr' | 'error' | 'user_answer' | 'task_detail' | 'interview_qa';
   text: string;
   task?: Task;
+  // interview_qa fields
+  question?: string;
+  answer?: string;
+  historyIndex?: number;
 }
 
 export interface OutputAreaProps {
@@ -70,6 +74,23 @@ export function OutputArea({ outputLines, lastCommand, onClear }: OutputAreaProp
 
   const renderLine = (line: OutputLine, index: number): React.ReactElement => {
     const cleaned = stripAnsi(line.text);
+
+    if (line.type === 'interview_qa') {
+      return (
+        <div key={index} style={{
+          borderLeft: '2px solid var(--vscode-panel-border, var(--vscode-editorGroup-border))',
+          paddingLeft: '8px',
+          margin: '6px 0',
+        }}>
+          <div style={{ color: 'var(--vscode-foreground)', marginBottom: '2px' }}>{line.question}</div>
+          <div>
+            <span style={{ color: 'var(--vscode-descriptionForeground)', fontStyle: 'italic' }}>
+              {line.answer}
+            </span>
+          </div>
+        </div>
+      );
+    }
 
     if (line.type === 'error') {
       const isNotFound = line.text.includes('ralph not found') || line.text.includes('ralph_not_found');

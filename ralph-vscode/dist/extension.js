@@ -35,8 +35,8 @@ __export(extension_exports, {
 });
 module.exports = __toCommonJS(extension_exports);
 var vscode5 = __toESM(require("vscode"));
-var fs4 = __toESM(require("fs"));
-var path4 = __toESM(require("path"));
+var fs5 = __toESM(require("fs"));
+var path5 = __toESM(require("path"));
 var import_child_process2 = require("child_process");
 
 // src/sidebarProvider.ts
@@ -185,6 +185,7 @@ var RalphPanelManager = class {
     if (existing) {
       existing.reveal(vscode2.ViewColumn.One);
       this.postSettings(projectName, existing);
+      this.postInitialState(projectName, existing);
       return existing;
     }
     const panel = vscode2.window.createWebviewPanel(
@@ -193,7 +194,8 @@ var RalphPanelManager = class {
       vscode2.ViewColumn.One,
       {
         enableScripts: true,
-        localResourceRoots: [vscode2.Uri.joinPath(this.extensionUri, "dist")]
+        localResourceRoots: [vscode2.Uri.joinPath(this.extensionUri, "dist")],
+        retainContextWhenHidden: true
       }
     );
     panel.webview.html = this.getHtmlForWebview(panel.webview);
@@ -204,7 +206,30 @@ var RalphPanelManager = class {
       this.persistOpenPanels();
     });
     this.postSettings(projectName, panel);
+    const readySub = panel.webview.onDidReceiveMessage((msg) => {
+      if (msg.type === "webview_ready") {
+        this.postInitialState(projectName, panel);
+        readySub.dispose();
+      }
+    });
     return panel;
+  }
+  postInitialState(projectName, panel) {
+    const files = [
+      { file: "tasks", name: "tasks.json" },
+      { file: "validation", name: "validation.md" },
+      { file: "spec", name: "spec.md" },
+      { file: "pr_description", name: "pr-description.md" },
+      { file: "summary", name: "summary.md" }
+    ];
+    for (const { file, name } of files) {
+      try {
+        const filePath = path2.join(this.workspaceRoot, ".ralph", projectName, name);
+        const content = fs2.readFileSync(filePath, "utf-8");
+        panel.webview.postMessage({ type: "state_update", file, projectName, content });
+      } catch {
+      }
+    }
   }
   postSettings(projectName, panel) {
     try {
@@ -238,6 +263,9 @@ var RalphPanelManager = class {
     const webviewJsUri = webview.asWebviewUri(
       vscode2.Uri.joinPath(this.extensionUri, "dist", "webview.js")
     );
+    const webviewCssUri = webview.asWebviewUri(
+      vscode2.Uri.joinPath(this.extensionUri, "dist", "webview.css")
+    );
     const nonce = crypto.randomBytes(16).toString("hex");
     return `<!DOCTYPE html>
 <html lang="en">
@@ -245,10 +273,11 @@ var RalphPanelManager = class {
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';"
+      content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ralph Wiggum</title>
+    <link rel="stylesheet" href="${webviewCssUri}" />
   </head>
   <body>
     <div id="root"></div>
@@ -260,12 +289,19 @@ var RalphPanelManager = class {
 
 // src/processManager.ts
 var vscode3 = __toESM(require("vscode"));
+var fs3 = __toESM(require("fs"));
+var path3 = __toESM(require("path"));
 var import_child_process = require("child_process");
+var pty = __toESM(require("node-pty"));
 var YN_PATTERNS = [
   /already exists\. Overwrite\? \(y\/n\):/,
   /Delete branch '.*'\. This cannot be undone\. \(y\/n\):/
 ];
+var VSCODE_SENTINEL = "[ralph-vscode] interview_questions_ready";
 function resolveShellPath() {
+  if (process.platform === "win32") {
+    return process.env.PATH || "";
+  }
   const home = process.env.HOME || "";
   const commonPaths = [
     `${home}/.local/bin`,
@@ -284,44 +320,65 @@ function resolveShellPath() {
   }
   return [...commonPaths, shellPath].join(":");
 }
+function stripAnsi(text) {
+  return text.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "").replace(/\x1b\][^\x07]*\x07/g, "").replace(/\x1b[()][AB012]/g, "").replace(/\x1b[=><MNOPQRSTUVWXYZ\\^_]/g, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
 var RalphProcessManager = class {
   constructor(workspaceRoot) {
     this.processes = /* @__PURE__ */ new Map();
     this.workspaceRoot = workspaceRoot;
     this.shellPath = resolveShellPath();
+    this.outputChannel = vscode3.window.createOutputChannel("Ralph");
   }
   run(projectName, command, args, panel) {
     if (this.isRunning(projectName)) {
       return;
     }
-    const child = (0, import_child_process.spawn)("ralph", [command, projectName, ...args], {
-      cwd: this.workspaceRoot,
-      shell: false,
-      env: { ...process.env, PATH: this.shellPath }
-    });
+    const fullArgs = [command, projectName, ...args];
+    this.outputChannel.appendLine(`
+[ralph ${fullArgs.join(" ")}]`);
+    this.outputChannel.show(true);
+    let child;
+    try {
+      child = pty.spawn("ralph", fullArgs, {
+        name: "xterm-256color",
+        cols: 120,
+        rows: 30,
+        cwd: this.workspaceRoot,
+        env: { ...process.env, PATH: this.shellPath, PYTHONUNBUFFERED: "1", RALPH_VSCODE: "1" }
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.outputChannel.appendLine(`[error spawning: ${msg}]`);
+      panel.webview.postMessage({ type: "ralph_not_found" });
+      return;
+    }
     this.processes.set(projectName, child);
+    this.outputChannel.appendLine(`[pid: ${child.pid}]`);
     panel.webview.postMessage({ type: "process_started" });
-    child.stdout.on("data", (chunk) => {
-      const text = chunk.toString();
-      panel.webview.postMessage({ type: "stdout", chunk: text });
-      if (text.includes("Type your answers below")) {
-        panel.webview.postMessage({ type: "stdin_ready" });
+    child.onData((data) => {
+      const text = stripAnsi(data);
+      this.outputChannel.append(text);
+      if (text.includes(VSCODE_SENTINEL)) {
+        const questionsPath = path3.join(this.workspaceRoot, ".ralph", projectName, "interview_questions.json");
+        try {
+          const content = fs3.readFileSync(questionsPath, "utf-8");
+          const questions = JSON.parse(content);
+          panel.webview.postMessage({ type: "stdin_interview", questions });
+        } catch (err) {
+          this.outputChannel.appendLine(`[error reading questions file: ${err}]`);
+        }
+        return;
       }
+      panel.webview.postMessage({ type: "stdout", chunk: text });
       for (const line of text.split("\n")) {
         this.handleYNPrompt(line, projectName);
       }
     });
-    child.stderr.on("data", (chunk) => {
-      panel.webview.postMessage({ type: "stderr", chunk: chunk.toString() });
-    });
-    child.on("close", (exitCode) => {
-      panel.webview.postMessage({ type: "process_done", exitCode });
+    child.onExit(({ exitCode }) => {
+      this.outputChannel.appendLine(`[exit code: ${exitCode}]`);
+      panel.webview.postMessage({ type: "process_done", exitCode: exitCode ?? null });
       this.processes.delete(projectName);
-    });
-    child.on("error", (err) => {
-      if (err.code === "ENOENT") {
-        panel.webview.postMessage({ type: "ralph_not_found" });
-      }
     });
   }
   stop(projectName) {
@@ -335,8 +392,8 @@ var RalphProcessManager = class {
   }
   writeToStdin(projectName, text) {
     const child = this.processes.get(projectName);
-    if (child && child.stdin) {
-      child.stdin.write(text);
+    if (child) {
+      child.write(text);
     }
   }
   handleYNPrompt(line, projectName) {
@@ -355,16 +412,16 @@ var RalphProcessManager = class {
 
 // src/fileWatcher.ts
 var vscode4 = __toESM(require("vscode"));
-var fs3 = __toESM(require("fs"));
-var path3 = __toESM(require("path"));
+var fs4 = __toESM(require("fs"));
+var path4 = __toESM(require("path"));
 function extractProjectName(uri, workspaceRoot) {
-  const ralphDir = path3.join(workspaceRoot, ".ralph");
+  const ralphDir = path4.join(workspaceRoot, ".ralph");
   const filePath = uri.fsPath;
-  if (!filePath.startsWith(ralphDir + path3.sep)) {
+  if (!filePath.startsWith(ralphDir + path4.sep)) {
     return void 0;
   }
   const relative = filePath.slice(ralphDir.length + 1);
-  const parts = relative.split(path3.sep);
+  const parts = relative.split(path4.sep);
   if (parts.length < 2) {
     return void 0;
   }
@@ -372,7 +429,7 @@ function extractProjectName(uri, workspaceRoot) {
 }
 function readFileContent(uri) {
   try {
-    return fs3.readFileSync(uri.fsPath, "utf8");
+    return fs4.readFileSync(uri.fsPath, "utf8");
   } catch {
     return "";
   }
@@ -386,7 +443,9 @@ var RalphFileWatcher = class {
     const patterns = [
       [".ralph/*/tasks.json", "tasks"],
       [".ralph/*/validation.md", "validation"],
-      [".ralph/*/spec.md", "spec"]
+      [".ralph/*/spec.md", "spec"],
+      [".ralph/*/pr-description.md", "pr_description"],
+      [".ralph/*/summary.md", "summary"]
     ];
     for (const [pattern, fileType] of patterns) {
       const watcher = vscode4.workspace.createFileSystemWatcher(
@@ -456,11 +515,16 @@ function activate(context) {
             processManager.run(projectName, msg.command, msg.args, panel);
             break;
           case "stdin_input":
-            processManager.writeToStdin(projectName, msg.text + "\n");
+            processManager.writeToStdin(projectName, msg.text);
             break;
           case "stop_command":
             processManager.stop(projectName);
             break;
+          case "submit_interview": {
+            const answersPath = path5.join(workspaceRoot, ".ralph", projectName, "interview_answers.json");
+            fs5.writeFileSync(answersPath, JSON.stringify(msg.answers), "utf-8");
+            break;
+          }
           case "open_url":
             vscode5.env.openExternal(vscode5.Uri.parse(msg.url));
             break;
@@ -485,8 +549,8 @@ function activate(context) {
           if (/[/\\:*?"<>|\x00]/.test(v)) {
             return 'Project name cannot contain /, \\, :, *, ?, ", <, >, or |';
           }
-          const projectPath = path4.join(workspaceRoot, ".ralph", v);
-          if (fs4.existsSync(projectPath)) {
+          const projectPath = path5.join(workspaceRoot, ".ralph", v);
+          if (fs5.existsSync(projectPath)) {
             return `Project '${v}' already exists`;
           }
           return void 0;
@@ -522,8 +586,8 @@ function activate(context) {
           sidebar.refresh();
           const panel = panelManager.openPanel(name);
           wirePanel(name, panel);
-          const specPath = path4.join(workspaceRoot, ".ralph", name, "spec.md");
-          const testInstructionsPath = path4.join(workspaceRoot, ".ralph", name, "test-instructions.md");
+          const specPath = path5.join(workspaceRoot, ".ralph", name, "spec.md");
+          const testInstructionsPath = path5.join(workspaceRoot, ".ralph", name, "test-instructions.md");
           try {
             const specDoc = await vscode5.workspace.openTextDocument(specPath);
             await vscode5.window.showTextDocument(specDoc, { viewColumn: vscode5.ViewColumn.Beside });
