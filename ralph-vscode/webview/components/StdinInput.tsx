@@ -44,7 +44,7 @@ export function StdinInput({ questions, onSubmit }: StdinInputProps) {
 
   return (
     <div className="flex-shrink-0 border-t border-[var(--vscode-panel-border,var(--vscode-editorGroup-border))] overflow-y-auto"
-      style={{ maxHeight: '50%' }}>
+      style={{ maxHeight: '75%' }}>
       <div className="px-3 py-2 flex flex-col gap-4">
         {questions.map((q, qi) => {
           const s = states[qi] ?? { selectedIndex: 0, customText: '' };
