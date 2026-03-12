@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { execSync } from 'child_process';
 import * as pty from 'node-pty';
 
@@ -6,6 +8,8 @@ const YN_PATTERNS = [
   /already exists\. Overwrite\? \(y\/n\):/,
   /Delete branch '.*'\. This cannot be undone\. \(y\/n\):/,
 ];
+
+const VSCODE_SENTINEL = '[ralph-vscode] interview_questions_ready';
 
 /**
  * VS Code on macOS/Linux launches without a login shell, so PATH is minimal
@@ -59,7 +63,6 @@ function stripAnsi(text: string): string {
 
 export class RalphProcessManager {
   private processes = new Map<string, pty.IPty>();
-  private suppressEcho = new Map<string, string>();
   private workspaceRoot: string;
   private shellPath: string;
   private outputChannel: vscode.OutputChannel;
@@ -86,7 +89,7 @@ export class RalphProcessManager {
         cols: 120,
         rows: 30,
         cwd: this.workspaceRoot,
-        env: { ...process.env, PATH: this.shellPath, PYTHONUNBUFFERED: '1' } as Record<string, string>,
+        env: { ...process.env, PATH: this.shellPath, PYTHONUNBUFFERED: '1', RALPH_VSCODE: '1' } as Record<string, string>,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -103,18 +106,21 @@ export class RalphProcessManager {
       const text = stripAnsi(data);
       this.outputChannel.append(text);
 
-      // Suppress PTY echo of text submitted via writeToStdin
-      const pending = this.suppressEcho.get(projectName);
-      if (pending !== undefined && text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trimEnd() === pending) {
-        this.suppressEcho.delete(projectName);
+      // Detect VS Code sentinel: Python wrote questions to file, read and forward them
+      if (text.includes(VSCODE_SENTINEL)) {
+        const questionsPath = path.join(this.workspaceRoot, '.ralph', projectName, 'interview_questions.json');
+        try {
+          const content = fs.readFileSync(questionsPath, 'utf-8');
+          const questions = JSON.parse(content);
+          panel.webview.postMessage({ type: 'stdin_interview', questions });
+        } catch (err) {
+          this.outputChannel.appendLine(`[error reading questions file: ${err}]`);
+        }
+        // Don't forward the sentinel line to the webview
         return;
       }
 
       panel.webview.postMessage({ type: 'stdout', chunk: text });
-
-      if (text.includes('Type your answers below')) {
-        panel.webview.postMessage({ type: 'stdin_ready' });
-      }
 
       for (const line of text.split('\n')) {
         this.handleYNPrompt(line, projectName);
@@ -125,7 +131,6 @@ export class RalphProcessManager {
       this.outputChannel.appendLine(`[exit code: ${exitCode}]`);
       panel.webview.postMessage({ type: 'process_done', exitCode: exitCode ?? null });
       this.processes.delete(projectName);
-      this.suppressEcho.delete(projectName);
     });
   }
 
@@ -143,8 +148,6 @@ export class RalphProcessManager {
   writeToStdin(projectName: string, text: string): void {
     const child = this.processes.get(projectName);
     if (child) {
-      // Record what we're writing so the PTY echo can be suppressed in onData
-      this.suppressEcho.set(projectName, text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trimEnd());
       child.write(text);
     }
   }

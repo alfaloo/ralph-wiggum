@@ -117,13 +117,73 @@ def _parse_questions_json(raw: str) -> list[dict] | None:
         return None
 
 
-def _collect_guided_answers(questions: list[dict]) -> str:
+_DESCRIBE_YOURSELF = "Describe yourself..."
+_VSCODE_SENTINEL = "[ralph-vscode] interview_questions_ready"
+
+
+def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str) -> str:
+    """VS Code extension mode: write questions to a temp file, wait for answers.
+
+    Only called when the RALPH_VSCODE env var is set (set by the extension).
+    Terminal runs skip this entirely and use the normal TTY/non-TTY paths.
+    """
+    questions_path = os.path.join(ralph_dir, "interview_questions.json")
+    answers_path = os.path.join(ralph_dir, "interview_answers.json")
+
+    # Remove any stale answers file from a previous interrupted run
+    if os.path.exists(answers_path):
+        os.unlink(answers_path)
+
+    # Write questions including the "Describe yourself..." freeform option
+    with open(questions_path, "w") as f:
+        json.dump(
+            [
+                {
+                    "question": q.get("question", ""),
+                    "options": list(q.get("options", [])) + [_DESCRIBE_YOURSELF],
+                }
+                for q in questions
+            ],
+            f,
+        )
+
+    # Signal the extension to read the file and display the form
+    print(_VSCODE_SENTINEL, flush=True)
+
+    # Poll for the answers file written back by the extension (10-min timeout)
+    deadline = time.time() + 600
+    while time.time() < deadline:
+        if os.path.exists(answers_path):
+            with open(answers_path) as f:
+                content = f.read()
+            try:
+                os.unlink(answers_path)
+            except OSError:
+                pass
+            try:
+                os.unlink(questions_path)
+            except OSError:
+                pass
+            return content
+        time.sleep(0.2)
+
+    raise TimeoutError("[ralph] VS Code interview timed out waiting for answers.")
+
+
+def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
     """Present questions one at a time with arrow-key or numbered selection.
 
     Returns a JSON string of question–answer pairs suitable for passing to the
     generate_tasks template.
+
+    When the RALPH_VSCODE environment variable is set (VS Code extension mode),
+    delegates to _collect_guided_answers_vscode which uses a file protocol
+    instead of terminal I/O. Terminal runs are completely unaffected.
     """
-    DESCRIBE_YOURSELF = "Describe yourself..."
+    if os.environ.get("RALPH_VSCODE") and ralph_dir:
+        return _collect_guided_answers_vscode(questions, ralph_dir)
+
+    DESCRIBE_YOURSELF = _DESCRIBE_YOURSELF
     SEPARATOR = "\u2500" * 61
     total = len(questions)
     qa_pairs: list[dict] = []
@@ -345,7 +405,7 @@ class Runner:
             # Try structured (guided) path first
             questions_data = _parse_questions_json(raw_output)
             if questions_data:
-                qa_json = _collect_guided_answers(questions_data)
+                qa_json = _collect_guided_answers(questions_data, ralph_dir=self.ralph_dir)
             else:
                 # Fallback: legacy free-form path
                 print("[ralph] I couldn't make the questions come out right, so I'll just ask you normally.")

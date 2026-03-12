@@ -4,6 +4,7 @@ import { CommandBar } from './components/CommandBar';
 import { TaskProgress } from './components/TaskProgress';
 import type { Task } from './components/TaskProgress';
 import { OutputArea } from './components/OutputArea';
+import type { OutputLine } from './components/OutputArea';
 import { StdinInput } from './components/StdinInput';
 import { createRoot } from 'react-dom/client';
 
@@ -25,17 +26,16 @@ export const VscodeContext = createContext<VscodeContextType>({
   postMessage: () => { },
 });
 
-export interface OutputLine {
-  type: 'stdout' | 'stderr' | 'error' | 'user_answer' | 'task_detail';
-  text: string;
-  task?: Task;
+export interface InterviewQuestion {
+  question: string;
+  options: string[];
 }
 
 function buildCommandString(cmd: string, args: string[]): string {
   const parts = [`ralph ${cmd}`];
   for (let i = 0; i < args.length; i++) {
-    if (args[i + 1] === 'false') { i++; continue; }          // skip --flag false
-    if (args[i + 1] === 'true') { parts.push(args[i]); i++; continue; } // --flag (omit 'true')
+    if (args[i + 1] === 'false') { i++; continue; }
+    if (args[i + 1] === 'true') { parts.push(args[i]); i++; continue; }
     parts.push(args[i]);
   }
   return parts.join(' ');
@@ -44,7 +44,6 @@ function buildCommandString(cmd: string, args: string[]): string {
 function App() {
   const [outputLines, setOutputLines] = useState<OutputLine[]>([]);
   const [taskData, setTaskData] = useState<object | null>(null);
-  const [isInterviewMode, setIsInterviewMode] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [lastCommand, setLastCommand] = useState<string | null>(null);
@@ -55,6 +54,8 @@ function App() {
     hasValidation: false,
   });
 
+  const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[] | null>(null);
+
   useEffect(() => {
     vscode.postMessage({ type: 'webview_ready' });
   }, []);
@@ -64,54 +65,42 @@ function App() {
       const msg = event.data;
       switch (msg.type) {
         case 'stdout':
-          setOutputLines(lines => {
-            // Strip ALL whitespace for echo comparison — PTY wraps at col 120,
-            // inserting \r\n mid-word, so trimEnd() comparisons fail.
-            const normWS = (s: string) => s.replace(/\s+/g, '');
-            const last = lines[lines.length - 1];
-
-            // Merge with previous stdout first, then check (handles multi-chunk echoes)
-            const merged = last?.type === 'stdout' ? last.text + msg.chunk : null;
-            const candidate = merged ?? msg.chunk;
-            const normCandidate = normWS(candidate);
-
-            // Suppress PTY echo and ralph's own answer reprint
-            if (normCandidate.length > 20 &&
-              lines.some(l => l.type === 'user_answer' && normWS(l.text) === normCandidate)) {
-              // Remove the partial accumulated entry if we had started one
-              return merged !== null ? lines.slice(0, -1) : lines;
-            }
-
-            if (merged !== null) {
-              return [...lines.slice(0, -1), { ...last!, text: merged }];
-            }
-            return [...lines, { type: 'stdout', text: msg.chunk }];
-          });
+          setOutputLines(lines => [...lines, { type: 'stdout', text: msg.chunk }]);
           break;
+
         case 'stderr':
           setOutputLines(lines => [...lines, { type: 'stderr', text: msg.chunk }]);
           break;
+
         case 'process_done':
           setIsRunning(false);
-          setIsInterviewMode(false);
+          setInterviewQuestions(null);
           if (msg.exitCode !== 0) {
             setOutputLines(lines => [
               ...lines,
               { type: 'error', text: `Command exited with code ${msg.exitCode}` },
             ]);
-          } else if (lastCommand?.includes('enrich')) {
-            setOutputLines(lines => [
-              ...lines,
-              { type: 'stdout', text: `Command ${lastCommand ?? ''} completed successfully`}
-            ])
+          } else {
+            setOutputLines((lines) => {
+              if (lines[lines.length - 1]?.text?.includes('agent has started working')) {
+                return [
+                  ...lines,
+                  { type: 'stdout', text: `Command ${lastCommand ?? ''} completed successfully` }
+                ];
+              }
+              return lines;
+            });
           }
           break;
+
         case 'process_started':
           setIsRunning(true);
           break;
-        case 'stdin_ready':
-          setIsInterviewMode(true);
+
+        case 'stdin_interview':
+          setInterviewQuestions(msg.questions);
           break;
+
         case 'state_update':
           if (msg.file === 'tasks') {
             try {
@@ -128,9 +117,11 @@ function App() {
             setFileFlags(f => ({ ...f, hasValidation: !!msg.content?.trim() }));
           }
           break;
+
         case 'settings_update':
           setSettings(msg.settings);
           break;
+
         case 'ralph_not_found':
           setOutputLines(lines => [
             ...lines,
@@ -147,15 +138,20 @@ function App() {
   const handleRun = (cmd: string, args: string[]) => {
     setIsRunning(true);
     setLastCommand(buildCommandString(cmd, args));
+    setInterviewQuestions(null);
     vscode.postMessage({ type: 'run_command', command: cmd, args });
   };
 
   const handleStop = () => vscode.postMessage({ type: 'stop_command' });
 
-  const handleStdinSubmit = (text: string) => {
-    setOutputLines(lines => [...lines, { type: 'user_answer', text }]);
-    vscode.postMessage({ type: 'stdin_input', text });
-    setIsInterviewMode(false);
+  const handleInterviewSubmit = (answers: Array<{ question: string; answer: string }>) => {
+    // Show Q&A summary in output
+    setOutputLines(lines => [
+      ...lines,
+      ...answers.map(a => ({ type: 'interview_qa' as const, text: '', question: a.question, answer: a.answer })),
+    ]);
+    setInterviewQuestions(null);
+    vscode.postMessage({ type: 'submit_interview', answers });
   };
 
   const handleTaskClick = (task: Task) => {
@@ -204,8 +200,8 @@ function App() {
               onClear={handleClearOutput}
             />
             <StdinInput
-              isInterviewMode={isInterviewMode}
-              onSubmit={handleStdinSubmit}
+              questions={interviewQuestions}
+              onSubmit={handleInterviewSubmit}
             />
           </div>
         </div>

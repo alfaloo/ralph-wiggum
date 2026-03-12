@@ -45,11 +45,16 @@ export function activate(context: vscode.ExtensionContext) {
             processManager.run(projectName, msg.command, msg.args, panel);
             break;
           case 'stdin_input':
-            processManager.writeToStdin(projectName, msg.text + '\n\x04');
+            processManager.writeToStdin(projectName, msg.text);
             break;
           case 'stop_command':
             processManager.stop(projectName);
             break;
+          case 'submit_interview': {
+            const answersPath = path.join(workspaceRoot, '.ralph', projectName, 'interview_answers.json');
+            fs.writeFileSync(answersPath, JSON.stringify(msg.answers), 'utf-8');
+            break;
+          }
           case 'open_url':
             vscode.env.openExternal(vscode.Uri.parse(msg.url));
             break;
