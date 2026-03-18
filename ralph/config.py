@@ -163,6 +163,33 @@ def set_provider(value: str) -> None:
     _write_settings(data)
 
 
+def get_single() -> bool:
+    """Return the persisted single setting (default: False)."""
+    return bool(_read_settings().get("single", False))
+
+
+def set_single(value) -> None:
+    """Persist the single setting.
+
+    Accepts a bool or the strings 'true'/'false' (case-insensitive).
+    Prints an error and returns early if the value is invalid.
+    """
+    if isinstance(value, str):
+        if value.lower() == "true":
+            value = True
+        elif value.lower() == "false":
+            value = False
+        else:
+            print(f"[ralph] Oops! '{value}' is not valid for single.")
+            return
+    elif not isinstance(value, bool):
+        print(f"[ralph] Oops! '{value}' is not valid for single.")
+        return
+    data = _read_settings()
+    data["single"] = value
+    _write_settings(data)
+
+
 _DEFAULTS = {
     "verbose": False,
     "rounds": 1,
@@ -170,6 +197,7 @@ _DEFAULTS = {
     "base": "main",
     "provider": "github",
     "asynchronous": False,
+    "single": False,
 }
 
 
