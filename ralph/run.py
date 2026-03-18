@@ -565,8 +565,60 @@ class Runner:
         with open(self._tasks_path, "w") as f:
             json.dump(data, f, indent=2)
 
-    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, resume: bool = False) -> None:
+    def run_execute_single(self) -> None:
+        """Spawn one agent to implement all pending tasks in sequence."""
+        from ralph.parse import parse_execute_single_md
+
+        # Pre-check: skip spawning if all tasks are already completed
+        try:
+            tasks_path = f".ralph/{self.project_name}/tasks.json"
+            with open(tasks_path) as f:
+                tasks_data = json.loads(f.read())
+            if tasks_data.get("tasks") and all(
+                t.get("status") == "completed" for t in tasks_data["tasks"]
+            ):
+                print("[ralph] All tasks already completed. Skipping agent spawn.")
+                self._run_summarise("All tasks completed")
+                return
+        except Exception:
+            pass
+
+        print("[ralph] Single-agent mode: spawning one agent for all tasks.")
+        prompt = parse_execute_single_md(self.project_name)
+        result = run_noninteractive_json(prompt)
+
+        if self.verbose:
+            print(result.stdout)
+
+        try:
+            data = json.loads(result.stdout)
+            usage = data.get("usage", {})
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            print(f"[ralph] Agent complete. Tokens used — input: {input_tokens}, output: {output_tokens}")
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+        # Determine exit reason from tasks.json after agent completes
+        try:
+            tasks_path = f".ralph/{self.project_name}/tasks.json"
+            with open(tasks_path) as f:
+                tasks_data = json.loads(f.read())
+            all_completed = all(
+                t.get("status") == "completed" for t in tasks_data.get("tasks", [])
+            )
+            exit_reason = "All tasks completed" if all_completed else "Some tasks did not complete successfully"
+        except Exception:
+            exit_reason = "Some tasks did not complete successfully"
+
+        self._run_summarise(exit_reason)
+
+    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, single: bool = False, resume: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
+        if single:
+            self.run_execute_single()
+            return
+
         if resume:
             self._reset_incomplete_tasks()
 
