@@ -23,6 +23,7 @@ from ralph.config import (
     get_limit,
     get_provider,
     get_rounds,
+    get_single,
     get_verbose,
     set_base,
 )
@@ -96,6 +97,13 @@ def _resolve_asynchronous(args: argparse.Namespace) -> bool:
     if args.asynchronous is not None:
         return args.asynchronous == "true"
     return get_asynchronous()
+
+
+def _resolve_single(args: argparse.Namespace) -> bool:
+    """Return effective single: per-command CLI flag > persisted setting."""
+    if getattr(args, "single", None) is not None:
+        return args.single == "true"
+    return get_single()
 
 
 def _resolve_provider(args: argparse.Namespace) -> str:
@@ -436,7 +444,13 @@ class ExecuteCommand(Command):
             )
             sys.exit(1)
 
-        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous, resume=args.resume)
+        single = _resolve_single(args)
+
+        if single and asynchronous:
+            print("[ralph] Error: --single and --asynchronous cannot both be true.")
+            sys.exit(1)
+
+        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous, single=single, resume=args.resume)
 
 
 class ValidateCommand(Command):
@@ -773,8 +787,10 @@ class StatusCommand(Command):
         # --- Execution-relevant config flags ---
         limit = get_limit()
         asynchronous = get_asynchronous()
+        single = get_single()
         print(f"[ralph] Limit          : {limit}")
         print(f"[ralph] Asynchronous   : {asynchronous}")
+        print(f"[ralph] Single         : {single}")
 
         # --- Validation rating ---
         validation_path = os.path.join(ralph_dir, "validation.md")
