@@ -60,20 +60,22 @@ function Field({
 }
 
 
-function CheckField({ 
-  label, 
-  checked, 
-  onChange, 
-  className = ''
-}: { 
-  label: string; 
-  checked: boolean; 
-  className?: string; 
-  onChange: (v: boolean) => void 
+function CheckField({
+  label,
+  checked,
+  onChange,
+  className = '',
+  disabled
+}: {
+  label: string;
+  checked: boolean;
+  className?: string;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className={cn("flex items-center gap-2 cursor-pointer text-base select-none", className)}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="w-3.5 h-3.5" />
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="w-3.5 h-3.5" disabled={disabled} />
       <span className='mb-0.5'>{label}</span>
     </label>
   );
