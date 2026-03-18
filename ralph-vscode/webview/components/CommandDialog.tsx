@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { arrayRange, cn } from '../lib/utils';
+import { VscodeContext } from '../app';
 
 export interface CommandDialogProps {
   command: string | null;
@@ -35,6 +36,7 @@ function initState(settings: Record<string, unknown>) {
     base: settingStr(settings, '--base'),
     resume: false,
     asynchronous: settingBool(settings, '--asynchronous'),
+    single: settingBool(settings, '--single'),
     force: false,
     provider: settingStr(settings, '--provider') || 'github',
   };
@@ -82,6 +84,7 @@ function CheckField({
 }
 
 export function CommandDialog({ command, settings, onClose, onRun }: CommandDialogProps) {
+  const vscode = useContext(VscodeContext);
   const [rounds, setRounds] = useState(1);
   const [verbose, setVerbose] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -89,6 +92,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
   const [base, setBase] = useState('');
   const [resume, setResume] = useState(false);
   const [asynchronous, setAsynchronous] = useState(false);
+  const [single, setSingle] = useState(false);
   const [force, setForce] = useState(false);
   const [provider, setProvider] = useState('github');
 
@@ -99,6 +103,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
   const setBaseRef = React.useRef(setBase);
   const setResumeRef = React.useRef(setResume);
   const setAsynchronousRef = React.useRef(setAsynchronous);
+  const setSingleRef = React.useRef(setSingle);
   const setForceRef = React.useRef(setForce);
   const setProviderRef = React.useRef(setProvider);
 
@@ -112,12 +117,17 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
     setBaseRef.current(s.base);
     setResumeRef.current(false);
     setAsynchronousRef.current(s.asynchronous);
+    setSingleRef.current(s.single);
     setForceRef.current(false);
     setProviderRef.current(s.provider);
   }, [command, settings]);
 
   const handleRun = () => {
     if (!command) return;
+    if (single && asynchronous) {
+      vscode.postMessage({ type: 'show_error', message: '--single and --asynchronous cannot both be true.' });
+      return;
+    }
     const args: string[] = [];
 
     switch (command) {
@@ -138,6 +148,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
         args.push('--verbose', String(verbose));
         if (resume) args.push('--resume');
         args.push('--asynchronous', String(asynchronous));
+        args.push('--single', String(single));
         break;
       case 'validate':
         args.push('--verbose', String(verbose));
@@ -155,6 +166,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
         args.push('--verbose', String(verbose));
         if (resume) args.push('--resume');
         args.push('--asynchronous', String(asynchronous));
+        args.push('--single', String(single));
         args.push('--provider', provider);
         break;
       case 'pr':
@@ -216,7 +228,11 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
             <div className="flex flex-col gap-4">
               <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
               <CheckField label="--resume" checked={resume} onChange={setResume} />
-              <CheckField label="--asynchronous" checked={asynchronous} onChange={setAsynchronous} />
+              <CheckField label="--asynchronous" checked={asynchronous} disabled={single} onChange={checked => { setAsynchronous(checked); if (checked) setSingle(false); }} />
+              <div className='gap-0'>
+                <CheckField label="Single-agent mode" checked={single} disabled={asynchronous} onChange={checked => { setSingle(checked); if (checked) setAsynchronous(false); }} />
+                <p className="flag-description">Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode.</p>
+              </div>
             </div>
           </div>
         );
@@ -273,8 +289,12 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
                 <span className='text-description-color block text-md mt-1'>Allow the agent to resume execution from an existing branch</span>
               </div>
               <div className='gap-0'>
-                <CheckField label="--asynchronous" checked={asynchronous} onChange={setAsynchronous} />
+                <CheckField label="--asynchronous" checked={asynchronous} disabled={single} onChange={checked => { setAsynchronous(checked); if (checked) setSingle(false); }} />
                 <span className='text-description-color block text-md mt-1'>Enable/disable asynchronous agent execution for this invocation only</span>
+              </div>
+              <div className='gap-0'>
+                <CheckField label="Single-agent mode" checked={single} disabled={asynchronous} onChange={checked => { setSingle(checked); if (checked) setAsynchronous(false); }} />
+                <p className="flag-description">Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode.</p>
               </div>
 
               <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
