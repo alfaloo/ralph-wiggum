@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show:*)",
+      "Bash(.venv/bin/python -c \"import ralph\")",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/pytest .)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

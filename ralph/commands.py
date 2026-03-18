@@ -410,7 +410,7 @@ class ExecuteCommand(Command):
             # Check whether the project branch already exists; abort if it does.
             branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
             if branch_check.stdout.strip():
-                print(f"[ralph] Branch '{project_name}' already exists! I can't make another one!", file=sys.stderr)
+                print(f"[ralph] Branch '{project_name}' already exists! I can't make another one! Add --resume flag to continue.", file=sys.stderr)
                 sys.exit(1)
 
             # Checkout the base branch.
@@ -638,8 +638,6 @@ class RetryCommand(Command):
     def execute(self) -> None:
         args = self.args
         _assert_project_exists(args.project_name)
-
-        print(f"[ralph] I'm gonna try to fix '{args.project_name}'! Here we go!")
 
         # Check that validation.md exists.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
