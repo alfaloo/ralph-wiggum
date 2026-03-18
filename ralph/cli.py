@@ -9,6 +9,7 @@ from ralph.config import (
     set_limit,
     set_provider,
     set_rounds,
+    set_single,
     set_verbose,
 )
 from ralph.commands import (
@@ -156,6 +157,14 @@ def main() -> None:
         metavar="BOOL",
         help="Persist asynchronous setting to .ralph/settings.json (true/false)",
     )
+    parser.add_argument(
+        "--single", "-s",
+        choices=["true", "false"],
+        default=None,
+        dest="global_single",
+        metavar="BOOL",
+        help="Persist single-agent execute setting to .ralph/settings.json (true/false)",
+    )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -263,6 +272,13 @@ def main() -> None:
         metavar="BOOL",
         help="Enable/disable asynchronous agent execution for this invocation only",
     )
+    execute_parser.add_argument(
+        "--single", "-s",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Use a single agent to implement all tasks (true/false). Overrides persisted setting.",
+    )
     execute_parser.set_defaults(func=ExecuteCommand)
 
     # ralph status <project-name>
@@ -307,6 +323,13 @@ def main() -> None:
         default=None,
         metavar="BOOL",
         help="Enable/disable asynchronous agent execution for this invocation only",
+    )
+    oneshot_parser.add_argument(
+        "--single", "-s",
+        choices=["true", "false"],
+        default=None,
+        metavar="BOOL",
+        help="Use a single agent to implement all tasks (true/false). Overrides persisted setting.",
     )
     oneshot_parser.add_argument(
         "--provider", "-p",
@@ -376,10 +399,12 @@ def main() -> None:
         set_base(args.global_base)
     if args.global_asynchronous is not None:
         set_asynchronous(args.global_asynchronous == "true")
+    if args.global_single is not None:
+        set_single(args.global_single == "true")
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None and args.global_asynchronous is None:
+        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None and args.global_asynchronous is None and args.global_single is None:
             print()
             print(RALPH_BANNER)
             print()

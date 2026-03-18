@@ -40,6 +40,7 @@ If the `pip install` fails, a possible solution would be to use `pipx install` i
 - The `ralph pr` command requires the [GitHub CLI (`gh`)](https://cli.github.com/) to be installed and authenticated.
 - GitLab support requires the [GitLab CLI (`glab`)](https://gitlab.com/gitlab-org/cli) to be installed and authenticated (`glab auth login`) before use. Ralph validates this when you set `--provider gitlab`.
 - When using `--asynchronous true`, concurrent Claude agents have no hard file locking on source-code files. It is theoretically possible for two agents to race and corrupt a source file if they both attempt to edit it at the same time. File locking is only guaranteed for `.json` artefact files. The probability is low — task generation mitigates this by encoding dependencies — but users should be aware of the risk.
+- When using `--single true`, a single Claude agent handles all pending tasks. If that agent is interrupted mid-run, tasks that were not yet started remain `"pending"` and can be resumed with `ralph execute --resume`. Tasks that were in-progress at interruption time may be left in `"in_progress"` status and will need manual reset or a fresh `ralph undo`.
 
 ## Commands
 
@@ -88,6 +89,7 @@ Implements the project by spawning execute agents iteratively. Each agent picks 
 - `--base BRANCH` (alias `-b`) sets the branch to branch from (default: `main`).
 - `--resume` (alias `-r`) resumes execution on an existing project branch instead of creating a new one.
 - `--asynchronous BOOL` (alias `-a`) enables parallel agent execution. When `true`, tasks with no unsatisfied dependencies are dispatched concurrently using the DAG in `tasks.json`. Overrides the global setting for this invocation (default: `false`).
+- `--single BOOL` (alias `-s`) runs all tasks with a single agent instead of one agent per task. Reduces token usage for projects with many small tasks. Cannot be combined with `--asynchronous true` (default: `false`).
 
 ---
 
@@ -156,6 +158,7 @@ When used at the top level (before or without a subcommand), these flags persist
 | `--base BRANCH` | `-b` | `main` | Default base branch for execute |
 | `--provider github\|gitlab` | `-p` | `github` | VCS platform for PR/MR creation. Validates that the provider's CLI tool is installed and authenticated before saving. |
 | `--asynchronous true\|false` | `-a` | `false` | Enable parallel agent execution in `ralph execute`. |
+| `--single true\|false` | `-s` | `false` | Use a single agent for all tasks in `ralph execute`. Cannot be combined with `--asynchronous`. |
 
 Per-command flags (e.g. `ralph interview my-project --rounds 3`) override the persisted setting for that invocation only.
 

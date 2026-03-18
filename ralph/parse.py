@@ -133,3 +133,8 @@ def parse_validate_md(project_name: str) -> str:
 def parse_retry_md(project_name: str) -> str:
     """Render the retry prompt template."""
     return _render("retry.md", PROJECT_NAME=project_name)
+
+
+def parse_execute_single_md(project_name: str) -> str:
+    """Render the single-agent execute prompt template."""
+    return _render("execute_single.md", PROJECT_NAME=project_name)

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(zsh -l -i -c 'echo $PATH')"
+      "Bash(pip show:*)",
+      "Bash(.venv/bin/python -c \"import ralph\")",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/pytest .)",
+      "Bash(npm run:*)"
     ]
   }
 }

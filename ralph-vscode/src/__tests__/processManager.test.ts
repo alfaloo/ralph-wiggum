@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventEmitter } from 'events';
 
 // vi.hoisted ensures these are initialized before vi.mock() factory calls
 const { mockSpawn, mockKill } = vi.hoisted(() => ({
@@ -7,13 +6,18 @@ const { mockSpawn, mockKill } = vi.hoisted(() => ({
   mockKill: vi.fn(),
 }));
 
-vi.mock('child_process', () => ({
+vi.mock('node-pty', () => ({
   spawn: mockSpawn,
 }));
 
 vi.mock('vscode', () => ({
   window: {
     showInformationMessage: vi.fn().mockResolvedValue(undefined),
+    createOutputChannel: vi.fn().mockReturnValue({
+      appendLine: vi.fn(),
+      show: vi.fn(),
+      dispose: vi.fn(),
+    }),
   },
 }));
 
@@ -21,11 +25,13 @@ vi.mock('vscode', () => ({
 import { RalphProcessManager } from '../processManager';
 
 function createMockChild() {
-  const child = new EventEmitter() as any;
-  child.stdout = new EventEmitter();
-  child.stderr = new EventEmitter();
-  child.stdin = { write: vi.fn() };
-  child.kill = mockKill;
+  const child: any = {
+    pid: 1234,
+    onData: vi.fn(),
+    onExit: vi.fn(),
+    write: vi.fn(),
+    kill: mockKill,
+  };
   return child;
 }
 
