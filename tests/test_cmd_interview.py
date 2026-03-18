@@ -514,7 +514,7 @@ class TestRunInterviewLoop:
         ):
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
-        mock_guided.assert_called_once_with(questions_data)
+        mock_guided.assert_called_once_with(questions_data, ralph_dir=".ralph/test-project")
 
     def test_guided_path_passes_qa_json_to_amend_fn(self):
         """Guided path: make_amend_prompts[i] is called with the qa_json from _collect_guided_answers."""
