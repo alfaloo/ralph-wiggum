@@ -22,6 +22,7 @@ def _args(
     project_name: str = "my-project",
     verbose: str | None = None,
     asynchronous: str | None = None,
+    single: str | None = None,
     limit: int | None = None,
     base: str | None = None,
     resume: bool = False,
@@ -31,6 +32,7 @@ def _args(
         project_name=project_name,
         verbose=verbose,
         asynchronous=asynchronous,
+        single=single,
         limit=limit,
         base=base,
         resume=resume,
@@ -626,3 +628,81 @@ class TestResetIncompleteTasks:
             runner.run_execute_loop(1, resume=False)
 
         mock_reset.assert_not_called()
+
+
+# ===========================================================================
+# Flag: --single true
+# ===========================================================================
+
+
+class TestCmdExecuteSingleFlag:
+    @pytest.fixture(autouse=True)
+    def _mock_tasks_json(self):
+        """Satisfy the tasks.json guard for tests that reach that code path."""
+        with patch("ralph.commands.os.path.exists", return_value=True), \
+             patch("builtins.open", mock_open(read_data=_TASKS_JSON)):
+            yield
+
+    def test_single_true_forwarded_to_run_execute_loop(self):
+        """When --single true is passed, run_execute_loop receives single=True."""
+        mock_runner = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False), \
+             patch("ralph.commands.get_single", return_value=False):
+            cmd_execute(_args(single="true"))
+
+        _, kw = mock_runner.run_execute_loop.call_args
+        assert kw["single"] is True
+
+    def test_single_false_forwarded_to_run_execute_loop(self):
+        """When --single false is passed, run_execute_loop receives single=False."""
+        mock_runner = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False), \
+             patch("ralph.commands.get_single", return_value=True):
+            cmd_execute(_args(single="false"))
+
+        _, kw = mock_runner.run_execute_loop.call_args
+        assert kw["single"] is False
+
+    def test_single_defaults_from_settings(self):
+        """When --single is omitted, the value from get_single() is forwarded."""
+        mock_runner = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False), \
+             patch("ralph.commands.get_single", return_value=True):
+            cmd_execute(_args(single=None))
+
+        _, kw = mock_runner.run_execute_loop.call_args
+        assert kw["single"] is True
+
+    def test_single_and_async_mutual_exclusivity(self):
+        """Passing both --single true and --asynchronous true causes sys.exit(1)."""
+        mock_runner = MagicMock()
+        with patch("ralph.commands._assert_project_exists"), \
+             patch("ralph.commands.subprocess.run", side_effect=[_ok(), _ok(), _ok()]), \
+             patch("ralph.commands.Runner", return_value=mock_runner), \
+             patch("ralph.commands.get_limit", return_value=1), \
+             patch("ralph.commands.get_base", return_value="main"), \
+             patch("ralph.commands.get_verbose", return_value=False), \
+             patch("ralph.commands.get_asynchronous", return_value=False), \
+             patch("ralph.commands.get_single", return_value=False):
+            with pytest.raises(SystemExit) as exc_info:
+                cmd_execute(_args(single="true", asynchronous="true"))
+
+        assert exc_info.value.code == 1
