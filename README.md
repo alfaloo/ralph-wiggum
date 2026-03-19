@@ -78,7 +78,7 @@ Improves the `spec.md` file and regenerates `tasks.json` from it. A Claude agent
 
 ---
 
-### `ralph execute <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL]`
+### `ralph execute <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL] [--single BOOL]`
 
 Implements the project by spawning execute agents iteratively. Each agent picks up the next pending task from `tasks.json`, implements it, commits the changes, and updates the task status.
 
