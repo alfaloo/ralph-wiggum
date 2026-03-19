@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from typing import Callable
 
 from ralph.config import (
@@ -892,6 +893,129 @@ class StatusCommand(Command):
         print()
 
 
+@dataclass
+class _ProviderConfig:
+    binary: str
+    branch_flag: str
+    pr_noun: str        # "pull request" or "merge request"
+    create_sub: list    # e.g. ["pr", "create"] or ["mr", "create"]
+    body_flag: str      # "--body" or "--description"
+    base_flag: str      # "--base" or "--target-branch"
+    cli_url: str
+    check_merge_base: bool
+
+
+_GITHUB = _ProviderConfig(
+    binary="gh",
+    branch_flag="--head",
+    pr_noun="pull request",
+    create_sub=["pr", "create"],
+    body_flag="--body",
+    base_flag="--base",
+    cli_url="https://cli.github.com/",
+    check_merge_base=True,
+)
+
+_GITLAB = _ProviderConfig(
+    binary="glab",
+    branch_flag="--source-branch",
+    pr_noun="merge request",
+    create_sub=["mr", "create"],
+    body_flag="--description",
+    base_flag="--target-branch",
+    cli_url="https://gitlab.com/gitlab-org/cli",
+    check_merge_base=False,
+)
+
+
+def _do_create_pr(cfg: _ProviderConfig, project_name: str) -> None:
+    """Execute the six-step flow to create a PR/MR using the given provider config."""
+    # Check CLI is installed.
+    check = subprocess.run([cfg.binary, "--version"], capture_output=True)
+    if check.returncode != 0:
+        print(
+            f"[ralph] I can't find the '{cfg.binary}' thingy! Please get it from {cfg.cli_url}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check current branch matches project name.
+    branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+    current_branch = branch_result.stdout.strip()
+    if current_branch != project_name:
+        print(
+            f"[ralph] I'm on branch '{current_branch}' but the project is '{project_name}'. "
+            "Please get on the right branch first!",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check working tree is clean.
+    status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    if status_result.stdout:
+        pr_abbr = "PR" if cfg.pr_noun == "pull request" else "MR"
+        print(
+            f"[ralph] There are uncommitted changes in the working tree! Please put them away before making a {pr_abbr}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Detect base branch.
+    base_branch = get_base()
+
+    if cfg.check_merge_base:
+        merge_base_result = subprocess.run(
+            ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
+        )
+        if merge_base_result.returncode != 0:
+            print(
+                f"[ralph] I couldn't figure out where HEAD and '{base_branch}' come together. "
+                "Make sure the base branch exists and shares history with the current branch.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    # Check pr-description.md exists.
+    pr_desc_path = os.path.join(".ralph", project_name, "pr-description.md")
+    if not os.path.exists(pr_desc_path):
+        print(
+            f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
+            "Did you run 'ralph execute' first?",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Push branch to origin.
+    push_result = subprocess.run(
+        ["git", "push", "-u", "origin", project_name], capture_output=True, text=True
+    )
+    if push_result.returncode != 0:
+        print(push_result.stderr, file=sys.stderr)
+        sys.exit(1)
+
+    # Read pr-description.md.
+    with open(pr_desc_path) as f:
+        pr_body = f.read()
+
+    # Create PR/MR non-interactively.
+    result = subprocess.run(
+        [
+            cfg.binary, *cfg.create_sub,
+            "--title", project_name,
+            cfg.body_flag, pr_body,
+            cfg.base_flag, base_branch,
+            cfg.branch_flag, project_name,
+        ],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr, file=sys.stderr)
+        sys.exit(1)
+
+    print(f"[ralph] The {cfg.pr_noun} is all done! You can see it now!")
+    print(result.stdout)
+
+
 class PrCommand(Command):
     """ralph pr — create a pull/merge request for the project."""
 
@@ -904,157 +1028,6 @@ class PrCommand(Command):
         print(f"[ralph] I'm making a pull request for '{args.project_name}'! Exciting!")
 
         if provider == "github":
-            # Check gh CLI is installed.
-            gh_check = subprocess.run(["gh", "--version"], capture_output=True)
-            if gh_check.returncode != 0:
-                print(
-                    "[ralph] I can't find the 'gh' thingy! Please get it from https://cli.github.com/",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check current branch matches project name.
-            branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
-            current_branch = branch_result.stdout.strip()
-            if current_branch != args.project_name:
-                print(
-                    f"[ralph] I'm on branch '{current_branch}' but the project is '{args.project_name}'. "
-                    "Please get on the right branch first!",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check working tree is clean.
-            status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-            if status_result.stdout:
-                print(
-                    "[ralph] There are uncommitted changes in the working tree! Please put them away before making a PR.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Detect base branch.
-            base_branch = get_base()
-            merge_base_result = subprocess.run(
-                ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
-            )
-            if merge_base_result.returncode != 0:
-                print(
-                    f"[ralph] I couldn't figure out where HEAD and '{base_branch}' come together. "
-                    "Make sure the base branch exists and shares history with the current branch.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check pr-description.md exists.
-            pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
-            if not os.path.exists(pr_desc_path):
-                print(
-                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
-                    "Did you run 'ralph execute' first?",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Push branch to origin.
-            push_result = subprocess.run(
-                ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
-            )
-            if push_result.returncode != 0:
-                print(push_result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            # Read pr-description.md.
-            with open(pr_desc_path) as f:
-                pr_body = f.read()
-
-            # Create PR non-interactively.
-            result = subprocess.run(
-                [
-                    "gh", "pr", "create",
-                    "--title", args.project_name,
-                    "--body", pr_body,
-                    "--base", base_branch,
-                    "--head", args.project_name,
-                ],
-                capture_output=True, text=True,
-            )
-            if result.returncode != 0:
-                print(result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            print("[ralph] The pull request is all done! You can see it now!")
-            print(result.stdout)
-
+            _do_create_pr(_GITHUB, args.project_name)
         elif provider == "gitlab":
-            # Check glab CLI is installed.
-            glab_check = subprocess.run(["glab", "--version"], capture_output=True)
-            if glab_check.returncode != 0:
-                print(
-                    "[ralph] I can't find the 'glab' thingy! Please get it from https://gitlab.com/gitlab-org/cli",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check current branch matches project name.
-            branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
-            current_branch = branch_result.stdout.strip()
-            if current_branch != args.project_name:
-                print(
-                    f"[ralph] I'm on branch '{current_branch}' but the project is '{args.project_name}'. "
-                    "Please get on the right branch first!",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check working tree is clean.
-            status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-            if status_result.stdout:
-                print(
-                    "[ralph] There are uncommitted changes in the working tree! Please put them away before making a MR.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Detect base branch.
-            base_branch = get_base()
-
-            # Check pr-description.md exists.
-            pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
-            if not os.path.exists(pr_desc_path):
-                print(
-                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
-                    "Did you run 'ralph execute' first?",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Push branch to origin.
-            push_result = subprocess.run(
-                ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
-            )
-            if push_result.returncode != 0:
-                print(push_result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            # Read pr-description.md.
-            with open(pr_desc_path) as f:
-                pr_body = f.read()
-
-            # Create MR non-interactively.
-            result = subprocess.run(
-                [
-                    "glab", "mr", "create",
-                    "--title", args.project_name,
-                    "--description", pr_body,
-                    "--source-branch", args.project_name,
-                    "--target-branch", base_branch,
-                ],
-                capture_output=True, text=True,
-            )
-            if result.returncode != 0:
-                print(result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            print("[ralph] The merge request is all done! You can see it now!")
-            print(result.stdout)
+            _do_create_pr(_GITLAB, args.project_name)
