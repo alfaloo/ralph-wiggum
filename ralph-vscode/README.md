@@ -19,26 +19,7 @@ The `ralph` CLI must be installed and available on your `PATH`. Verify with:
 ralph --help
 ```
 
-If `ralph` is not found, install it according to the [ralph documentation](https://github.com/anthropics/ralph-wiggum) and ensure the install location is on your `PATH`.
-
-## Installation
-
-### From VSIX (recommended)
-
-1. Build the VSIX package:
-   ```bash
-   cd ralph-vscode
-   npm install
-   npm run package
-   ```
-2. In VS Code, open the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`).
-3. Click the `...` menu → **Install from VSIX...** and select the generated `.vsix` file.
-
-### Development mode (F5)
-
-1. Open the `ralph-vscode/` folder in VS Code.
-2. Run `npm install` to install dependencies.
-3. Press **F5** to launch a new VS Code window with the extension loaded.
+If `ralph` is not found, install it according to the [ralph documentation](https://github.com/alfaloo/ralph-wiggum) and ensure the install location is on your `PATH`.
 
 ## Sidebar
 
