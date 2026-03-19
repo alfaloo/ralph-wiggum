@@ -209,7 +209,7 @@ def _print_validate_summary(project_name: str, json_result: str | None) -> None:
             print(f"[ralph]   {obs_icon} {resolved_str:<12}  {description}")
         print(sep)
 
-    if overall_status in ("requires_attention", "failed") and error_description:
+    if overall_status in ("requires attention", "failed") and error_description:
         print(f"[ralph] What went wrong: {error_description}")
         print(sep)
 

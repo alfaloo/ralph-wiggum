@@ -504,7 +504,7 @@ class TestPrintValidateSummary:
     def test_obstacles_appear_in_output(self, capsys):
         """Obstacle descriptions and resolved status appear in output."""
         _print_validate_summary("my-project", json.dumps({
-            "overall_status": "requires_attention",
+            "overall_status": "requires attention",
             "tasks": [],
             "obstacles": [
                 {"description": "Tests are broken", "resolved": False},
@@ -518,9 +518,9 @@ class TestPrintValidateSummary:
         assert "resolved" in out
 
     def test_error_description_shown_for_requires_attention(self, capsys):
-        """error_description appears in output when status is requires_attention."""
+        """error_description appears in output when status is requires attention."""
         _print_validate_summary("my-project", json.dumps({
-            "overall_status": "requires_attention",
+            "overall_status": "requires attention",
             "tasks": [],
             "obstacles": [],
             "error_description": "Two tests are failing",
