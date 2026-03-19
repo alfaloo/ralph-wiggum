@@ -33,17 +33,27 @@ jobs:
         working-directory: ralph-vscode
         run: npm ci
 
+      - name: Rebuild node-pty for Electron
+        working-directory: ralph-vscode
+        shell: bash
+        env:
+          npm_config_target: "39.3.0"
+          npm_config_runtime: electron
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_build_from_source: "true"
+        run: npm rebuild node-pty
+
       - name: Build
         working-directory: ralph-vscode
         run: node esbuild.js --production
 
       - name: Package
         working-directory: ralph-vscode
-        run: npx vsce package --target ${{ matrix.target }} --no-dependencies
+        run: npx vsce package --target ${{ matrix.target }}
 
       - name: Publish
         working-directory: ralph-vscode
         shell: bash
-        run: npx vsce publish --no-dependencies --packagePath *.vsix || echo "Version already published, skipping."
+        run: npx vsce publish --packagePath *.vsix || echo "Version already published, skipping."
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}

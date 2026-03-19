@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import * as pty from 'node-pty';
 
 const YN_PATTERNS = [
   /already exists\. Overwrite\? \(y\/n\):/,
@@ -62,7 +61,8 @@ function stripAnsi(text: string): string {
 }
 
 export class RalphProcessManager {
-  private processes = new Map<string, pty.IPty>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private processes = new Map<string, any>();
   private workspaceRoot: string;
   private shellPath: string;
   private outputChannel: vscode.OutputChannel;
@@ -82,8 +82,11 @@ export class RalphProcessManager {
     this.outputChannel.appendLine(`\n[ralph ${fullArgs.join(' ')}]`);
     this.outputChannel.show(true); // true = don't steal focus
 
-    let child: pty.IPty;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let child: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+      const pty = require('node-pty') as any;
       child = pty.spawn('ralph', fullArgs, {
         name: 'xterm-256color',
         cols: 120,
@@ -127,7 +130,7 @@ export class RalphProcessManager {
       }
     });
 
-    child.onExit(({ exitCode }) => {
+    child.onExit(({ exitCode }: { exitCode: number }) => {
       this.outputChannel.appendLine(`[exit code: ${exitCode}]`);
       panel.webview.postMessage({ type: 'process_done', exitCode: exitCode ?? null });
       this.processes.delete(projectName);

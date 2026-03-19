@@ -2,7 +2,7 @@
   "name": "ralph-wiggum",
   "displayName": "Ralph Wiggum",
   "description": "GUI wrapper for the ralph CLI",
-  "version": "0.3.7",
+  "version": "3.7.3",
   "engines": {
     "vscode": "^1.109.0"
   },
@@ -68,15 +68,15 @@
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
-    "vitest": "^4.0.18"
-  },
-  "dependencies": {
+    "vitest": "^4.0.18",
     "clsx": "^2.1.1",
     "marked": "^17.0.3",
-    "node-pty": "^1.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0"
+  },
+  "dependencies": {
+    "node-pty": "^1.1.0"
   },
   "publisher": "alfaloo",
   "icon": "media/ralph-wiggum.jpeg",
@@ -84,8 +84,15 @@
     "color": "#1e1e1e",
     "theme": "dark"
   },
-  "categories": ["Other"],
-  "keywords": ["ralph", "ai", "agents", "claude"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ralph",
+    "ai",
+    "agents",
+    "claude"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/alfaloo/ralph-wiggum"
