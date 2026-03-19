@@ -49,6 +49,7 @@ If the `pip install` fails, a possible solution would be to use `pipx install` i
 Initialises a new project. Creates `.ralph/<project-name>/` containing:
 - `spec.md` — a template spec file for you to fill in
 - `tasks.json`, `state.json`, `obstacles.json` — tracking files used by the agents
+- `test-instructions.md` — a human-editable file that tells the validation and execute agents how to run the project's tests
 
 Also creates `.ralph/settings.json` with default values for global flags if it does not already exist.
 
