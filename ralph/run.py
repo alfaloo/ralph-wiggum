@@ -580,7 +580,7 @@ class Runner:
         # Pre-check: skip spawning if all tasks are already completed
         try:
             with open(self._tasks_path) as f:
-                tasks_data = json.loads(f.read())
+                tasks_data = json.load(f)
             if tasks_data.get("tasks") and all(
                 t.get("status") == "completed" for t in tasks_data["tasks"]
             ):
@@ -609,7 +609,7 @@ class Runner:
         # Determine exit reason from tasks.json after agent completes
         try:
             with open(self._tasks_path) as f:
-                tasks_data = json.loads(f.read())
+                tasks_data = json.load(f)
             all_completed = all(
                 t.get("status") == "completed" for t in tasks_data.get("tasks", [])
             )
