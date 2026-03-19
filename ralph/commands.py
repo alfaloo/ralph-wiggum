@@ -84,25 +84,24 @@ def _validate_branch_exists(branch: str) -> None:
         sys.exit(1)
 
 
+def _resolve_bool_flag(value: str | None, getter: Callable[[], bool]) -> bool:
+    """Return the effective bool: CLI flag value if provided, else config getter."""
+    return value == "true" if value is not None else getter()
+
+
 def _resolve_verbose(args: argparse.Namespace) -> bool:
     """Return effective verbose: per-command CLI flag > persisted setting."""
-    if args.verbose is not None:
-        return args.verbose == "true"
-    return get_verbose()
+    return _resolve_bool_flag(getattr(args, "verbose", None), get_verbose)
 
 
 def _resolve_asynchronous(args: argparse.Namespace) -> bool:
     """Return effective asynchronous: per-command CLI flag > persisted setting."""
-    if args.asynchronous is not None:
-        return args.asynchronous == "true"
-    return get_asynchronous()
+    return _resolve_bool_flag(getattr(args, "asynchronous", None), get_asynchronous)
 
 
 def _resolve_single(args: argparse.Namespace) -> bool:
     """Return effective single: per-command CLI flag > persisted setting."""
-    if getattr(args, "single", None) is not None:
-        return args.single == "true"
-    return get_single()
+    return _resolve_bool_flag(getattr(args, "single", None), get_single)
 
 
 def _resolve_provider(args: argparse.Namespace) -> str:
