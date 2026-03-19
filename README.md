@@ -146,6 +146,14 @@ Spawns a single Claude agent to fix small insufficiencies identified by `ralph v
 
 ---
 
+### `ralph status <project-name>`
+
+Displays a snapshot of the current project state without spawning a Claude agent. Shows the active branch, execution mode flags, task status counts (pending/in_progress/completed), outstanding obstacles, and the validation rating (if `validate` has been run).
+
+No flags. No agent invocations.
+
+---
+
 ### Global flags
 
 When used at the top level (before or without a subcommand), these flags persist their values to `.ralph/settings.json`:
