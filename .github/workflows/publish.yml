@@ -37,10 +37,10 @@ jobs:
         working-directory: ralph-vscode
         shell: bash
         env:
-          npm_config_target: "22.22.1"
+          npm_config_target: "39.3.0"
           npm_config_runtime: electron
           npm_config_disturl: https://electronjs.org/headers
-          npm_config_build_from_source: "false"
+          npm_config_build_from_source: "true"
         run: npm rebuild node-pty
 
       - name: Build
