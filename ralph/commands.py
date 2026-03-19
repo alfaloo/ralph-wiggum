@@ -627,6 +627,12 @@ class UndoCommand(Command):
             print(f"[ralph] Oops, I couldn't reset '{tasks_path}': {e}", file=sys.stderr)
             sys.exit(1)
 
+        # Delete artifact files if they exist (test-instructions.md is user-edited and must survive).
+        for artifact in ("validation.md", "summary.md", "pr-description.md"):
+            artifact_path = os.path.join(ralph_dir, artifact)
+            if os.path.exists(artifact_path):
+                os.unlink(artifact_path)
+
         print(f"[ralph] Yay! Undo is all done! Project '{args.project_name}' is all cleaned up and ready to start fresh!")
 
 

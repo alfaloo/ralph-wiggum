@@ -156,7 +156,8 @@ class TestCmdUndoRatingFailed:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args(force=False))  # Should not raise
 
     def test_git_checkout_called_with_base_branch(self):
@@ -176,7 +177,8 @@ class TestCmdUndoRatingFailed:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         assert ["git", "checkout", "main"] in checkout_calls
@@ -198,7 +200,8 @@ class TestCmdUndoRatingFailed:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         assert ["git", "branch", "-D", "my-project"] in delete_calls
@@ -213,7 +216,8 @@ class TestCmdUndoRatingFailed:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y") as mock_input, \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         mock_input.assert_called_once()
@@ -270,7 +274,8 @@ class TestCmdUndoRatingNotFailed_Force:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args(force=True))  # Should not raise
 
     def test_proceeds_when_rating_is_requires_attention_with_force(self):
@@ -283,7 +288,8 @@ class TestCmdUndoRatingNotFailed_Force:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args(force=True))  # Should not raise
 
 
@@ -328,7 +334,8 @@ class TestCmdUndoRatingNotFound_Force:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args(force=True))  # Should not raise
 
 
@@ -386,7 +393,8 @@ class TestCmdUndoBaseBranchNotSet:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         mock_set_base.assert_called_once_with("main")
@@ -408,7 +416,8 @@ class TestCmdUndoBaseBranchNotSet:
              patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         assert ["git", "checkout", "main"] in checkout_calls
@@ -527,7 +536,8 @@ class TestCmdUndoUserConfirmationYes:
              patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         assert ["git", "branch", "-D", "my-project"] in delete_calls
@@ -542,7 +552,8 @@ class TestCmdUndoUserConfirmationYes:
              patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
              patch("builtins.input", return_value="YES"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())  # Should not raise
 
 
@@ -608,7 +619,8 @@ class TestCmdUndoMissingJsonFiles:
              patch("ralph.commands.get_base", return_value="main"), \
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
-             patch("ralph.commands.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.dump", side_effect=capture_dump), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         assert [] in json_dump_calls
@@ -637,7 +649,8 @@ class TestCmdUndoHappyPath:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.dump", side_effect=capture_dump), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         assert [] in json_dump_calls
@@ -657,7 +670,8 @@ class TestCmdUndoHappyPath:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.dump", side_effect=capture_dump), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         assert {"obstacles": []} in json_dump_calls
@@ -677,7 +691,8 @@ class TestCmdUndoHappyPath:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.dump", side_effect=capture_dump), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         tasks_writes = [c for c in json_dump_calls if isinstance(c, dict) and "tasks" in c]
@@ -702,7 +717,8 @@ class TestCmdUndoHappyPath:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump", side_effect=capture_dump):
+             patch("ralph.commands.json.dump", side_effect=capture_dump), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args())
 
         tasks_writes = [c for c in json_dump_calls if isinstance(c, dict) and "tasks" in c]
@@ -726,7 +742,8 @@ class TestCmdUndoHappyPath:
              patch("ralph.commands.set_base"), \
              patch("builtins.input", return_value="y"), \
              patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"):
+             patch("ralph.commands.json.dump"), \
+             patch("ralph.commands.os.unlink"):
             cmd_undo(_make_args(project_name="my-project"))
 
         mock_assert.assert_called_once_with("my-project")
