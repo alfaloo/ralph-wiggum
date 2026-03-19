@@ -1,0 +1,48 @@
+name: Publish VSCode Extension
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+          - os: macos-13
+            target: darwin-x64
+          - os: windows-latest
+            target: win32-x64
+          - os: ubuntu-latest
+            target: linux-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ralph-vscode
+        run: npm ci
+
+      - name: Build
+        working-directory: ralph-vscode
+        run: node esbuild.js --production
+
+      - name: Package
+        working-directory: ralph-vscode
+        run: npx vsce package --target ${{ matrix.target }} --no-dependencies
+
+      - name: Publish
+        working-directory: ralph-vscode
+        run: npx vsce publish --target ${{ matrix.target }} --no-dependencies --packagePath *.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

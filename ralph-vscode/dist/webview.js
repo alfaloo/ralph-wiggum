@@ -24779,6 +24779,7 @@
       base: settingStr(settings, "--base"),
       resume: false,
       asynchronous: settingBool(settings, "--asynchronous"),
+      single: settingBool(settings, "--single"),
       force: false,
       provider: settingStr(settings, "--provider") || "github"
     };
@@ -24794,11 +24795,13 @@
     label,
     checked,
     onChange,
-    className = ""
+    className = "",
+    disabled
   }) {
-    return /* @__PURE__ */ React3.createElement("label", { className: cn("flex items-center gap-2 cursor-pointer text-base select-none", className) }, /* @__PURE__ */ React3.createElement("input", { type: "checkbox", checked, onChange: (e) => onChange(e.target.checked), className: "w-3.5 h-3.5" }), /* @__PURE__ */ React3.createElement("span", { className: "mb-0.5" }, label));
+    return /* @__PURE__ */ React3.createElement("label", { className: cn("flex items-center gap-2 cursor-pointer text-base select-none", className) }, /* @__PURE__ */ React3.createElement("input", { type: "checkbox", checked, onChange: (e) => onChange(e.target.checked), className: "w-3.5 h-3.5", disabled }), /* @__PURE__ */ React3.createElement("span", { className: "mb-0.5" }, label));
   }
   function CommandDialog({ command, settings, onClose, onRun }) {
+    const vscode2 = (0, import_react.useContext)(VscodeContext);
     const [rounds, setRounds] = (0, import_react.useState)(1);
     const [verbose, setVerbose] = (0, import_react.useState)(false);
     const [commentText, setCommentText] = (0, import_react.useState)("");
@@ -24806,6 +24809,7 @@
     const [base, setBase] = (0, import_react.useState)("");
     const [resume, setResume] = (0, import_react.useState)(false);
     const [asynchronous, setAsynchronous] = (0, import_react.useState)(false);
+    const [single, setSingle] = (0, import_react.useState)(false);
     const [force, setForce] = (0, import_react.useState)(false);
     const [provider, setProvider] = (0, import_react.useState)("github");
     const setRoundsRef = React3.useRef(setRounds);
@@ -24815,6 +24819,7 @@
     const setBaseRef = React3.useRef(setBase);
     const setResumeRef = React3.useRef(setResume);
     const setAsynchronousRef = React3.useRef(setAsynchronous);
+    const setSingleRef = React3.useRef(setSingle);
     const setForceRef = React3.useRef(setForce);
     const setProviderRef = React3.useRef(setProvider);
     (0, import_react.useEffect)(() => {
@@ -24827,11 +24832,16 @@
       setBaseRef.current(s.base);
       setResumeRef.current(false);
       setAsynchronousRef.current(s.asynchronous);
+      setSingleRef.current(s.single);
       setForceRef.current(false);
       setProviderRef.current(s.provider);
     }, [command, settings]);
     const handleRun = () => {
       if (!command) return;
+      if (single && asynchronous) {
+        vscode2.postMessage({ type: "show_error", message: "--single and --asynchronous cannot both be true." });
+        return;
+      }
       const args = [];
       switch (command) {
         case "interview":
@@ -24851,6 +24861,7 @@
           args.push("--verbose", String(verbose));
           if (resume) args.push("--resume");
           args.push("--asynchronous", String(asynchronous));
+          args.push("--single", String(single));
           break;
         case "validate":
           args.push("--verbose", String(verbose));
@@ -24868,6 +24879,7 @@
           args.push("--verbose", String(verbose));
           if (resume) args.push("--resume");
           args.push("--asynchronous", String(asynchronous));
+          args.push("--single", String(single));
           args.push("--provider", provider);
           break;
         case "pr":
@@ -24914,7 +24926,13 @@
               placeholder: "main",
               onChange: (e) => setBase(e.target.value)
             }
-          ), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)")), /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-4" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--resume", checked: resume, onChange: setResume }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--asynchronous", checked: asynchronous, onChange: setAsynchronous })));
+          ), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)")), /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-4" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--resume", checked: resume, onChange: setResume }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--asynchronous", checked: asynchronous, disabled: single, onChange: (checked) => {
+            setAsynchronous(checked);
+            if (checked) setSingle(false);
+          } }), /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "Single-agent mode", checked: single, disabled: asynchronous, onChange: (checked) => {
+            setSingle(checked);
+            if (checked) setAsynchronous(false);
+          } }), /* @__PURE__ */ React3.createElement("p", { className: "flag-description" }, "Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode."))));
         case "validate":
           return /* @__PURE__ */ React3.createElement("div", { className: "w-96" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }));
         case "undo":
@@ -24941,7 +24959,13 @@
               className: "w-full",
               onChange: (e) => setBase(e.target.value)
             }
-          ), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)")), /* @__PURE__ */ React3.createElement(Field, { label: "Repository provider", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement("select", { value: provider, onChange: (e) => setProvider(e.target.value), className: "w-full" }, /* @__PURE__ */ React3.createElement("option", { value: "github" }, "github"), /* @__PURE__ */ React3.createElement("option", { value: "gitlab" }, "gitlab")), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Provider to use for this invocation only (github/gitlab)")), /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-4" }, /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--resume", checked: resume, onChange: setResume }), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Allow the agent to resume execution from an existing branch")), /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--asynchronous", checked: asynchronous, onChange: setAsynchronous }), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Enable/disable asynchronous agent execution for this invocation only")), /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose })));
+          ), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)")), /* @__PURE__ */ React3.createElement(Field, { label: "Repository provider", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement("select", { value: provider, onChange: (e) => setProvider(e.target.value), className: "w-full" }, /* @__PURE__ */ React3.createElement("option", { value: "github" }, "github"), /* @__PURE__ */ React3.createElement("option", { value: "gitlab" }, "gitlab")), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Provider to use for this invocation only (github/gitlab)")), /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-4" }, /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--resume", checked: resume, onChange: setResume }), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Allow the agent to resume execution from an existing branch")), /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--asynchronous", checked: asynchronous, disabled: single, onChange: (checked) => {
+            setAsynchronous(checked);
+            if (checked) setSingle(false);
+          } }), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Enable/disable asynchronous agent execution for this invocation only")), /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "Single-agent mode", checked: single, disabled: asynchronous, onChange: (checked) => {
+            setSingle(checked);
+            if (checked) setAsynchronous(false);
+          } }), /* @__PURE__ */ React3.createElement("p", { className: "flag-description" }, "Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode.")), /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose })));
         case "pr":
           return /* @__PURE__ */ React3.createElement(Field, { label: "Repository provider", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement("select", { value: provider, onChange: (e) => setProvider(e.target.value), className: "w-full" }, /* @__PURE__ */ React3.createElement("option", { value: "github" }, "github"), /* @__PURE__ */ React3.createElement("option", { value: "gitlab" }, "gitlab")), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Provider to use for this invocation only (github/gitlab)"));
         default:
@@ -25063,7 +25087,7 @@
     return { async: false, breaks: false, extensions: null, gfm: true, hooks: null, pedantic: false, renderer: null, silent: false, tokenizer: null, walkTokens: null };
   }
   var T = M();
-  function H(u3) {
+  function G(u3) {
     T = u3;
   }
   var _ = { exec: () => null };
@@ -25081,11 +25105,11 @@
       return false;
     }
   })();
-  var m = { codeRemoveIndent: /^(?: {1,4}| {0,3}\t)/gm, outputLinkReplace: /\\([\[\]])/g, indentCodeCompensation: /^(\s+)(?:```)/, beginningSpace: /^\s+/, endingHash: /#$/, startingSpaceChar: /^ /, endingSpaceChar: / $/, nonSpaceChar: /[^ ]/, newLineCharGlobal: /\n/g, tabCharGlobal: /\t/g, multipleSpaceGlobal: /\s+/g, blankLine: /^[ \t]*$/, doubleBlankLine: /\n[ \t]*\n[ \t]*$/, blockquoteStart: /^ {0,3}>/, blockquoteSetextReplace: /\n {0,3}((?:=+|-+) *)(?=\n|$)/g, blockquoteSetextReplace2: /^ {0,3}>[ \t]?/gm, listReplaceNesting: /^ {1,4}(?=( {4})*[^ ])/g, listIsTask: /^\[[ xX]\] +\S/, listReplaceTask: /^\[[ xX]\] +/, listTaskCheckbox: /\[[ xX]\]/, anyLine: /\n.*\n/, hrefBrackets: /^<(.*)>$/, tableDelimiter: /[:|]/, tableAlignChars: /^\||\| *$/g, tableRowBlankLine: /\n[ \t]*$/, tableAlignRight: /^ *-+: *$/, tableAlignCenter: /^ *:-+: *$/, tableAlignLeft: /^ *:-+ *$/, startATag: /^<a /i, endATag: /^<\/a>/i, startPreScriptTag: /^<(pre|code|kbd|script)(\s|>)/i, endPreScriptTag: /^<\/(pre|code|kbd|script)(\s|>)/i, startAngleBracket: /^</, endAngleBracket: />$/, pedanticHrefTitle: /^([^'"]*[^\s])\s+(['"])(.*)\2/, unicodeAlphaNumeric: /[\p{L}\p{N}]/u, escapeTest: /[&<>"']/, escapeReplace: /[&<>"']/g, escapeTestNoEncode: /[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/, escapeReplaceNoEncode: /[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/g, unescapeTest: /&(#(?:\d+)|(?:#x[0-9A-Fa-f]+)|(?:\w+));?/ig, caret: /(^|[^\[])\^/g, percentDecode: /%25/g, findPipe: /\|/g, splitPipe: / \|/, slashPipe: /\\\|/g, carriageReturn: /\r\n|\r/g, spaceLine: /^ +$/gm, notSpaceStart: /^\S*/, endingNewline: /\n$/, listItemRegex: (u3) => new RegExp(`^( {0,3}${u3})((?:[	 ][^\\n]*)?(?:\\n|$))`), nextBulletRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}(?:[*+-]|\\d{1,9}[.)])((?:[ 	][^\\n]*)?(?:\\n|$))`), hrRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)`), fencesBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}(?:\`\`\`|~~~)`), headingBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}#`), htmlBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}<(?:[a-z].*>|!--)`, "i"), blockquoteBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}>`) };
+  var m = { codeRemoveIndent: /^(?: {1,4}| {0,3}\t)/gm, outputLinkReplace: /\\([\[\]])/g, indentCodeCompensation: /^(\s+)(?:```)/, beginningSpace: /^\s+/, endingHash: /#$/, startingSpaceChar: /^ /, endingSpaceChar: / $/, nonSpaceChar: /[^ ]/, newLineCharGlobal: /\n/g, tabCharGlobal: /\t/g, multipleSpaceGlobal: /\s+/g, blankLine: /^[ \t]*$/, doubleBlankLine: /\n[ \t]*\n[ \t]*$/, blockquoteStart: /^ {0,3}>/, blockquoteSetextReplace: /\n {0,3}((?:=+|-+) *)(?=\n|$)/g, blockquoteSetextReplace2: /^ {0,3}>[ \t]?/gm, listReplaceNesting: /^ {1,4}(?=( {4})*[^ ])/g, listIsTask: /^\[[ xX]\] +\S/, listReplaceTask: /^\[[ xX]\] +/, listTaskCheckbox: /\[[ xX]\]/, anyLine: /\n.*\n/, hrefBrackets: /^<(.*)>$/, tableDelimiter: /[:|]/, tableAlignChars: /^\||\| *$/g, tableRowBlankLine: /\n[ \t]*$/, tableAlignRight: /^ *-+: *$/, tableAlignCenter: /^ *:-+: *$/, tableAlignLeft: /^ *:-+ *$/, startATag: /^<a /i, endATag: /^<\/a>/i, startPreScriptTag: /^<(pre|code|kbd|script)(\s|>)/i, endPreScriptTag: /^<\/(pre|code|kbd|script)(\s|>)/i, startAngleBracket: /^</, endAngleBracket: />$/, pedanticHrefTitle: /^([^'"]*[^\s])\s+(['"])(.*)\2/, unicodeAlphaNumeric: /[\p{L}\p{N}]/u, escapeTest: /[&<>"']/, escapeReplace: /[&<>"']/g, escapeTestNoEncode: /[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/, escapeReplaceNoEncode: /[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/g, caret: /(^|[^\[])\^/g, percentDecode: /%25/g, findPipe: /\|/g, splitPipe: / \|/, slashPipe: /\\\|/g, carriageReturn: /\r\n|\r/g, spaceLine: /^ +$/gm, notSpaceStart: /^\S*/, endingNewline: /\n$/, listItemRegex: (u3) => new RegExp(`^( {0,3}${u3})((?:[	 ][^\\n]*)?(?:\\n|$))`), nextBulletRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}(?:[*+-]|\\d{1,9}[.)])((?:[ 	][^\\n]*)?(?:\\n|$))`), hrRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)`), fencesBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}(?:\`\`\`|~~~)`), headingBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}#`), htmlBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}<(?:[a-z].*>|!--)`, "i"), blockquoteBeginRegex: (u3) => new RegExp(`^ {0,${Math.min(3, u3 - 1)}}>`) };
   var Te = /^(?:[ \t]*(?:\n|$))+/;
   var Oe = /^((?: {4}| {0,3}\t)[^\n]+(?:\n(?:[ \t]*(?:\n|$))*)?)+/;
   var we = /^ {0,3}(`{3,}(?=[^`\n]*(?:\n|$))|~{3,})([^\n]*)(?:\n|$)(?:|([\s\S]*?)(?:\n|$))(?: {0,3}\1[~`]* *(?=\n|$)|$)/;
-  var I = /^ {0,3}((?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/;
+  var A = /^ {0,3}((?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/;
   var ye = /^ {0,3}(#{1,6})(?=\s|$)(.*)(?:\n+|$)/;
   var N = / {0,3}(?:[*+-]|\d{1,9}[.)])/;
   var re = /^(?!bull |blockCode|fences|blockquote|heading|html|table)((?:.|\n(?!\s*?\n|bull |blockCode|fences|blockquote|heading|html|table))+?)\n {0,3}(=+|-+) *(?:\n+|$)/;
@@ -25093,23 +25117,23 @@
   var Pe = k(re).replace(/bull/g, N).replace(/blockCode/g, /(?: {4}| {0,3}\t)/).replace(/fences/g, / {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g, / {0,3}>/).replace(/heading/g, / {0,3}#{1,6}/).replace(/html/g, / {0,3}<[^\n>]+>\n/).replace(/table/g, / {0,3}\|?(?:[:\- ]*\|)+[\:\- ]*\n/).getRegex();
   var Q = /^([^\n]+(?:\n(?!hr|heading|lheading|blockquote|fences|list|html|table| +\n)[^\n]+)*)/;
   var Se = /^[^\n]+/;
-  var F = /(?!\s*\])(?:\\[\s\S]|[^\[\]\\])+/;
-  var $e = k(/^ {0,3}\[(label)\]: *(?:\n[ \t]*)?([^<\s][^\s]*|<.*?>)(?:(?: +(?:\n[ \t]*)?| *\n[ \t]*)(title))? *(?:\n+|$)/).replace("label", F).replace("title", /(?:"(?:\\"?|[^"\\])*"|'[^'\n]*(?:\n[^'\n]+)*\n?'|\([^()]*\))/).getRegex();
+  var j = /(?!\s*\])(?:\\[\s\S]|[^\[\]\\])+/;
+  var $e = k(/^ {0,3}\[(label)\]: *(?:\n[ \t]*)?([^<\s][^\s]*|<.*?>)(?:(?: +(?:\n[ \t]*)?| *\n[ \t]*)(title))? *(?:\n+|$)/).replace("label", j).replace("title", /(?:"(?:\\"?|[^"\\])*"|'[^'\n]*(?:\n[^'\n]+)*\n?'|\([^()]*\))/).getRegex();
   var _e = k(/^(bull)([ \t][^\n]+?)?(?:\n|$)/).replace(/bull/g, N).getRegex();
   var q = "address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul";
-  var j = /<!--(?:-?>|[\s\S]*?(?:-->|$))/;
-  var Le = k("^ {0,3}(?:<(script|pre|style|textarea)[\\s>][\\s\\S]*?(?:</\\1>[^\\n]*\\n+|$)|comment[^\\n]*(\\n+|$)|<\\?[\\s\\S]*?(?:\\?>\\n*|$)|<![A-Z][\\s\\S]*?(?:>\\n*|$)|<!\\[CDATA\\[[\\s\\S]*?(?:\\]\\]>\\n*|$)|</?(tag)(?: +|\\n|/?>)[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|<(?!script|pre|style|textarea)([a-z][\\w-]*)(?:attribute)*? */?>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|</(?!script|pre|style|textarea)[a-z][\\w-]*\\s*>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$))", "i").replace("comment", j).replace("tag", q).replace("attribute", / +[a-zA-Z:_][\w.:-]*(?: *= *"[^"\n]*"| *= *'[^'\n]*'| *= *[^\s"'=<>`]+)?/).getRegex();
-  var ie = k(Q).replace("hr", I).replace("heading", " {0,3}#{1,6}(?:\\s|$)").replace("|lheading", "").replace("|table", "").replace("blockquote", " {0,3}>").replace("fences", " {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list", " {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html", "</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag", q).getRegex();
+  var F = /<!--(?:-?>|[\s\S]*?(?:-->|$))/;
+  var Le = k("^ {0,3}(?:<(script|pre|style|textarea)[\\s>][\\s\\S]*?(?:</\\1>[^\\n]*\\n+|$)|comment[^\\n]*(\\n+|$)|<\\?[\\s\\S]*?(?:\\?>\\n*|$)|<![A-Z][\\s\\S]*?(?:>\\n*|$)|<!\\[CDATA\\[[\\s\\S]*?(?:\\]\\]>\\n*|$)|</?(tag)(?: +|\\n|/?>)[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|<(?!script|pre|style|textarea)([a-z][\\w-]*)(?:attribute)*? */?>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|</(?!script|pre|style|textarea)[a-z][\\w-]*\\s*>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$))", "i").replace("comment", F).replace("tag", q).replace("attribute", / +[a-zA-Z:_][\w.:-]*(?: *= *"[^"\n]*"| *= *'[^'\n]*'| *= *[^\s"'=<>`]+)?/).getRegex();
+  var ie = k(Q).replace("hr", A).replace("heading", " {0,3}#{1,6}(?:\\s|$)").replace("|lheading", "").replace("|table", "").replace("blockquote", " {0,3}>").replace("fences", " {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list", " {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html", "</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag", q).getRegex();
   var Me = k(/^( {0,3}> ?(paragraph|[^\n]*)(?:\n|$))+/).replace("paragraph", ie).getRegex();
-  var U = { blockquote: Me, code: Oe, def: $e, fences: we, heading: ye, hr: I, html: Le, lheading: se, list: _e, newline: Te, paragraph: ie, table: _, text: Se };
-  var te = k("^ *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n|hr|heading|blockquote|code|fences|list|html).*(?:\\n|$))*)\\n*|$)").replace("hr", I).replace("heading", " {0,3}#{1,6}(?:\\s|$)").replace("blockquote", " {0,3}>").replace("code", "(?: {4}| {0,3}	)[^\\n]").replace("fences", " {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list", " {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html", "</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag", q).getRegex();
-  var ze = { ...U, lheading: Pe, table: te, paragraph: k(Q).replace("hr", I).replace("heading", " {0,3}#{1,6}(?:\\s|$)").replace("|lheading", "").replace("table", te).replace("blockquote", " {0,3}>").replace("fences", " {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list", " {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html", "</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag", q).getRegex() };
-  var Ce = { ...U, html: k(`^ *(?:comment *(?:\\n|\\s*$)|<(tag)[\\s\\S]+?</\\1> *(?:\\n{2,}|\\s*$)|<tag(?:"[^"]*"|'[^']*'|\\s[^'"/>\\s]*)*?/?> *(?:\\n{2,}|\\s*$))`).replace("comment", j).replace(/tag/g, "(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b").getRegex(), def: /^ *\[([^\]]+)\]: *<?([^\s>]+)>?(?: +(["(][^\n]+[")]))? *(?:\n+|$)/, heading: /^(#{1,6})(.*)(?:\n+|$)/, fences: _, lheading: /^(.+?)\n {0,3}(=+|-+) *(?:\n+|$)/, paragraph: k(Q).replace("hr", I).replace("heading", ` *#{1,6} *[^
+  var U = { blockquote: Me, code: Oe, def: $e, fences: we, heading: ye, hr: A, html: Le, lheading: se, list: _e, newline: Te, paragraph: ie, table: _, text: Se };
+  var te = k("^ *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n|hr|heading|blockquote|code|fences|list|html).*(?:\\n|$))*)\\n*|$)").replace("hr", A).replace("heading", " {0,3}#{1,6}(?:\\s|$)").replace("blockquote", " {0,3}>").replace("code", "(?: {4}| {0,3}	)[^\\n]").replace("fences", " {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list", " {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html", "</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag", q).getRegex();
+  var ze = { ...U, lheading: Pe, table: te, paragraph: k(Q).replace("hr", A).replace("heading", " {0,3}#{1,6}(?:\\s|$)").replace("|lheading", "").replace("table", te).replace("blockquote", " {0,3}>").replace("fences", " {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list", " {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html", "</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag", q).getRegex() };
+  var Ee = { ...U, html: k(`^ *(?:comment *(?:\\n|\\s*$)|<(tag)[\\s\\S]+?</\\1> *(?:\\n{2,}|\\s*$)|<tag(?:"[^"]*"|'[^']*'|\\s[^'"/>\\s]*)*?/?> *(?:\\n{2,}|\\s*$))`).replace("comment", F).replace(/tag/g, "(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b").getRegex(), def: /^ *\[([^\]]+)\]: *<?([^\s>]+)>?(?: +(["(][^\n]+[")]))? *(?:\n+|$)/, heading: /^(#{1,6})(.*)(?:\n+|$)/, fences: _, lheading: /^(.+?)\n {0,3}(=+|-+) *(?:\n+|$)/, paragraph: k(Q).replace("hr", A).replace("heading", ` *#{1,6} *[^
 ]`).replace("lheading", se).replace("|table", "").replace("blockquote", " {0,3}>").replace("|fences", "").replace("|list", "").replace("|html", "").replace("|tag", "").getRegex() };
-  var Ae = /^\\([!"#$%&'()*+,\-./:;<=>?@\[\]\\^_`{|}~])/;
-  var Ie = /^(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/;
+  var Ie = /^\\([!"#$%&'()*+,\-./:;<=>?@\[\]\\^_`{|}~])/;
+  var Ae = /^(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/;
   var oe = /^( {2,}|\\)\n(?!\s*$)/;
-  var Ee = /^(`+|[^`])(?:(?= {2,}\n)|[\s\S]*?(?:(?=[\\<!\[`*_]|\b_|$)|[^ ](?= {2,}\n)))/;
+  var Ce = /^(`+|[^`])(?:(?= {2,}\n)|[\s\S]*?(?:(?=[\\<!\[`*_]|\b_|$)|[^ ](?= {2,}\n)))/;
   var v = /[\p{P}\p{S}]/u;
   var K = /[\s\p{P}\p{S}]/u;
   var ae = /[^\s\p{P}\p{S}]/u;
@@ -25119,33 +25143,33 @@
   var qe = /(?:[^\s\p{P}\p{S}]|~)/u;
   var ue = /(?![*_])[\p{P}\p{S}]/u;
   var ve = /(?![*_])[\s\p{P}\p{S}]/u;
-  var Ge = /(?:[^\s\p{P}\p{S}]|[*_])/u;
-  var He = k(/link|precode-code|html/, "g").replace("link", /\[(?:[^\[\]`]|(?<a>`+)[^`]+\k<a>(?!`))*?\]\((?:\\[\s\S]|[^\\\(\)]|\((?:\\[\s\S]|[^\\\(\)])*\))*\)/).replace("precode-", Re ? "(?<!`)()" : "(^^|[^`])").replace("code", /(?<b>`+)[^`]+\k<b>(?!`)/).replace("html", /<(?! )[^<>]*?>/).getRegex();
+  var He = /(?:[^\s\p{P}\p{S}]|[*_])/u;
+  var Ge = k(/link|precode-code|html/, "g").replace("link", /\[(?:[^\[\]`]|(?<a>`+)[^`]+\k<a>(?!`))*?\]\((?:\\[\s\S]|[^\\\(\)]|\((?:\\[\s\S]|[^\\\(\)])*\))*\)/).replace("precode-", Re ? "(?<!`)()" : "(^^|[^`])").replace("code", /(?<b>`+)[^`]+\k<b>(?!`)/).replace("html", /<(?! )[^<>]*?>/).getRegex();
   var pe = /^(?:\*+(?:((?!\*)punct)|[^\s*]))|^_+(?:((?!_)punct)|([^\s_]))/;
   var Ze = k(pe, "u").replace(/punct/g, v).getRegex();
   var Ne = k(pe, "u").replace(/punct/g, le).getRegex();
   var ce = "^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)punct(\\*+)(?=[\\s]|$)|notPunctSpace(\\*+)(?!\\*)(?=punctSpace|$)|(?!\\*)punctSpace(\\*+)(?=notPunctSpace)|[\\s](\\*+)(?!\\*)(?=punct)|(?!\\*)punct(\\*+)(?!\\*)(?=punct)|notPunctSpace(\\*+)(?=notPunctSpace)";
   var Qe = k(ce, "gu").replace(/notPunctSpace/g, ae).replace(/punctSpace/g, K).replace(/punct/g, v).getRegex();
-  var Fe = k(ce, "gu").replace(/notPunctSpace/g, qe).replace(/punctSpace/g, De).replace(/punct/g, le).getRegex();
-  var je = k("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)punct(_+)(?=[\\s]|$)|notPunctSpace(_+)(?!_)(?=punctSpace|$)|(?!_)punctSpace(_+)(?=notPunctSpace)|[\\s](_+)(?!_)(?=punct)|(?!_)punct(_+)(?!_)(?=punct)", "gu").replace(/notPunctSpace/g, ae).replace(/punctSpace/g, K).replace(/punct/g, v).getRegex();
+  var je = k(ce, "gu").replace(/notPunctSpace/g, qe).replace(/punctSpace/g, De).replace(/punct/g, le).getRegex();
+  var Fe = k("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)punct(_+)(?=[\\s]|$)|notPunctSpace(_+)(?!_)(?=punctSpace|$)|(?!_)punctSpace(_+)(?=notPunctSpace)|[\\s](_+)(?!_)(?=punct)|(?!_)punct(_+)(?!_)(?=punct)", "gu").replace(/notPunctSpace/g, ae).replace(/punctSpace/g, K).replace(/punct/g, v).getRegex();
   var Ue = k(/^~~?(?:((?!~)punct)|[^\s~])/, "u").replace(/punct/g, ue).getRegex();
   var Ke = "^[^~]+(?=[^~])|(?!~)punct(~~?)(?=[\\s]|$)|notPunctSpace(~~?)(?!~)(?=punctSpace|$)|(?!~)punctSpace(~~?)(?=notPunctSpace)|[\\s](~~?)(?!~)(?=punct)|(?!~)punct(~~?)(?!~)(?=punct)|notPunctSpace(~~?)(?=notPunctSpace)";
-  var We = k(Ke, "gu").replace(/notPunctSpace/g, Ge).replace(/punctSpace/g, ve).replace(/punct/g, ue).getRegex();
+  var We = k(Ke, "gu").replace(/notPunctSpace/g, He).replace(/punctSpace/g, ve).replace(/punct/g, ue).getRegex();
   var Xe = k(/\\(punct)/, "gu").replace(/punct/g, v).getRegex();
   var Je = k(/^<(scheme:[^\s\x00-\x1f<>]*|email)>/).replace("scheme", /[a-zA-Z][a-zA-Z0-9+.-]{1,31}/).replace("email", /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_])/).getRegex();
-  var Ve = k(j).replace("(?:-->|$)", "-->").getRegex();
+  var Ve = k(F).replace("(?:-->|$)", "-->").getRegex();
   var Ye = k("^comment|^</[a-zA-Z][\\w:-]*\\s*>|^<[a-zA-Z][\\w-]*(?:attribute)*?\\s*/?>|^<\\?[\\s\\S]*?\\?>|^<![a-zA-Z]+\\s[\\s\\S]*?>|^<!\\[CDATA\\[[\\s\\S]*?\\]\\]>").replace("comment", Ve).replace("attribute", /\s+[a-zA-Z:_][\w.:-]*(?:\s*=\s*"[^"]*"|\s*=\s*'[^']*'|\s*=\s*[^\s"'=<>`]+)?/).getRegex();
   var D = /(?:\[(?:\\[\s\S]|[^\[\]\\])*\]|\\[\s\S]|`+[^`]*?`+(?!`)|[^\[\]\\`])*?/;
-  var et = k(/^!?\[(label)\]\(\s*(href)(?:(?:[ \t]*(?:\n[ \t]*)?)(title))?\s*\)/).replace("label", D).replace("href", /<(?:\\.|[^\n<>\\])+>|[^ \t\n\x00-\x1f]*/).replace("title", /"(?:\\"?|[^"\\])*"|'(?:\\'?|[^'\\])*'|\((?:\\\)?|[^)\\])*\)/).getRegex();
-  var he = k(/^!?\[(label)\]\[(ref)\]/).replace("label", D).replace("ref", F).getRegex();
-  var ke = k(/^!?\[(ref)\](?:\[\])?/).replace("ref", F).getRegex();
+  var et = k(/^!?\[(label)\]\(\s*(href)(?:(?:[ \t]+(?:\n[ \t]*)?|\n[ \t]*)(title))?\s*\)/).replace("label", D).replace("href", /<(?:\\.|[^\n<>\\])+>|[^ \t\n\x00-\x1f]*/).replace("title", /"(?:\\"?|[^"\\])*"|'(?:\\'?|[^'\\])*'|\((?:\\\)?|[^)\\])*\)/).getRegex();
+  var he = k(/^!?\[(label)\]\[(ref)\]/).replace("label", D).replace("ref", j).getRegex();
+  var ke = k(/^!?\[(ref)\](?:\[\])?/).replace("ref", j).getRegex();
   var tt = k("reflink|nolink(?!\\()", "g").replace("reflink", he).replace("nolink", ke).getRegex();
   var ne = /[hH][tT][tT][pP][sS]?|[fF][tT][pP]/;
-  var W = { _backpedal: _, anyPunctuation: Xe, autolink: Je, blockSkip: He, br: oe, code: Ie, del: _, delLDelim: _, delRDelim: _, emStrongLDelim: Ze, emStrongRDelimAst: Qe, emStrongRDelimUnd: je, escape: Ae, link: et, nolink: ke, punctuation: Be, reflink: he, reflinkSearch: tt, tag: Ye, text: Ee, url: _ };
+  var W = { _backpedal: _, anyPunctuation: Xe, autolink: Je, blockSkip: Ge, br: oe, code: Ae, del: _, delLDelim: _, delRDelim: _, emStrongLDelim: Ze, emStrongRDelimAst: Qe, emStrongRDelimUnd: Fe, escape: Ie, link: et, nolink: ke, punctuation: Be, reflink: he, reflinkSearch: tt, tag: Ye, text: Ce, url: _ };
   var nt = { ...W, link: k(/^!?\[(label)\]\((.*?)\)/).replace("label", D).getRegex(), reflink: k(/^!?\[(label)\]\s*\[([^\]]*)\]/).replace("label", D).getRegex() };
-  var Z = { ...W, emStrongRDelimAst: Fe, emStrongLDelim: Ne, delLDelim: Ue, delRDelim: We, url: k(/^((?:protocol):\/\/|www\.)(?:[a-zA-Z0-9\-]+\.?)+[^\s<]*|^email/).replace("protocol", ne).replace("email", /[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])/).getRegex(), _backpedal: /(?:[^?!.,:;*_'"~()&]+|\([^)]*\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'"~)]+(?!$))+/, del: /^(~~?)(?=[^\s~])((?:\\[\s\S]|[^\\])*?(?:\\[\s\S]|[^\s~\\]))\1(?=[^~]|$)/, text: k(/^([`~]+|[^`~])(?:(?= {2,}\n)|(?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)|[\s\S]*?(?:(?=[\\<!\[`*~_]|\b_|protocol:\/\/|www\.|$)|[^ ](?= {2,}\n)|[^a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-](?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)))/).replace("protocol", ne).getRegex() };
+  var Z = { ...W, emStrongRDelimAst: je, emStrongLDelim: Ne, delLDelim: Ue, delRDelim: We, url: k(/^((?:protocol):\/\/|www\.)(?:[a-zA-Z0-9\-]+\.?)+[^\s<]*|^email/).replace("protocol", ne).replace("email", /[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])/).getRegex(), _backpedal: /(?:[^?!.,:;*_'"~()&]+|\([^)]*\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'"~)]+(?!$))+/, del: /^(~~?)(?=[^\s~])((?:\\[\s\S]|[^\\])*?(?:\\[\s\S]|[^\s~\\]))\1(?=[^~]|$)/, text: k(/^([`~]+|[^`~])(?:(?= {2,}\n)|(?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)|[\s\S]*?(?:(?=[\\<!\[`*~_]|\b_|protocol:\/\/|www\.|$)|[^ ](?= {2,}\n)|[^a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-](?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)))/).replace("protocol", ne).getRegex() };
   var rt = { ...Z, br: k(oe).replace("{2,}", "*").getRegex(), text: k(Z.text).replace("\\b_", "\\b_| {2,}\\n").replace(/\{2,\}/g, "*").getRegex() };
-  var E = { normal: U, gfm: ze, pedantic: Ce };
+  var C = { normal: U, gfm: ze, pedantic: Ee };
   var z = { normal: W, gfm: Z, breaks: rt, pedantic: nt };
   var st = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
   var de = (u3) => st[u3];
@@ -25174,7 +25198,7 @@
     for (; r2 < n.length; r2++) n[r2] = n[r2].trim().replace(m.slashPipe, "|");
     return n;
   }
-  function C(u3, e, t) {
+  function E(u3, e, t) {
     let n = u3.length;
     if (n === 0) return "";
     let r2 = 0;
@@ -25236,7 +25260,7 @@
       let t = this.rules.block.code.exec(e);
       if (t) {
         let n = t[0].replace(this.rules.other.codeRemoveIndent, "");
-        return { type: "code", raw: t[0], codeBlockStyle: "indented", text: this.options.pedantic ? n : C(n, `
+        return { type: "code", raw: t[0], codeBlockStyle: "indented", text: this.options.pedantic ? n : E(n, `
 `) };
       }
     }
@@ -25252,7 +25276,7 @@
       if (t) {
         let n = t[2].trim();
         if (this.rules.other.endingHash.test(n)) {
-          let r2 = C(n, "#");
+          let r2 = E(n, "#");
           (this.options.pedantic || !r2 || this.rules.other.endingSpaceChar.test(r2)) && (n = r2.trim());
         }
         return { type: "heading", raw: t[0], depth: t[1].length, text: n, tokens: this.lexer.inline(n) };
@@ -25260,13 +25284,13 @@
     }
     hr(e) {
       let t = this.rules.block.hr.exec(e);
-      if (t) return { type: "hr", raw: C(t[0], `
+      if (t) return { type: "hr", raw: E(t[0], `
 `) };
     }
     blockquote(e) {
       let t = this.rules.block.blockquote.exec(e);
       if (t) {
-        let n = C(t[0], `
+        let n = E(t[0], `
 `).split(`
 `), r2 = "", i = "", s = [];
         for (; n.length > 0; ) {
@@ -25320,18 +25344,18 @@ ${c}` : c;
 `, e = e.substring(h.length + 1), l = true), !l) {
             let S = this.rules.other.nextBulletRegex(f), V = this.rules.other.hrRegex(f), Y = this.rules.other.fencesBeginRegex(f), ee = this.rules.other.headingBeginRegex(f), xe = this.rules.other.htmlBeginRegex(f), be = this.rules.other.blockquoteBeginRegex(f);
             for (; e; ) {
-              let G = e.split(`
-`, 1)[0], A;
-              if (h = G, this.options.pedantic ? (h = h.replace(this.rules.other.listReplaceNesting, "  "), A = h) : A = h.replace(this.rules.other.tabCharGlobal, "    "), Y.test(h) || ee.test(h) || xe.test(h) || be.test(h) || S.test(h) || V.test(h)) break;
-              if (A.search(this.rules.other.nonSpaceChar) >= f || !h.trim()) c += `
-` + A.slice(f);
+              let H = e.split(`
+`, 1)[0], I;
+              if (h = H, this.options.pedantic ? (h = h.replace(this.rules.other.listReplaceNesting, "  "), I = h) : I = h.replace(this.rules.other.tabCharGlobal, "    "), Y.test(h) || ee.test(h) || xe.test(h) || be.test(h) || S.test(h) || V.test(h)) break;
+              if (I.search(this.rules.other.nonSpaceChar) >= f || !h.trim()) c += `
+` + I.slice(f);
               else {
                 if (R || d.replace(this.rules.other.tabCharGlobal, "    ").search(this.rules.other.nonSpaceChar) >= 4 || Y.test(d) || ee.test(d) || V.test(d)) break;
                 c += `
 ` + h;
               }
-              R = !h.trim(), p += G + `
-`, e = e.substring(G.length + 1), d = A.slice(f);
+              R = !h.trim(), p += H + `
+`, e = e.substring(H.length + 1), d = I.slice(f);
             }
           }
           i.loose || (a ? i.loose = true : this.rules.other.doubleBlankLine.test(p) && (a = true)), i.items.push({ type: "list_item", raw: p, task: !!this.options.gfm && this.rules.other.listIsTask.test(c), loose: false, text: c, tokens: [] }), i.raw += p;
@@ -25420,7 +25444,7 @@ ${c}` : c;
         let n = t[2].trim();
         if (!this.options.pedantic && this.rules.other.startAngleBracket.test(n)) {
           if (!this.rules.other.endAngleBracket.test(n)) return;
-          let s = C(n.slice(0, -1), "\\");
+          let s = E(n.slice(0, -1), "\\");
           if ((n.length - s.length) % 2 === 0) return;
         } else {
           let s = ge(t[2], "()");
@@ -25542,11 +25566,11 @@ ${c}` : c;
     tokenizer;
     constructor(e) {
       this.tokens = [], this.tokens.links = /* @__PURE__ */ Object.create(null), this.options = e || T, this.options.tokenizer = this.options.tokenizer || new w(), this.tokenizer = this.options.tokenizer, this.tokenizer.options = this.options, this.tokenizer.lexer = this, this.inlineQueue = [], this.state = { inLink: false, inRawBlock: false, top: true };
-      let t = { other: m, block: E.normal, inline: z.normal };
-      this.options.pedantic ? (t.block = E.pedantic, t.inline = z.pedantic) : this.options.gfm && (t.block = E.gfm, this.options.breaks ? t.inline = z.breaks : t.inline = z.gfm), this.tokenizer.rules = t;
+      let t = { other: m, block: C.normal, inline: z.normal };
+      this.options.pedantic ? (t.block = C.pedantic, t.inline = z.pedantic) : this.options.gfm && (t.block = C.gfm, this.options.breaks ? t.inline = z.breaks : t.inline = z.gfm), this.tokenizer.rules = t;
     }
     static get rules() {
-      return { block: E, inline: z };
+      return { block: C, inline: z };
     }
     static lex(e, t) {
       return new u(t).lex(e);
@@ -26235,12 +26259,12 @@ Please report this to https://github.com/markedjs/marked.`, e) {
     return L.parse(u3, e);
   }
   g.options = g.setOptions = function(u3) {
-    return L.setOptions(u3), g.defaults = L.defaults, H(g.defaults), g;
+    return L.setOptions(u3), g.defaults = L.defaults, G(g.defaults), g;
   };
   g.getDefaults = M;
   g.defaults = T;
   g.use = function(...u3) {
-    return L.use(...u3), g.defaults = L.defaults, H(g.defaults), g;
+    return L.use(...u3), g.defaults = L.defaults, G(g.defaults), g;
   };
   g.walkTokens = function(u3, e) {
     return L.walkTokens(u3, e);
