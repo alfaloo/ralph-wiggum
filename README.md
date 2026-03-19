@@ -93,12 +93,14 @@ Implements the project by spawning execute agents iteratively. Each agent picks 
 
 ---
 
-### `ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL]`
+### `ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--asynchronous BOOL] [--single BOOL]`
 
 Runs the full pipeline in one command: enriches the spec, executes agents, validates the result, and creates a PR. Requires a clean working tree. Useful for straightforward tasks where interactive interview rounds are not needed.
 
 - A `"failed"` validation rating aborts PR creation.
 - A `"requires attention"` validation rating prints a warning but continues to create the PR.
+- `--asynchronous BOOL` runs tasks in parallel; mutually exclusive with `--single` (default: `false`).
+- `--single BOOL` runs all tasks with a single agent; mutually exclusive with `--asynchronous` (default: `false`).
 
 ---
 
