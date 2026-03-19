@@ -299,7 +299,7 @@ class InitCommand(Command):
 
         test_instructions_path = os.path.join(ralph_dir, "test-instructions.md")
         with open(test_instructions_path, "w") as f:
-            json.dump(_TEST_INSTRUCTIONS_TEMPLATE, f)
+            f.write(_TEST_INSTRUCTIONS_TEMPLATE)
 
         ensure_defaults()
 
