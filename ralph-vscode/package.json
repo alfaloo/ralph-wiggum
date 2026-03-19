@@ -2,7 +2,7 @@
   "name": "ralph-wiggum",
   "displayName": "Ralph Wiggum",
   "description": "GUI wrapper for the ralph CLI",
-  "version": "0.3.7",
+  "version": "3.7.0",
   "engines": {
     "vscode": "^1.109.0"
   },
