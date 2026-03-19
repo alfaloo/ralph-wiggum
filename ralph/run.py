@@ -656,8 +656,7 @@ class Runner:
                     t["status"] = "in_progress"
                     t["attempts"] = t.get("attempts", 0) + 1
                     break
-            with open(self._tasks_path, "w") as f:
-                json.dump(tasks_data, f, indent=2)
+            locks.write_json(self._tasks_path, tasks_data)
 
             # Build the prompt with the pre-assigned task injected.
             prompt = parse_execute_md(
