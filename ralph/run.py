@@ -316,20 +316,14 @@ class Runner:
     def _all_tasks_complete(self) -> bool:
         if not os.path.exists(self._tasks_path):
             return False
-        with open(self._tasks_path) as f:
-            data = json.load(f)
-        tasks = data.get("tasks", [])
-        return bool(tasks) and all(t.get("status") == "completed" for t in tasks)
+        tasks = locks.read_json(self._tasks_path).get("tasks", [])
+        return bool(tasks) and dag.all_tasks_complete(tasks)
 
     def _any_task_exceeded_max_attempts(self) -> tuple[bool, dict | None]:
         if not os.path.exists(self._tasks_path):
             return False, None
-        with open(self._tasks_path) as f:
-            data = json.load(f)
-        for task in data.get("tasks", []):
-            if task.get("attempts", 0) >= task.get("max_attempts", 3):
-                return True, task
-        return False, None
+        tasks = locks.read_json(self._tasks_path).get("tasks", [])
+        return dag.any_task_exceeded_max_attempts(tasks)
 
     def _run_summarise(self, exit_reason: str) -> None:
         """Spawn a summarise agent to write .ralph/<project-name>/summary.md."""
