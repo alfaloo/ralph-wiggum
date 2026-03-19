@@ -414,13 +414,13 @@ def main() -> None:
             sys.exit(0)
         # Provider requires validation before global persist.
         if args.global_provider is not None:
-            if not _validate_provider_cli(args.global_provider):
-                sys.exit(1)
+            _validate_provider_cli(args.global_provider)
             set_provider(args.global_provider)
         return
 
     # With a subcommand present, persist global provider if provided.
     if args.global_provider is not None:
+        _validate_provider_cli(args.global_provider)
         set_provider(args.global_provider)
 
     try:

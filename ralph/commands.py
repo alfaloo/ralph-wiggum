@@ -113,10 +113,10 @@ def _resolve_provider(args: argparse.Namespace) -> str:
     return get_provider()
 
 
-def _validate_provider_cli(provider: str) -> bool:
+def _validate_provider_cli(provider: str) -> None:
     """Check that the selected provider's CLI tool is installed and authenticated.
 
-    Returns True only if the CLI is found and auth succeeds, False otherwise.
+    Calls sys.exit(1) directly after printing an error if validation fails.
     """
     if provider == "github":
         try:
@@ -127,15 +127,14 @@ def _validate_provider_cli(provider: str) -> bool:
                 "You gotta get it from https://cli.github.com and then do 'gh auth login'.",
                 file=sys.stderr,
             )
-            return False
+            sys.exit(1)
         if result.returncode != 0:
             print(
                 "[ralph] The 'gh' thingy doesn't know who you are! "
                 "Do 'gh auth login' to tell it who you are.",
                 file=sys.stderr,
             )
-            return False
-        return True
+            sys.exit(1)
     elif provider == "gitlab":
         try:
             result = subprocess.run(["glab", "auth", "status"], capture_output=True)
@@ -145,18 +144,17 @@ def _validate_provider_cli(provider: str) -> bool:
                 "You gotta get it from https://gitlab.com/gitlab-org/cli and then do 'glab auth login'.",
                 file=sys.stderr,
             )
-            return False
+            sys.exit(1)
         if result.returncode != 0:
             print(
                 "[ralph] The 'glab' thingy doesn't know who you are! "
                 "Do 'glab auth login' to tell it who you are.",
                 file=sys.stderr,
             )
-            return False
-        return True
+            sys.exit(1)
     else:
         print(f"[ralph] I don't know what '{provider}' is! Try 'github' or 'gitlab'.", file=sys.stderr)
-        return False
+        sys.exit(1)
 
 
 def _print_validate_summary(project_name: str, json_result: str | None) -> None:
