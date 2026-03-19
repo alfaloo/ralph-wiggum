@@ -36,8 +36,6 @@ from ralph.parse import (
 from ralph.run import Runner
 
 
-_DEFAULT_LIMIT = 20
-
 _ENRICH_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
     "Carefully read spec.md and all relevant source files, tests, and configuration in the "

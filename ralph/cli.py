@@ -4,6 +4,7 @@ import argparse
 import sys
 
 from ralph.config import (
+    DEFAULT_LIMIT,
     set_asynchronous,
     set_base,
     set_limit,
@@ -13,7 +14,6 @@ from ralph.config import (
     set_verbose,
 )
 from ralph.commands import (
-    _DEFAULT_LIMIT,
     _validate_branch_exists,
     _validate_provider_cli,
     _assert_project_exists,
@@ -244,7 +244,7 @@ def main() -> None:
         type=int,
         default=None,
         metavar="N",
-        help=f"Maximum number of agent iterations, upper bound (default: {_DEFAULT_LIMIT})",
+        help=f"Maximum number of agent iterations, upper bound (default: {DEFAULT_LIMIT})",
     )
     execute_parser.add_argument(
         "--base", "-b",
@@ -296,7 +296,7 @@ def main() -> None:
         type=int,
         default=None,
         metavar="N",
-        help=f"Maximum number of agent iterations, upper bound (default: {_DEFAULT_LIMIT})",
+        help=f"Maximum number of agent iterations, upper bound (default: {DEFAULT_LIMIT})",
     )
     oneshot_parser.add_argument(
         "--base", "-b",

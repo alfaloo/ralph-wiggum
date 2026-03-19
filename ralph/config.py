@@ -200,6 +200,8 @@ _DEFAULTS = {
     "single": False,
 }
 
+DEFAULT_LIMIT = _DEFAULTS["limit"]
+
 
 def ensure_defaults() -> None:
     """Ensure all flag variables have default values in settings.json.
