@@ -1,5 +1,8 @@
 const esbuild = require('esbuild');
 const { spawn, execSync } = require('child_process');
+const path = require('path');
+
+const tailwindBin = path.join('node_modules', '.bin', process.platform === 'win32' ? 'tailwindcss.cmd' : 'tailwindcss');
 
 const isWatch = process.argv.includes('--watch');
 const isProd = process.argv.includes('--production');
@@ -32,11 +35,11 @@ const tailwindArgs = [
 ];
 
 function buildTailwind() {
-  execSync(`node_modules/.bin/tailwindcss ${tailwindArgs.join(' ')}`, { stdio: 'inherit' });
+  execSync(`${tailwindBin} ${tailwindArgs.join(' ')}`, { stdio: 'inherit' });
 }
 
 function watchTailwind() {
-  const proc = spawn('node_modules/.bin/tailwindcss', [...tailwindArgs, '--watch'], { stdio: 'inherit' });
+  const proc = spawn(tailwindBin, [...tailwindArgs, '--watch'], { stdio: 'inherit', shell: process.platform === 'win32' });
   proc.on('error', (err) => console.error('Tailwind watch error:', err));
 }
 
