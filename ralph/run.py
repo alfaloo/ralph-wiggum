@@ -615,12 +615,12 @@ class Runner:
 
     def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, single: bool = False, resume: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
+        if resume:
+            self._reset_incomplete_tasks()
+
         if single:
             self.run_execute_single()
             return
-
-        if resume:
-            self._reset_incomplete_tasks()
 
         if asynchronous:
             self.run_execute_loop_async([], max_iterations)
