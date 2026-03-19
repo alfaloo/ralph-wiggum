@@ -78,7 +78,7 @@ Improves the `spec.md` file and regenerates `tasks.json` from it. A Claude agent
 
 ---
 
-### `ralph execute <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL]`
+### `ralph execute <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL] [--single BOOL]`
 
 Implements the project by spawning execute agents iteratively. Each agent picks up the next pending task from `tasks.json`, implements it, commits the changes, and updates the task status.
 
@@ -93,12 +93,14 @@ Implements the project by spawning execute agents iteratively. Each agent picks 
 
 ---
 
-### `ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL]`
+### `ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--asynchronous BOOL] [--single BOOL]`
 
 Runs the full pipeline in one command: enriches the spec, executes agents, validates the result, and creates a PR. Requires a clean working tree. Useful for straightforward tasks where interactive interview rounds are not needed.
 
 - A `"failed"` validation rating aborts PR creation.
 - A `"requires attention"` validation rating prints a warning but continues to create the PR.
+- `--asynchronous BOOL` runs tasks in parallel; mutually exclusive with `--single` (default: `false`).
+- `--single BOOL` runs all tasks with a single agent; mutually exclusive with `--asynchronous` (default: `false`).
 
 ---
 
@@ -143,6 +145,14 @@ Spawns a single Claude agent to fix small insufficiencies identified by `ralph v
 - `--force` (alias `-f`) bypasses the rating check, allowing `retry` to run even when the rating is not `"requires attention"`.
 - The agent may only modify source code and tests — artifact files (`summary.md`, `pr-description.md`, `validation.md`, `tasks.json`) must not be changed.
 - The agent commits its changes upon completion.
+
+---
+
+### `ralph status <project-name>`
+
+Displays a snapshot of the current project state without spawning a Claude agent. Shows the active branch, execution mode flags, task status counts (pending/in_progress/completed), outstanding obstacles, and the validation rating (if `validate` has been run).
+
+No flags. No agent invocations.
 
 ---
 
@@ -280,3 +290,7 @@ Initial release. Introduced the core agentic development workflow: `ralph init` 
 ### Version 2
 
 Added GitLab support and a `--provider / -p` flag for selecting the VCS platform. Introduced parallel task execution via `--asynchronous / -a`, dispatching independent tasks concurrently using a DAG-based orchestrator with `filelock`-protected JSON writes. Added four new commands: `ralph enrich` (enriches `spec.md` and regenerates `tasks.json`), `ralph validate` (produces a rated `validation.md` report via a Claude agent), `ralph undo` (rolls back a failed branch), and `ralph retry` (fixes a "requires attention" result with a single agent). `ralph oneshot` was updated to include enrich and validate steps. Synchronous task delegation moved to the Python/DAG layer; context window usage is logged after each agent run.
+
+### Version 3
+
+Added the `ralph status` command (no agent spawned) for real-time project snapshots: branch, execution mode, task counts, obstacles, and validation rating. Introduced guided interview UX — questions are now presented one at a time with pre-generated answer suggestions, arrow-key navigation in terminal mode, and a freeform "describe yourself" option for custom answers. Added automatic reset of incomplete tasks on `--resume` so interrupted executions restart cleanly. Improved `ralph validate` output with a structured summary table. Added `--single / -s` flag to `ralph execute` and `ralph oneshot` to run all tasks with a single agent, reducing token usage for multi-task projects; this flag is mutually exclusive with `--asynchronous`. Shipped a VSCode extension (ralph-vscode) providing a GUI panel for all ralph commands with real-time output streaming, task progress indicators, and integrated interview UI.

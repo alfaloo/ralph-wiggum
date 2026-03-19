@@ -1,0 +1,59 @@
+name: Publish VSCode Extension
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+          - os: macos-latest
+            target: darwin-x64
+          - os: windows-latest
+            target: win32-x64
+          - os: ubuntu-latest
+            target: linux-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ralph-vscode
+        run: npm ci
+
+      - name: Rebuild node-pty for Electron
+        working-directory: ralph-vscode
+        shell: bash
+        env:
+          npm_config_target: "39.3.0"
+          npm_config_runtime: electron
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_build_from_source: "true"
+        run: npm rebuild node-pty
+
+      - name: Build
+        working-directory: ralph-vscode
+        run: node esbuild.js --production
+
+      - name: Package
+        working-directory: ralph-vscode
+        run: npx vsce package --target ${{ matrix.target }}
+
+      - name: Publish
+        working-directory: ralph-vscode
+        shell: bash
+        run: npx vsce publish --packagePath *.vsix || echo "Version already published, skipping."
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

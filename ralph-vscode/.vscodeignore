@@ -1,6 +1,8 @@
 src/
 webview/
-node_modules/
+node_modules/**
+!node_modules/node-pty
+!node_modules/node-pty/**
 esbuild.js
 tsconfig.json
 **/*.map
