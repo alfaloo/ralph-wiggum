@@ -2,7 +2,7 @@
   "name": "ralph-wiggum",
   "displayName": "Ralph Wiggum",
   "description": "GUI wrapper for the ralph CLI",
-  "version": "3.7.0",
+  "version": "3.7.1",
   "engines": {
     "vscode": "^1.109.0"
   },
@@ -84,8 +84,15 @@
     "color": "#1e1e1e",
     "theme": "dark"
   },
-  "categories": ["Other"],
-  "keywords": ["ralph", "ai", "agents", "claude"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ralph",
+    "ai",
+    "agents",
+    "claude"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/alfaloo/ralph-wiggum"
