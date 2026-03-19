@@ -1,7 +1,7 @@
-diff --git a/node_modules/node-pty/lib/utils.js b/node_modules/node-pty/lib/utils.js
+diff --git a/lib/utils.js b/lib/utils.js
 index 1234567..abcdefg 100644
---- a/node_modules/node-pty/lib/utils.js
-+++ b/node_modules/node-pty/lib/utils.js
+--- a/lib/utils.js
++++ b/lib/utils.js
 @@ -24,7 +24,7 @@ function loadNativeModule(name) {
      for (var _a = 0, relative_1 = relative; _a < relative_1.length; _a++) {
              var r = relative_1[_a];
