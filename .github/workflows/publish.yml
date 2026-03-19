@@ -43,6 +43,6 @@ jobs:
 
       - name: Publish
         working-directory: ralph-vscode
-        run: npx vsce publish --target ${{ matrix.target }} --no-dependencies --packagePath *.vsix
+        run: npx vsce publish --no-dependencies --packagePath *.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
