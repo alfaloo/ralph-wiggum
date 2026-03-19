@@ -28,7 +28,7 @@ def get_ready_tasks(tasks: list[dict]) -> list[dict]:
 
 def all_tasks_complete(tasks: list[dict]) -> bool:
     """Return True if every task has status == "completed"."""
-    return all(t["status"] == "completed" for t in tasks)
+    return bool(tasks) and all(t.get("status") == "completed" for t in tasks)
 
 
 def any_task_exceeded_max_attempts(tasks: list[dict]) -> tuple[bool, dict | None]:
