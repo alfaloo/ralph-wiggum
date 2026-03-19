@@ -312,7 +312,6 @@ class Runner:
             print(result.stdout)
         if result.returncode != 0 and result.stderr:
             print(f"[ralph] Uh oh, the agent did a bad thing: {result.stderr}", file=sys.stderr)
-        return result.stdout
 
     def _all_tasks_complete(self) -> bool:
         if not os.path.exists(self._tasks_path):
