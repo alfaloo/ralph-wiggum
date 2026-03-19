@@ -418,12 +418,8 @@ class Runner:
 
         print("\n[ralph] Yay! All the interview rounds are done! Great job answering!")
 
-    def run_execute_loop_async(self, prompts: list[str], max_iterations: int) -> None:
-        """Run async execute agents in a concurrent polling loop.
-
-        The ``prompts`` parameter is accepted for API compatibility; this method
-        generates per-task prompts internally using ``parse_execute_async_md``.
-        """
+    def run_execute_loop_async(self, max_iterations: int) -> None:
+        """Run async execute agents in a concurrent polling loop."""
         state_path = os.path.join(self.ralph_dir, "state.json")
         obstacles_path = os.path.join(self.ralph_dir, "obstacles.json")
 
@@ -623,7 +619,7 @@ class Runner:
             return
 
         if asynchronous:
-            self.run_execute_loop_async([], max_iterations)
+            self.run_execute_loop_async(max_iterations)
             return
 
         # Pre-check: skip spawning agents if all tasks are already complete.

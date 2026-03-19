@@ -98,7 +98,7 @@ class TestAllTasksCompleted:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         final = json.loads(tasks_file.read_text())["tasks"]
         assert final[0]["status"] == "completed"
@@ -111,7 +111,7 @@ class TestAllTasksCompleted:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         final = json.loads(tasks_file.read_text())["tasks"]
         assert all(t["status"] == "completed" for t in final)
@@ -124,7 +124,7 @@ class TestAllTasksCompleted:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         state = json.loads(state_file.read_text())
         assert len(state) == 3
@@ -139,7 +139,7 @@ class TestAllTasksCompleted:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         state = json.loads(state_file.read_text())
         for entry in state:
@@ -153,7 +153,7 @@ class TestAllTasksCompleted:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         state = json.loads(state_file.read_text())
         assert len(state) == 1
@@ -172,7 +172,7 @@ class TestAllTasksCompleted:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         mock_summarise.assert_called_once_with("All tasks completed successfully.")
 
@@ -215,7 +215,7 @@ class TestParallelDispatch:
             with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
                  patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.005)), \
                  patch.object(runner, "_run_summarise"):
-                runner.run_execute_loop_async([], 10)
+                runner.run_execute_loop_async(10)
             run_done.set()
 
         t = threading.Thread(target=run_loop, daemon=True)
@@ -262,7 +262,7 @@ class TestParallelDispatch:
             with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
                  patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.005)), \
                  patch.object(runner, "_run_summarise"):
-                runner.run_execute_loop_async([], 10)
+                runner.run_execute_loop_async(10)
             run_done.set()
 
         t = threading.Thread(target=run_loop, daemon=True)
@@ -310,7 +310,7 @@ class TestDependencyOrdering:
             with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
                  patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.005)), \
                  patch.object(runner, "_run_summarise"):
-                runner.run_execute_loop_async([], 10)
+                runner.run_execute_loop_async(10)
             run_done.set()
 
         t = threading.Thread(target=run_loop, daemon=True)
@@ -360,7 +360,7 @@ class TestDependencyOrdering:
         with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         assert "T1" in call_order
         assert "T2" in call_order
@@ -391,7 +391,7 @@ class TestDependencyOrdering:
         with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         assert call_order == ["T1", "T2", "T3"], (
             f"Expected T1→T2→T3 dispatch order, got: {call_order}"
@@ -421,7 +421,7 @@ class TestFailureHandling:
         with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         assert call_count[0] == 2, (
             f"Expected 2 agent calls (1 fail + 1 success), got {call_count[0]}"
@@ -447,7 +447,7 @@ class TestFailureHandling:
         with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         obstacles = json.loads(obstacles_file.read_text())["obstacles"]
         assert len(obstacles) == 1
@@ -471,7 +471,7 @@ class TestFailureHandling:
         with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         final = json.loads(tasks_file.read_text())["tasks"]
         assert final[0]["status"] == "completed"
@@ -499,7 +499,7 @@ class TestFailureHandling:
         with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         final = json.loads(tasks_file.read_text())["tasks"]
         assert final[0]["attempts"] == 2
@@ -519,7 +519,7 @@ class TestMaxAttemptsEnforcement:
         with patch("ralph.run.run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         expected = "Task T1 ('Task T1') reached max_attempts (2)."
         mock_summarise.assert_called_once_with(expected)
@@ -532,7 +532,7 @@ class TestMaxAttemptsEnforcement:
         with patch("ralph.run.run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         final = json.loads(tasks_file.read_text())["tasks"]
         assert final[0]["attempts"] == 2
@@ -545,7 +545,7 @@ class TestMaxAttemptsEnforcement:
         with patch("ralph.run.run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         obstacles = json.loads(obstacles_file.read_text())["obstacles"]
         assert len(obstacles) == 2  # one per failed attempt
@@ -560,7 +560,7 @@ class TestMaxAttemptsEnforcement:
         with patch("ralph.run.run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         call_arg = mock_summarise.call_args[0][0]
         assert "My Custom Task" in call_arg
@@ -583,7 +583,7 @@ class TestMaxAttemptsEnforcement:
         with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         mock_summarise.assert_called_once()
         call_arg = mock_summarise.call_args[0][0]
@@ -606,7 +606,7 @@ class TestStateJsonCorrectness:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         state = json.loads(state_file.read_text())
         assert len(state) == N, f"Expected {N} state entries, got {len(state)}"
@@ -633,7 +633,7 @@ class TestStateJsonCorrectness:
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(locks_mod, "locked_json_rw", spy_rw), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         state_path = str(state_file)
         state_rw_calls = [p for p in rw_paths if p == state_path]
@@ -650,7 +650,7 @@ class TestStateJsonCorrectness:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         assert state_file.exists(), "state.json was not created by run_execute_loop_async"
         state = json.loads(state_file.read_text())
@@ -667,7 +667,7 @@ class TestStateJsonCorrectness:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         assert obstacles_file.exists(), "obstacles.json was not created by run_execute_loop_async"
 
@@ -679,7 +679,7 @@ class TestStateJsonCorrectness:
         with patch("ralph.run.run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
-            runner.run_execute_loop_async([], 10)
+            runner.run_execute_loop_async(10)
 
         content = state_file.read_text()
         parsed = json.loads(content)  # must not raise
