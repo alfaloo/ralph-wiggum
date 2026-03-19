@@ -135,6 +135,7 @@ Rolls back code changes from a previous `ralph execute` run. All logic runs in t
   1. Checks out the base branch (from `settings.json`; defaults to `"main"`).
   2. Force-deletes the project branch (after `y/n` confirmation).
   3. Resets `state.json`, `obstacles.json`, and all tasks in `tasks.json` back to their initial state.
+  4. Deletes `validation.md`, `summary.md`, and `pr-description.md` if they exist, returning the project directory to a pre-execute state. `test-instructions.md` is preserved because it is user-edited.
 
 ---
 
