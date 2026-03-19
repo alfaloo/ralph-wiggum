@@ -13,7 +13,7 @@ jobs:
         include:
           - os: macos-latest
             target: darwin-arm64
-          - os: macos-13
+          - os: macos-latest
             target: darwin-x64
           - os: windows-latest
             target: win32-x64
@@ -43,6 +43,6 @@ jobs:
 
       - name: Publish
         working-directory: ralph-vscode
-        run: npx vsce publish --target ${{ matrix.target }} --no-dependencies --packagePath *.vsix
+        run: npx vsce publish --no-dependencies --packagePath *.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
