@@ -1,7 +1,7 @@
 """Unit tests for ralph/cli.py — cmd_oneshot / ralph oneshot subcommand."""
 
 import argparse
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import mock_open, patch
 
 import pytest
 
@@ -51,7 +51,8 @@ class TestCmdOneshotCore:
     def test_enrich_command_is_called(self):
         """cmd_oneshot instantiates and executes EnrichCommand with the given args."""
         args = _args()
-        with patch("ralph.commands.EnrichCommand") as MockEnrich, \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand") as MockEnrich, \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -63,7 +64,8 @@ class TestCmdOneshotCore:
     def test_execute_command_is_called(self):
         """cmd_oneshot instantiates and executes ExecuteCommand with the given args."""
         args = _args()
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -75,7 +77,8 @@ class TestCmdOneshotCore:
     def test_validate_command_is_called(self):
         """cmd_oneshot instantiates and executes ValidateCommand with the given args."""
         args = _args()
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand") as MockValidate, \
              patch("ralph.commands.PrCommand"), \
@@ -87,7 +90,8 @@ class TestCmdOneshotCore:
     def test_pr_command_is_called(self):
         """cmd_oneshot instantiates and executes PrCommand with the given args."""
         args = _args()
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -101,7 +105,8 @@ class TestCmdOneshotCore:
         args = _args()
         call_order = []
 
-        with patch("ralph.commands.EnrichCommand") as MockEnrich, \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand") as MockEnrich, \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand") as MockValidate, \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -118,7 +123,8 @@ class TestCmdOneshotCore:
         """All four command classes receive the same args namespace."""
         args = _args(project_name="test-project")
 
-        with patch("ralph.commands.EnrichCommand") as MockEnrich, \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand") as MockEnrich, \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand") as MockValidate, \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -143,7 +149,8 @@ class TestCmdOneshotFlagPropagation:
         """--verbose true is present in args when each sub-command is called."""
         args = _args(verbose="true")
 
-        with patch("ralph.commands.EnrichCommand") as MockEnrich, \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand") as MockEnrich, \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -158,7 +165,8 @@ class TestCmdOneshotFlagPropagation:
         """--base <branch> is present in args when ExecuteCommand is called."""
         args = _args(base="feature-base")
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -171,7 +179,8 @@ class TestCmdOneshotFlagPropagation:
         """--asynchronous true is present in args when ExecuteCommand is called."""
         args = _args(asynchronous="true")
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -184,7 +193,8 @@ class TestCmdOneshotFlagPropagation:
         """--provider gitlab is present in args when PrCommand is called."""
         args = _args(provider="gitlab")
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -197,7 +207,8 @@ class TestCmdOneshotFlagPropagation:
         """--resume is present in args when ExecuteCommand is called."""
         args = _args(resume=True)
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -210,7 +221,8 @@ class TestCmdOneshotFlagPropagation:
         """--limit N is present in args when ExecuteCommand is called."""
         args = _args(limit=5)
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -223,7 +235,8 @@ class TestCmdOneshotFlagPropagation:
         """The project_name is present in args for all four command calls."""
         args = _args(project_name="special-project")
 
-        with patch("ralph.commands.EnrichCommand") as MockEnrich, \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand") as MockEnrich, \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand") as MockValidate, \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -311,7 +324,8 @@ class TestCmdOneshotBranchAlreadyExists:
         (guard is enforced by ExecuteCommand)."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"):
@@ -325,7 +339,8 @@ class TestCmdOneshotBranchAlreadyExists:
         """ValidateCommand is not called when ExecuteCommand aborts because the branch already exists."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand") as MockValidate, \
              patch("ralph.commands.PrCommand"):
@@ -339,7 +354,8 @@ class TestCmdOneshotBranchAlreadyExists:
         """PrCommand is not called when ExecuteCommand aborts because the branch already exists."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr:
@@ -353,7 +369,8 @@ class TestCmdOneshotBranchAlreadyExists:
         """EnrichCommand is still called even when ExecuteCommand later aborts."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand") as MockEnrich, \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand") as MockEnrich, \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"):
@@ -375,7 +392,8 @@ class TestCmdOneshotDirtyWorkingTree:
         (guard is enforced by PrCommand)."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -390,7 +408,8 @@ class TestCmdOneshotDirtyWorkingTree:
         """EnrichCommand and ExecuteCommand have been called before PrCommand aborts on dirty tree."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand") as MockEnrich, \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand") as MockEnrich, \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -415,7 +434,8 @@ class TestCmdOneshotValidateIntegration:
         """When validation rating is 'passed', PrCommand is called."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -429,7 +449,8 @@ class TestCmdOneshotValidateIntegration:
         """When validation rating is 'failed', sys.exit(1) is called and PrCommand is not."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -444,7 +465,8 @@ class TestCmdOneshotValidateIntegration:
         """When validation rating is 'failed', a warning is printed to stderr."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -460,7 +482,8 @@ class TestCmdOneshotValidateIntegration:
         """When validation rating is 'requires attention', PrCommand is still called."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -474,7 +497,8 @@ class TestCmdOneshotValidateIntegration:
         """When validation rating is 'requires attention', a warning is printed."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand"), \
@@ -488,7 +512,8 @@ class TestCmdOneshotValidateIntegration:
         """When validation.md cannot be read, sys.exit(1) is called and PrCommand is not."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -503,7 +528,8 @@ class TestCmdOneshotValidateIntegration:
         """When validation.md has no rating line, sys.exit(1) is called and PrCommand is not."""
         args = _args()
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand"), \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -519,7 +545,8 @@ class TestCmdOneshotValidateIntegration:
         args = _args()
         call_order = []
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand"), \
              patch("ralph.commands.ValidateCommand") as MockValidate, \
              patch("ralph.commands.PrCommand") as MockPr, \
@@ -535,7 +562,8 @@ class TestCmdOneshotValidateIntegration:
         args = _args()
         call_order = []
 
-        with patch("ralph.commands.EnrichCommand"), \
+        with patch("ralph.commands.assert_project_exists"), \
+             patch("ralph.commands.EnrichCommand"), \
              patch("ralph.commands.ExecuteCommand") as MockExecute, \
              patch("ralph.commands.ValidateCommand") as MockValidate, \
              patch("ralph.commands.PrCommand"), \

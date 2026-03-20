@@ -668,6 +668,8 @@ class OneshotCommand(Command):
     def execute(self) -> None:
         args = self.args
 
+        assert_project_exists(args.project_name)
+
         print(f"[ralph] Ooh ooh! I'm doing ALL the things for '{args.project_name}'! Enrich, execute, validate, and PR!")
 
         EnrichCommand(args).execute()
