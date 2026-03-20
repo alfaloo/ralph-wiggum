@@ -479,6 +479,7 @@ class Runner:
                                 {
                                     "id": next_id,
                                     "task_id": task_id,
+                                    "iteration": iteration,
                                     "message": (
                                         f"Agent for task {task_id} failed with"
                                         f" returncode {returncode}."
