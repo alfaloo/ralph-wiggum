@@ -93,12 +93,12 @@ def _resolve_bool_flag(value: str | None, getter: Callable[[], bool]) -> bool:
     return value == "true" if value is not None else getter()
 
 
-def resolve_verbose(args: argparse.Namespace) -> bool:
+def _resolve_verbose(args: argparse.Namespace) -> bool:
     """Return effective verbose: per-command CLI flag > persisted setting."""
     return _resolve_bool_flag(getattr(args, "verbose", None), get_verbose)
 
 
-def resolve_asynchronous(args: argparse.Namespace) -> bool:
+def _resolve_asynchronous(args: argparse.Namespace) -> bool:
     """Return effective asynchronous: per-command CLI flag > persisted setting."""
     return _resolve_bool_flag(getattr(args, "asynchronous", None), get_asynchronous)
 
@@ -306,7 +306,7 @@ class InterviewCommand(Command):
     def execute(self) -> None:
         args = self.args
         assert_project_exists(args.project_name)
-        verbose = resolve_verbose(args)
+        verbose = _resolve_verbose(args)
         # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
         rounds = args.rounds if args.rounds is not None else get_rounds()
 
@@ -339,7 +339,7 @@ class CommentCommand(Command):
         assert_project_exists(args.project_name)
         print(f"[ralph] Okay, I'm adding your comment to '{args.project_name}'!")
         prompt = parse_generate_tasks_md(args.project_name, user_comment=args.comment)
-        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "comment")
+        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "comment")
 
 
 class EnrichCommand(Command):
@@ -350,7 +350,7 @@ class EnrichCommand(Command):
         assert_project_exists(args.project_name)
         print(f"[ralph] I'm gonna make the spec for '{args.project_name}' even better!")
         prompt = parse_generate_tasks_md(args.project_name, user_comment=ENRICH_COMMENT)
-        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "enrich")
+        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "enrich")
 
 
 class ExecuteCommand(Command):
@@ -359,8 +359,8 @@ class ExecuteCommand(Command):
     def execute(self) -> None:
         args = self.args
         assert_project_exists(args.project_name)
-        verbose = resolve_verbose(args)
-        asynchronous = resolve_asynchronous(args)
+        verbose = _resolve_verbose(args)
+        asynchronous = _resolve_asynchronous(args)
         limit = args.limit if args.limit is not None else get_limit()
         base = args.base if args.base is not None else get_base()
         if args.base is not None:
@@ -472,7 +472,7 @@ class ValidateCommand(Command):
 
         # Render the validate prompt and run the validation agent with JSON output mode.
         prompt = parse_validate_md(args.project_name)
-        runner = Runner(args.project_name, verbose=resolve_verbose(args))
+        runner = Runner(args.project_name, verbose=_resolve_verbose(args))
         validate_json_result = runner.run_prompt(prompt, "validate", json_output=True)
 
         # Pretty-print the validation summary to the console.
@@ -660,7 +660,7 @@ class RetryCommand(Command):
 
         # Render the retry prompt and spawn the agent.
         prompt = parse_retry_md(args.project_name)
-        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "retry")
+        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "retry")
 
 
 class OneshotCommand(Command):
