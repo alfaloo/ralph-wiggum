@@ -368,7 +368,7 @@ class Runner:
     def run_interview_loop(
         self,
         question_prompts: list[str],
-        make_amend_prompts: list[Callable[[str], str]],
+        make_amend_prompts: list[Callable[..., str]],
     ) -> None:
         """Run sequential two-phase interview agents, one per round.
 
@@ -411,7 +411,7 @@ class Runner:
 
             # Phase 2: amend spec with Q&A
             print("\n[ralph] Ooh, now I'm updating the spec with all your answers!")
-            result2 = run_noninteractive(make_amend_prompts[i](qa_json))
+            result2 = run_noninteractive(make_amend_prompts[i](qa_json=qa_json))
             self._handle_result(result2)
             if result2.returncode == 0:
                 print(f"[ralph] Yay! Round {round_num} is all done!")

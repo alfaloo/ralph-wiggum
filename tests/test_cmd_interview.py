@@ -534,7 +534,7 @@ class TestRunInterviewLoop:
         ):
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
-        make_amend_fn.assert_called_once_with(qa_json_str)
+        make_amend_fn.assert_called_once_with(qa_json=qa_json_str)
 
     def test_interview_phase1_uses_json_output_mode(self):
         """Phase 1 (question generation) must use run_noninteractive_json, not run_noninteractive."""
@@ -596,7 +596,7 @@ class TestRunInterviewLoop:
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
         expected_qa_json = json.dumps([{"question": raw_questions.strip(), "answer": free_form}])
-        make_amend_fn.assert_called_once_with(expected_qa_json)
+        make_amend_fn.assert_called_once_with(qa_json=expected_qa_json)
 
     def test_fallback_path_triggered_when_parse_returns_empty_list(self, capsys):
         """Fallback path: activates when _parse_questions_json returns [] (empty list is falsy)."""
@@ -662,5 +662,5 @@ class TestRunInterviewLoop:
                 [make_amend_fn1, make_amend_fn2],
             )
 
-        make_amend_fn1.assert_called_once_with(qa_json_round1)
-        make_amend_fn2.assert_called_once_with(qa_json_round2)
+        make_amend_fn1.assert_called_once_with(qa_json=qa_json_round1)
+        make_amend_fn2.assert_called_once_with(qa_json=qa_json_round2)

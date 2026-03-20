@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import abc
 import argparse
+import functools
 import json
 import os
 import re
@@ -317,17 +318,15 @@ class InterviewCommand(Command):
             for i in range(rounds)
         ]
 
-        def make_amend_prompt(round_num: int) -> Callable[[str], str]:
-            def build(qa_json: str) -> str:
-                return parse_generate_tasks_md(
-                    args.project_name,
-                    round_num=round_num,
-                    total_rounds=rounds,
-                    qa_json=qa_json,
-                )
-            return build
-
-        amend_fns = [make_amend_prompt(i + 1) for i in range(rounds)]
+        amend_fns = [
+            functools.partial(
+                parse_generate_tasks_md,
+                args.project_name,
+                round_num=i + 1,
+                total_rounds=rounds,
+            )
+            for i in range(rounds)
+        ]
         Runner(args.project_name, verbose=verbose).run_interview_loop(question_prompts, amend_fns)
 
 
