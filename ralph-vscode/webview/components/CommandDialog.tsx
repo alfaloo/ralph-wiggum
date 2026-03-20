@@ -229,10 +229,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
               <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
               <CheckField label="--resume" checked={resume} onChange={setResume} />
               <CheckField label="--asynchronous" checked={asynchronous} disabled={single} onChange={checked => { setAsynchronous(checked); if (checked) setSingle(false); }} />
-              <div className='gap-0'>
-                <CheckField label="Single-agent mode" checked={single} disabled={asynchronous} onChange={checked => { setSingle(checked); if (checked) setAsynchronous(false); }} />
-                <p className="flag-description">Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode.</p>
-              </div>
+              <CheckField label="--single" checked={single} disabled={asynchronous} onChange={checked => { setSingle(checked); if (checked) setAsynchronous(false); }} />
             </div>
           </div>
         );
@@ -292,10 +289,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
                 <CheckField label="--asynchronous" checked={asynchronous} disabled={single} onChange={checked => { setAsynchronous(checked); if (checked) setSingle(false); }} />
                 <span className='text-description-color block text-md mt-1'>Enable/disable asynchronous agent execution for this invocation only</span>
               </div>
-              <div className='gap-0'>
-                <CheckField label="Single-agent mode" checked={single} disabled={asynchronous} onChange={checked => { setSingle(checked); if (checked) setAsynchronous(false); }} />
-                <p className="flag-description">Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode.</p>
-              </div>
+              <CheckField label="--single" checked={single} disabled={asynchronous} onChange={checked => { setSingle(checked); if (checked) setAsynchronous(false); }} />
 
               <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
             </div>

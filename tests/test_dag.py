@@ -168,8 +168,8 @@ class TestAllTasksComplete:
         tasks = [_task("T1", status="in_progress")]
         assert all_tasks_complete(tasks) is False
 
-    def test_empty_list_returns_true(self):
-        assert all_tasks_complete([]) is True
+    def test_empty_list_returns_false(self):
+        assert all_tasks_complete([]) is False
 
     def test_one_incomplete_in_many_returns_false(self):
         tasks = [

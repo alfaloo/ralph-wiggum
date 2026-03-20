@@ -312,25 +312,18 @@ class Runner:
             print(result.stdout)
         if result.returncode != 0 and result.stderr:
             print(f"[ralph] Uh oh, the agent did a bad thing: {result.stderr}", file=sys.stderr)
-        return result.stdout
 
     def _all_tasks_complete(self) -> bool:
         if not os.path.exists(self._tasks_path):
             return False
-        with open(self._tasks_path) as f:
-            data = json.load(f)
-        tasks = data.get("tasks", [])
-        return bool(tasks) and all(t.get("status") == "completed" for t in tasks)
+        tasks = locks.read_json(self._tasks_path).get("tasks", [])
+        return bool(tasks) and dag.all_tasks_complete(tasks)
 
     def _any_task_exceeded_max_attempts(self) -> tuple[bool, dict | None]:
         if not os.path.exists(self._tasks_path):
             return False, None
-        with open(self._tasks_path) as f:
-            data = json.load(f)
-        for task in data.get("tasks", []):
-            if task.get("attempts", 0) >= task.get("max_attempts", 3):
-                return True, task
-        return False, None
+        tasks = locks.read_json(self._tasks_path).get("tasks", [])
+        return dag.any_task_exceeded_max_attempts(tasks)
 
     def _run_summarise(self, exit_reason: str) -> None:
         """Spawn a summarise agent to write .ralph/<project-name>/summary.md."""
@@ -425,12 +418,8 @@ class Runner:
 
         print("\n[ralph] Yay! All the interview rounds are done! Great job answering!")
 
-    def run_execute_loop_async(self, prompts: list[str], max_iterations: int) -> None:
-        """Run async execute agents in a concurrent polling loop.
-
-        The ``prompts`` parameter is accepted for API compatibility; this method
-        generates per-task prompts internally using ``parse_execute_async_md``.
-        """
+    def run_execute_loop_async(self, max_iterations: int) -> None:
+        """Run async execute agents in a concurrent polling loop."""
         state_path = os.path.join(self.ralph_dir, "state.json")
         obstacles_path = os.path.join(self.ralph_dir, "obstacles.json")
 
@@ -442,9 +431,13 @@ class Runner:
 
         futures: dict[str, concurrent.futures.Future] = {}
         executor = concurrent.futures.ThreadPoolExecutor()
+        iteration = 0
+        exit_reason = f"Reached maximum iteration limit ({max_iterations})."
 
         try:
             while True:
+                iteration += 1
+
                 # Step A: Handle completed futures.
                 for task_id, future in list(futures.items()):
                     if not future.done():
@@ -519,6 +512,11 @@ class Runner:
                     self._run_summarise(exit_reason)
                     return
 
+                if iteration >= max_iterations:
+                    print(f"\n[ralph] I used up all {max_iterations} rounds and I'm all tired out now.")
+                    self._run_summarise(exit_reason)
+                    return
+
                 # Step C: Spawn agents for newly ready tasks.
                 ready_tasks = dag.get_ready_tasks(tasks)
                 for task in ready_tasks:
@@ -571,9 +569,8 @@ class Runner:
 
         # Pre-check: skip spawning if all tasks are already completed
         try:
-            tasks_path = f".ralph/{self.project_name}/tasks.json"
-            with open(tasks_path) as f:
-                tasks_data = json.loads(f.read())
+            with open(self._tasks_path) as f:
+                tasks_data = json.load(f)
             if tasks_data.get("tasks") and all(
                 t.get("status") == "completed" for t in tasks_data["tasks"]
             ):
@@ -601,9 +598,8 @@ class Runner:
 
         # Determine exit reason from tasks.json after agent completes
         try:
-            tasks_path = f".ralph/{self.project_name}/tasks.json"
-            with open(tasks_path) as f:
-                tasks_data = json.loads(f.read())
+            with open(self._tasks_path) as f:
+                tasks_data = json.load(f)
             all_completed = all(
                 t.get("status") == "completed" for t in tasks_data.get("tasks", [])
             )
@@ -615,15 +611,15 @@ class Runner:
 
     def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, single: bool = False, resume: bool = False) -> None:
         """Run non-interactive execute agents in a loop."""
+        if resume:
+            self._reset_incomplete_tasks()
+
         if single:
             self.run_execute_single()
             return
 
-        if resume:
-            self._reset_incomplete_tasks()
-
         if asynchronous:
-            self.run_execute_loop_async([], max_iterations)
+            self.run_execute_loop_async(max_iterations)
             return
 
         # Pre-check: skip spawning agents if all tasks are already complete.
@@ -660,8 +656,7 @@ class Runner:
                     t["status"] = "in_progress"
                     t["attempts"] = t.get("attempts", 0) + 1
                     break
-            with open(self._tasks_path, "w") as f:
-                json.dump(tasks_data, f, indent=2)
+            locks.write_json(self._tasks_path, tasks_data)
 
             # Build the prompt with the pre-assigned task injected.
             prompt = parse_execute_md(

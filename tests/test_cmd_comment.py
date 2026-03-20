@@ -40,7 +40,7 @@ class TestCmdCommentCoreFunc:
     def test_assert_project_exists_called_with_project_name(self):
         """cmd_comment calls _assert_project_exists with the correct project name."""
         args = _args()
-        with patch("ralph.commands._assert_project_exists") as mock_assert, \
+        with patch("ralph.commands.assert_project_exists") as mock_assert, \
              patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
              patch("ralph.commands.Runner") as MockRunner:
             MockRunner.return_value.run_prompt = MagicMock()
@@ -50,7 +50,7 @@ class TestCmdCommentCoreFunc:
     def test_parse_generate_tasks_md_called_with_project_name_and_comment(self):
         """cmd_comment passes project_name and user_comment to parse_generate_tasks_md."""
         args = _args(project_name="test-proj", comment="Add tests")
-        with patch("ralph.commands._assert_project_exists"), \
+        with patch("ralph.commands.assert_project_exists"), \
              patch("ralph.commands.parse_generate_tasks_md", return_value="the-prompt") as mock_parse, \
              patch("ralph.commands.Runner") as MockRunner:
             MockRunner.return_value.run_prompt = MagicMock()
@@ -60,7 +60,7 @@ class TestCmdCommentCoreFunc:
     def test_runner_run_prompt_called_with_generated_prompt(self):
         """cmd_comment calls Runner.run_prompt with the prompt returned by parse_generate_tasks_md."""
         args = _args()
-        with patch("ralph.commands._assert_project_exists"), \
+        with patch("ralph.commands.assert_project_exists"), \
              patch("ralph.commands.parse_generate_tasks_md", return_value="generated-prompt"), \
              patch("ralph.commands.Runner") as MockRunner:
             mock_instance = MagicMock()
@@ -71,7 +71,7 @@ class TestCmdCommentCoreFunc:
     def test_runner_initialised_with_correct_project_name(self):
         """cmd_comment constructs Runner with the correct project_name."""
         args = _args(project_name="proj-xyz")
-        with patch("ralph.commands._assert_project_exists"), \
+        with patch("ralph.commands.assert_project_exists"), \
              patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
              patch("ralph.commands.Runner") as MockRunner:
             MockRunner.return_value.run_prompt = MagicMock()
@@ -82,7 +82,7 @@ class TestCmdCommentCoreFunc:
     def test_verbose_true_forwarded_to_runner(self):
         """cmd_comment forwards verbose=True to Runner when --verbose true is passed."""
         args = _args(verbose="true")
-        with patch("ralph.commands._assert_project_exists"), \
+        with patch("ralph.commands.assert_project_exists"), \
              patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
              patch("ralph.commands.Runner") as MockRunner:
             MockRunner.return_value.run_prompt = MagicMock()
@@ -93,7 +93,7 @@ class TestCmdCommentCoreFunc:
     def test_verbose_false_forwarded_to_runner(self):
         """cmd_comment forwards verbose=False to Runner when --verbose false is passed."""
         args = _args(verbose="false")
-        with patch("ralph.commands._assert_project_exists"), \
+        with patch("ralph.commands.assert_project_exists"), \
              patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
              patch("ralph.commands.Runner") as MockRunner:
             MockRunner.return_value.run_prompt = MagicMock()
@@ -104,7 +104,7 @@ class TestCmdCommentCoreFunc:
     def test_verbose_none_falls_back_to_persisted_setting(self):
         """When --verbose is absent, Runner receives the verbose value from settings.json."""
         args = _args(verbose=None)
-        with patch("ralph.commands._assert_project_exists"), \
+        with patch("ralph.commands.assert_project_exists"), \
              patch("ralph.commands.parse_generate_tasks_md", return_value="prompt"), \
              patch("ralph.commands.get_verbose", return_value=True), \
              patch("ralph.commands.Runner") as MockRunner:
@@ -125,7 +125,7 @@ class TestCmdCommentCoreFunc:
             call_log.append("parse")
             return "my-prompt"
 
-        with patch("ralph.commands._assert_project_exists", side_effect=mock_assert), \
+        with patch("ralph.commands.assert_project_exists", side_effect=mock_assert), \
              patch("ralph.commands.parse_generate_tasks_md", side_effect=mock_parse), \
              patch("ralph.commands.Runner") as MockRunner:
             mock_instance = MagicMock()

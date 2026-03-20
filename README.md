@@ -49,6 +49,7 @@ If the `pip install` fails, a possible solution would be to use `pipx install` i
 Initialises a new project. Creates `.ralph/<project-name>/` containing:
 - `spec.md` — a template spec file for you to fill in
 - `tasks.json`, `state.json`, `obstacles.json` — tracking files used by the agents
+- `test-instructions.md` — a human-editable file that tells the validation and execute agents how to run the project's tests
 
 Also creates `.ralph/settings.json` with default values for global flags if it does not already exist.
 
@@ -134,6 +135,7 @@ Rolls back code changes from a previous `ralph execute` run. All logic runs in t
   1. Checks out the base branch (from `settings.json`; defaults to `"main"`).
   2. Force-deletes the project branch (after `y/n` confirmation).
   3. Resets `state.json`, `obstacles.json`, and all tasks in `tasks.json` back to their initial state.
+  4. Deletes `validation.md`, `summary.md`, and `pr-description.md` if they exist, returning the project directory to a pre-execute state. `test-instructions.md` is preserved because it is user-edited.
 
 ---
 
@@ -150,7 +152,7 @@ Spawns a single Claude agent to fix small insufficiencies identified by `ralph v
 
 ### `ralph status <project-name>`
 
-Displays a snapshot of the current project state without spawning a Claude agent. Shows the active branch, execution mode flags, task status counts (pending/in_progress/completed), outstanding obstacles, and the validation rating (if `validate` has been run).
+Displays a snapshot of the current project state without spawning a Claude agent. Lists every task with its id, status, and title, followed by a summary count (pending/in_progress/completed). Also shows the active branch, execution mode flags, outstanding obstacles, and the validation rating (if `validate` has been run).
 
 No flags. No agent invocations.
 

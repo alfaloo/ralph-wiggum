@@ -44,7 +44,7 @@ class TestCmdInterviewCoreFunction:
     def test_calls_assert_project_exists(self):
         """cmd_interview must call _assert_project_exists with the project name."""
         with (
-            patch("ralph.commands._assert_project_exists") as mock_assert,
+            patch("ralph.commands.assert_project_exists") as mock_assert,
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q-prompt"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a-prompt"),
@@ -58,7 +58,7 @@ class TestCmdInterviewCoreFunction:
     def test_calls_run_interview_loop(self):
         """cmd_interview must call Runner.run_interview_loop()."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -72,7 +72,7 @@ class TestCmdInterviewCoreFunction:
     def test_runner_created_with_project_name_and_verbose(self):
         """Runner must be instantiated with the correct project name and verbose flag."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -86,7 +86,7 @@ class TestCmdInterviewCoreFunction:
     def test_verbose_true_forwarded_to_runner(self):
         """--verbose true must be resolved to True and forwarded to Runner."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -100,7 +100,7 @@ class TestCmdInterviewCoreFunction:
     def test_verbose_false_forwarded_to_runner(self):
         """--verbose false must be resolved to False and forwarded to Runner."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -114,7 +114,7 @@ class TestCmdInterviewCoreFunction:
     def test_uses_cli_rounds_when_provided(self):
         """When --rounds is explicitly given on the CLI, it overrides the persisted setting."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q") as mock_parse_q,
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -128,7 +128,7 @@ class TestCmdInterviewCoreFunction:
     def test_uses_settings_rounds_when_not_provided(self):
         """When --rounds is absent, the value from get_rounds() must be used."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q") as mock_parse_q,
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -142,7 +142,7 @@ class TestCmdInterviewCoreFunction:
     def test_question_prompts_list_has_one_entry_per_round(self):
         """The question_prompts list passed to run_interview_loop must have one entry per round."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q-prompt"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a-prompt"),
@@ -157,7 +157,7 @@ class TestCmdInterviewCoreFunction:
     def test_amend_fns_list_has_one_callable_per_round(self):
         """The amend_fns list passed to run_interview_loop must have one callable per round."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -173,7 +173,7 @@ class TestCmdInterviewCoreFunction:
     def test_parse_questions_md_called_with_correct_args(self):
         """parse_questions_md must be called with project_name, round_num, and total_rounds."""
         with (
-            patch("ralph.commands._assert_project_exists"),
+            patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
             patch("ralph.commands.parse_questions_md", return_value="q") as mock_parse_q,
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
@@ -208,7 +208,7 @@ class TestCmdInterviewFailcases:
     def test_run_interview_loop_not_called_when_project_missing(self):
         """run_interview_loop must not be invoked if the project precondition fails."""
         with (
-            patch("ralph.commands._assert_project_exists", side_effect=SystemExit(1)),
+            patch("ralph.commands.assert_project_exists", side_effect=SystemExit(1)),
             patch("ralph.commands.Runner") as MockRunner,
         ):
             with pytest.raises(SystemExit):

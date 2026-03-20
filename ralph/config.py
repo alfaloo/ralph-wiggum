@@ -74,17 +74,8 @@ def set_asynchronous(value) -> None:
 
 
 def get_rounds() -> int:
-    """Return the persisted rounds setting.
-
-    If the key is absent, writes the default value of 1 back to the file
-    so that it is self-healed for future reads.
-    """
-    data = _read_settings()
-    if "rounds" not in data:
-        data["rounds"] = 1
-        _write_settings(data)
-        return 1
-    return int(data["rounds"])
+    """Return the persisted rounds setting (default: 1)."""
+    return int(_read_settings().get("rounds", 1))
 
 
 def set_rounds(value: int) -> None:
@@ -95,17 +86,8 @@ def set_rounds(value: int) -> None:
 
 
 def get_limit() -> int:
-    """Return the persisted limit setting.
-
-    If the key is absent, writes the default value of 20 back to the file
-    so that it is self-healed for future reads.
-    """
-    data = _read_settings()
-    if "limit" not in data:
-        data["limit"] = 20
-        _write_settings(data)
-        return 20
-    return int(data["limit"])
+    """Return the persisted limit setting (default: 20)."""
+    return int(_read_settings().get("limit", 20))
 
 
 def set_limit(value: int) -> None:
@@ -116,17 +98,8 @@ def set_limit(value: int) -> None:
 
 
 def get_base() -> str:
-    """Return the persisted base branch setting.
-
-    If the key is absent, writes the default value of 'main' back to the file
-    so that it is self-healed for future reads.
-    """
-    data = _read_settings()
-    if "base" not in data:
-        data["base"] = "main"
-        _write_settings(data)
-        return "main"
-    return str(data["base"])
+    """Return the persisted base branch setting (default: 'main')."""
+    return str(_read_settings().get("base", "main"))
 
 
 def set_base(value: str) -> None:
@@ -141,12 +114,7 @@ _VALID_PROVIDERS = ["github", "gitlab"]
 
 def get_provider() -> str:
     """Return the persisted provider setting (default: 'github')."""
-    data = _read_settings()
-    if "provider" not in data:
-        data["provider"] = "github"
-        _write_settings(data)
-        return "github"
-    return str(data["provider"])
+    return str(_read_settings().get("provider", "github"))
 
 
 def set_provider(value: str) -> None:
@@ -199,6 +167,8 @@ _DEFAULTS = {
     "asynchronous": False,
     "single": False,
 }
+
+DEFAULT_LIMIT = _DEFAULTS["limit"]
 
 
 def ensure_defaults() -> None:

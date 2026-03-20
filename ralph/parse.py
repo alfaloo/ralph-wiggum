@@ -120,7 +120,7 @@ def parse_summarise_md(project_name: str, ralph_dir: str, exit_reason: str) -> s
     return _render(
         "summarise.md",
         PROJECT_NAME=project_name,
-        ralph_dir=ralph_dir,
+        RALPH_DIR=ralph_dir,
         EXIT_REASON=exit_reason,
     )
 

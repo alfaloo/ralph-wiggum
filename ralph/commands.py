@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from typing import Callable
 
 from ralph.config import (
@@ -36,9 +37,7 @@ from ralph.parse import (
 from ralph.run import Runner
 
 
-_DEFAULT_LIMIT = 20
-
-_ENRICH_COMMENT = (
+ENRICH_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
     "Carefully read spec.md and all relevant source files, tests, and configuration in the "
     "codebase to gain a thorough understanding of the problem domain and existing implementation "
@@ -77,7 +76,7 @@ _TEST_INSTRUCTIONS_TEMPLATE = """\
 # ---------------------------------------------------------------------------
 
 
-def _validate_branch_exists(branch: str) -> None:
+def validate_branch_exists(branch: str) -> None:
     """Verify that the given branch exists in the current repo; exit if not."""
     result = subprocess.run(["git", "branch", "--list", branch], capture_output=True, text=True)
     if not result.stdout.strip():
@@ -85,38 +84,37 @@ def _validate_branch_exists(branch: str) -> None:
         sys.exit(1)
 
 
-def _resolve_verbose(args: argparse.Namespace) -> bool:
+def _resolve_bool_flag(value: str | None, getter: Callable[[], bool]) -> bool:
+    """Return the effective bool: CLI flag value if provided, else config getter."""
+    return value == "true" if value is not None else getter()
+
+
+def resolve_verbose(args: argparse.Namespace) -> bool:
     """Return effective verbose: per-command CLI flag > persisted setting."""
-    if args.verbose is not None:
-        return args.verbose == "true"
-    return get_verbose()
+    return _resolve_bool_flag(getattr(args, "verbose", None), get_verbose)
 
 
-def _resolve_asynchronous(args: argparse.Namespace) -> bool:
+def resolve_asynchronous(args: argparse.Namespace) -> bool:
     """Return effective asynchronous: per-command CLI flag > persisted setting."""
-    if args.asynchronous is not None:
-        return args.asynchronous == "true"
-    return get_asynchronous()
+    return _resolve_bool_flag(getattr(args, "asynchronous", None), get_asynchronous)
 
 
 def _resolve_single(args: argparse.Namespace) -> bool:
     """Return effective single: per-command CLI flag > persisted setting."""
-    if getattr(args, "single", None) is not None:
-        return args.single == "true"
-    return get_single()
+    return _resolve_bool_flag(getattr(args, "single", None), get_single)
 
 
-def _resolve_provider(args: argparse.Namespace) -> str:
+def resolve_provider(args: argparse.Namespace) -> str:
     """Return effective provider: per-command CLI flag > persisted setting."""
     if getattr(args, "provider", None) is not None:
         return args.provider
     return get_provider()
 
 
-def _validate_provider_cli(provider: str) -> bool:
+def validate_provider_cli(provider: str) -> None:
     """Check that the selected provider's CLI tool is installed and authenticated.
 
-    Returns True only if the CLI is found and auth succeeds, False otherwise.
+    Calls sys.exit(1) directly after printing an error if validation fails.
     """
     if provider == "github":
         try:
@@ -127,15 +125,14 @@ def _validate_provider_cli(provider: str) -> bool:
                 "You gotta get it from https://cli.github.com and then do 'gh auth login'.",
                 file=sys.stderr,
             )
-            return False
+            sys.exit(1)
         if result.returncode != 0:
             print(
                 "[ralph] The 'gh' thingy doesn't know who you are! "
                 "Do 'gh auth login' to tell it who you are.",
                 file=sys.stderr,
             )
-            return False
-        return True
+            sys.exit(1)
     elif provider == "gitlab":
         try:
             result = subprocess.run(["glab", "auth", "status"], capture_output=True)
@@ -145,18 +142,17 @@ def _validate_provider_cli(provider: str) -> bool:
                 "You gotta get it from https://gitlab.com/gitlab-org/cli and then do 'glab auth login'.",
                 file=sys.stderr,
             )
-            return False
+            sys.exit(1)
         if result.returncode != 0:
             print(
                 "[ralph] The 'glab' thingy doesn't know who you are! "
                 "Do 'glab auth login' to tell it who you are.",
                 file=sys.stderr,
             )
-            return False
-        return True
+            sys.exit(1)
     else:
         print(f"[ralph] I don't know what '{provider}' is! Try 'github' or 'gitlab'.", file=sys.stderr)
-        return False
+        sys.exit(1)
 
 
 def _print_validate_summary(project_name: str, json_result: str | None) -> None:
@@ -211,14 +207,14 @@ def _print_validate_summary(project_name: str, json_result: str | None) -> None:
             print(f"[ralph]   {obs_icon} {resolved_str:<12}  {description}")
         print(sep)
 
-    if overall_status in ("requires_attention", "failed") and error_description:
+    if overall_status in ("requires attention", "failed") and error_description:
         print(f"[ralph] What went wrong: {error_description}")
         print(sep)
 
     print()
 
 
-def _assert_project_exists(project_name: str) -> None:
+def assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
     ralph_dir = os.path.join(".ralph", project_name)
     if not os.path.exists(ralph_dir):
@@ -299,7 +295,7 @@ class InitCommand(Command):
 
         test_instructions_path = os.path.join(ralph_dir, "test-instructions.md")
         with open(test_instructions_path, "w") as f:
-            json.dump(_TEST_INSTRUCTIONS_TEMPLATE, f)
+            f.write(_TEST_INSTRUCTIONS_TEMPLATE)
 
         ensure_defaults()
 
@@ -329,8 +325,8 @@ class InterviewCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
-        verbose = _resolve_verbose(args)
+        assert_project_exists(args.project_name)
+        verbose = resolve_verbose(args)
         # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
         rounds = args.rounds if args.rounds is not None else get_rounds()
 
@@ -360,10 +356,10 @@ class CommentCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
         print(f"[ralph] Okay, I'm adding your comment to '{args.project_name}'!")
         prompt = parse_generate_tasks_md(args.project_name, user_comment=args.comment)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "comment")
+        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "comment")
 
 
 class EnrichCommand(Command):
@@ -371,10 +367,10 @@ class EnrichCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
         print(f"[ralph] I'm gonna make the spec for '{args.project_name}' even better!")
-        prompt = parse_generate_tasks_md(args.project_name, user_comment=_ENRICH_COMMENT)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "enrich")
+        prompt = parse_generate_tasks_md(args.project_name, user_comment=ENRICH_COMMENT)
+        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "enrich")
 
 
 class ExecuteCommand(Command):
@@ -382,13 +378,13 @@ class ExecuteCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
-        verbose = _resolve_verbose(args)
-        asynchronous = _resolve_asynchronous(args)
+        assert_project_exists(args.project_name)
+        verbose = resolve_verbose(args)
+        asynchronous = resolve_asynchronous(args)
         limit = args.limit if args.limit is not None else get_limit()
         base = args.base if args.base is not None else get_base()
         if args.base is not None:
-            _validate_branch_exists(args.base)
+            validate_branch_exists(args.base)
 
         project_name = args.project_name
 
@@ -458,7 +454,7 @@ class ValidateCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
         
         # Check pr-description.md exists.
         pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
@@ -484,7 +480,7 @@ class ValidateCommand(Command):
             sys.exit(1)
 
         # Check that the project branch exists.
-        _validate_branch_exists(args.project_name)
+        validate_branch_exists(args.project_name)
 
         # If validation.md already exists, ask whether to overwrite.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
@@ -507,7 +503,7 @@ class ValidateCommand(Command):
 
         # Render the validate prompt and run the validation agent with JSON output mode.
         prompt = parse_validate_md(args.project_name)
-        runner = Runner(args.project_name, verbose=_resolve_verbose(args))
+        runner = Runner(args.project_name, verbose=resolve_verbose(args))
         validate_json_result = runner.run_prompt(prompt, "validate", json_output=True)
 
         # Pretty-print the validation summary to the console.
@@ -519,7 +515,7 @@ class UndoCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
         print(f"[ralph] Uh oh, we're doing the undo thing for '{args.project_name}'! This is a big deal!")
 
@@ -629,6 +625,12 @@ class UndoCommand(Command):
             print(f"[ralph] Oops, I couldn't reset '{tasks_path}': {e}", file=sys.stderr)
             sys.exit(1)
 
+        # Delete artifact files if they exist (test-instructions.md is user-edited and must survive).
+        for artifact in ("validation.md", "summary.md", "pr-description.md"):
+            artifact_path = os.path.join(ralph_dir, artifact)
+            if os.path.exists(artifact_path):
+                os.unlink(artifact_path)
+
         print(f"[ralph] Yay! Undo is all done! Project '{args.project_name}' is all cleaned up and ready to start fresh!")
 
 
@@ -637,7 +639,7 @@ class RetryCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
         # Check that validation.md exists.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
@@ -708,7 +710,7 @@ class RetryCommand(Command):
 
         # Render the retry prompt and spawn the agent.
         prompt = parse_retry_md(args.project_name)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "retry")
+        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "retry")
 
 
 class OneshotCommand(Command):
@@ -764,7 +766,7 @@ class StatusCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
         project_name = args.project_name
         ralph_dir = os.path.join(".ralph", project_name)
@@ -890,169 +892,141 @@ class StatusCommand(Command):
         print()
 
 
+@dataclass
+class _ProviderConfig:
+    binary: str
+    branch_flag: str
+    pr_noun: str        # "pull request" or "merge request"
+    create_sub: list    # e.g. ["pr", "create"] or ["mr", "create"]
+    body_flag: str      # "--body" or "--description"
+    base_flag: str      # "--base" or "--target-branch"
+    cli_url: str
+    check_merge_base: bool
+
+
+_GITHUB = _ProviderConfig(
+    binary="gh",
+    branch_flag="--head",
+    pr_noun="pull request",
+    create_sub=["pr", "create"],
+    body_flag="--body",
+    base_flag="--base",
+    cli_url="https://cli.github.com/",
+    check_merge_base=True,
+)
+
+_GITLAB = _ProviderConfig(
+    binary="glab",
+    branch_flag="--source-branch",
+    pr_noun="merge request",
+    create_sub=["mr", "create"],
+    body_flag="--description",
+    base_flag="--target-branch",
+    cli_url="https://gitlab.com/gitlab-org/cli",
+    check_merge_base=False,
+)
+
+
+def _do_create_pr(cfg: _ProviderConfig, project_name: str) -> None:
+    """Execute the six-step flow to create a PR/MR using the given provider config."""
+    # Check CLI is installed.
+    check = subprocess.run([cfg.binary, "--version"], capture_output=True)
+    if check.returncode != 0:
+        print(
+            f"[ralph] I can't find the '{cfg.binary}' thingy! Please get it from {cfg.cli_url}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check current branch matches project name.
+    branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+    current_branch = branch_result.stdout.strip()
+    if current_branch != project_name:
+        print(
+            f"[ralph] I'm on branch '{current_branch}' but the project is '{project_name}'. "
+            "Please get on the right branch first!",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Check working tree is clean.
+    status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    if status_result.stdout:
+        pr_abbr = "PR" if cfg.pr_noun == "pull request" else "MR"
+        print(
+            f"[ralph] There are uncommitted changes in the working tree! Please put them away before making a {pr_abbr}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Detect base branch.
+    base_branch = get_base()
+
+    if cfg.check_merge_base:
+        merge_base_result = subprocess.run(
+            ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
+        )
+        if merge_base_result.returncode != 0:
+            print(
+                f"[ralph] I couldn't figure out where HEAD and '{base_branch}' come together. "
+                "Make sure the base branch exists and shares history with the current branch.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    # Check pr-description.md exists.
+    pr_desc_path = os.path.join(".ralph", project_name, "pr-description.md")
+    if not os.path.exists(pr_desc_path):
+        print(
+            f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
+            "Did you run 'ralph execute' first?",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Push branch to origin.
+    push_result = subprocess.run(
+        ["git", "push", "-u", "origin", project_name], capture_output=True, text=True
+    )
+    if push_result.returncode != 0:
+        print(push_result.stderr, file=sys.stderr)
+        sys.exit(1)
+
+    # Read pr-description.md.
+    with open(pr_desc_path) as f:
+        pr_body = f.read()
+
+    # Create PR/MR non-interactively.
+    result = subprocess.run(
+        [
+            cfg.binary, *cfg.create_sub,
+            "--title", project_name,
+            cfg.body_flag, pr_body,
+            cfg.base_flag, base_branch,
+            cfg.branch_flag, project_name,
+        ],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr, file=sys.stderr)
+        sys.exit(1)
+
+    print(f"[ralph] The {cfg.pr_noun} is all done! You can see it now!")
+    print(result.stdout)
+
+
 class PrCommand(Command):
     """ralph pr — create a pull/merge request for the project."""
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
-        provider = _resolve_provider(args)
+        provider = resolve_provider(args)
 
         print(f"[ralph] I'm making a pull request for '{args.project_name}'! Exciting!")
 
         if provider == "github":
-            # Check gh CLI is installed.
-            gh_check = subprocess.run(["gh", "--version"], capture_output=True)
-            if gh_check.returncode != 0:
-                print(
-                    "[ralph] I can't find the 'gh' thingy! Please get it from https://cli.github.com/",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check current branch matches project name.
-            branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
-            current_branch = branch_result.stdout.strip()
-            if current_branch != args.project_name:
-                print(
-                    f"[ralph] I'm on branch '{current_branch}' but the project is '{args.project_name}'. "
-                    "Please get on the right branch first!",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check working tree is clean.
-            status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-            if status_result.stdout:
-                print(
-                    "[ralph] There are uncommitted changes in the working tree! Please put them away before making a PR.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Detect base branch.
-            base_branch = get_base()
-            merge_base_result = subprocess.run(
-                ["git", "merge-base", "HEAD", base_branch], capture_output=True, text=True
-            )
-            if merge_base_result.returncode != 0:
-                print(
-                    f"[ralph] I couldn't figure out where HEAD and '{base_branch}' come together. "
-                    "Make sure the base branch exists and shares history with the current branch.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check pr-description.md exists.
-            pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
-            if not os.path.exists(pr_desc_path):
-                print(
-                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
-                    "Did you run 'ralph execute' first?",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Push branch to origin.
-            push_result = subprocess.run(
-                ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
-            )
-            if push_result.returncode != 0:
-                print(push_result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            # Read pr-description.md.
-            with open(pr_desc_path) as f:
-                pr_body = f.read()
-
-            # Create PR non-interactively.
-            result = subprocess.run(
-                [
-                    "gh", "pr", "create",
-                    "--title", args.project_name,
-                    "--body", pr_body,
-                    "--base", base_branch,
-                    "--head", args.project_name,
-                ],
-                capture_output=True, text=True,
-            )
-            if result.returncode != 0:
-                print(result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            print("[ralph] The pull request is all done! You can see it now!")
-            print(result.stdout)
-
+            _do_create_pr(_GITHUB, args.project_name)
         elif provider == "gitlab":
-            # Check glab CLI is installed.
-            glab_check = subprocess.run(["glab", "--version"], capture_output=True)
-            if glab_check.returncode != 0:
-                print(
-                    "[ralph] I can't find the 'glab' thingy! Please get it from https://gitlab.com/gitlab-org/cli",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check current branch matches project name.
-            branch_result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
-            current_branch = branch_result.stdout.strip()
-            if current_branch != args.project_name:
-                print(
-                    f"[ralph] I'm on branch '{current_branch}' but the project is '{args.project_name}'. "
-                    "Please get on the right branch first!",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Check working tree is clean.
-            status_result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-            if status_result.stdout:
-                print(
-                    "[ralph] There are uncommitted changes in the working tree! Please put them away before making a MR.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Detect base branch.
-            base_branch = get_base()
-
-            # Check pr-description.md exists.
-            pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
-            if not os.path.exists(pr_desc_path):
-                print(
-                    f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
-                    "Did you run 'ralph execute' first?",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Push branch to origin.
-            push_result = subprocess.run(
-                ["git", "push", "-u", "origin", args.project_name], capture_output=True, text=True
-            )
-            if push_result.returncode != 0:
-                print(push_result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            # Read pr-description.md.
-            with open(pr_desc_path) as f:
-                pr_body = f.read()
-
-            # Create MR non-interactively.
-            result = subprocess.run(
-                [
-                    "glab", "mr", "create",
-                    "--title", args.project_name,
-                    "--description", pr_body,
-                    "--source-branch", args.project_name,
-                    "--target-branch", base_branch,
-                ],
-                capture_output=True, text=True,
-            )
-            if result.returncode != 0:
-                print(result.stderr, file=sys.stderr)
-                sys.exit(1)
-
-            print("[ralph] The merge request is all done! You can see it now!")
-            print(result.stdout)
+            _do_create_pr(_GITLAB, args.project_name)
