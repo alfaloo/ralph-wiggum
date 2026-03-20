@@ -535,7 +535,7 @@ class Runner:
                     prompt = parse_execute_async_md(
                         self.project_name,
                         task_id,
-                        1,
+                        iteration,
                         max_iterations,
                         task_title=task.get("title", ""),
                         task_description=task.get("description", ""),
