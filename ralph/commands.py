@@ -963,6 +963,8 @@ class PrCommand(Command):
 
         provider = resolve_provider(args)
 
+        validate_provider_cli(provider)
+
         print(f"[ralph] I'm making a pull request for '{args.project_name}'! Exciting!")
 
         if provider == "github":
