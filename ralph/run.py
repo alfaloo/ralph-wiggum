@@ -568,8 +568,8 @@ class Runner:
                 print("[ralph] All tasks already completed. Skipping agent spawn.")
                 self._run_summarise("All tasks completed")
                 return
-        except Exception:
-            pass
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"[ralph] Warning: could not read tasks file before agent spawn: {e}", file=sys.stderr)
 
         print("[ralph] Single-agent mode: spawning one agent for all tasks.")
         prompt = parse_execute_single_md(self.project_name)
@@ -595,7 +595,8 @@ class Runner:
                 t.get("status") == "completed" for t in tasks_data.get("tasks", [])
             )
             exit_reason = "All tasks completed" if all_completed else "Some tasks did not complete successfully"
-        except Exception:
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"[ralph] Warning: could not read tasks file after agent run: {e}", file=sys.stderr)
             exit_reason = "Some tasks did not complete successfully"
 
         self._run_summarise(exit_reason)
