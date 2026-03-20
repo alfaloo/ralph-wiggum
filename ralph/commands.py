@@ -117,42 +117,18 @@ def validate_provider_cli(provider: str) -> None:
 
     Calls sys.exit(1) directly after printing an error if validation fails.
     """
-    if provider == "github":
-        try:
-            result = subprocess.run(["gh", "auth", "status"], capture_output=True)
-        except FileNotFoundError:
-            print(
-                "[ralph] I can't find the 'gh' thingy! "
-                "You gotta get it from https://cli.github.com and then do 'gh auth login'.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        if result.returncode != 0:
-            print(
-                "[ralph] The 'gh' thingy doesn't know who you are! "
-                "Do 'gh auth login' to tell it who you are.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-    elif provider == "gitlab":
-        try:
-            result = subprocess.run(["glab", "auth", "status"], capture_output=True)
-        except FileNotFoundError:
-            print(
-                "[ralph] I can't find the 'glab' thingy! "
-                "You gotta get it from https://gitlab.com/gitlab-org/cli and then do 'glab auth login'.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        if result.returncode != 0:
-            print(
-                "[ralph] The 'glab' thingy doesn't know who you are! "
-                "Do 'glab auth login' to tell it who you are.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-    else:
+    configs = {"github": _GITHUB, "gitlab": _GITLAB}
+    if provider not in configs:
         print(f"[ralph] I don't know what '{provider}' is! Try 'github' or 'gitlab'.", file=sys.stderr)
+        sys.exit(1)
+    cfg = configs[provider]
+    try:
+        result = subprocess.run([cfg.binary, "auth", "status"], capture_output=True)
+    except FileNotFoundError:
+        print(f"[ralph] I can't find the '{cfg.binary}' thingy! Get it from {cfg.cli_url}", file=sys.stderr)
+        sys.exit(1)
+    if result.returncode != 0:
+        print(f"[ralph] The '{cfg.binary}' thingy doesn't know who you are! Do '{cfg.binary} auth login'.", file=sys.stderr)
         sys.exit(1)
 
 
