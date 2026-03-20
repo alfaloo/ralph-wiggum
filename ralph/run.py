@@ -555,15 +555,13 @@ class Runner:
         """Reset all non-completed tasks to pending state silently."""
         if not os.path.exists(self._tasks_path):
             return
-        with open(self._tasks_path) as f:
-            data = json.load(f)
+        data = locks.read_json(self._tasks_path)
         for task in data.get("tasks", []):
             if task.get("status") != "completed":
                 task["status"] = "pending"
                 task["attempts"] = 0
                 task["blocked"] = False
-        with open(self._tasks_path, "w") as f:
-            json.dump(data, f, indent=2)
+        locks.write_json(self._tasks_path, data)
 
     def run_execute_single(self) -> None:
         """Spawn one agent to implement all pending tasks in sequence."""
