@@ -378,52 +378,6 @@ class TestCmdUndoBaseBranchSameAsProject:
 
 
 # ===========================================================================
-# Base branch not set
-# ===========================================================================
-
-
-class TestCmdUndoBaseBranchNotSet:
-    def test_set_base_called_with_main_when_base_is_empty(self):
-        """When get_base() returns empty string, set_base('main') is called."""
-        with patch("ralph.commands.assert_project_exists"), \
-             patch("ralph.commands.os.path.exists", return_value=True), \
-             patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.commands.get_base", return_value=""), \
-             patch("ralph.commands.set_base") as mock_set_base, \
-             patch("ralph.commands.subprocess.run", side_effect=_make_subprocess_run()), \
-             patch("builtins.input", return_value="y"), \
-             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"), \
-             patch("ralph.commands.os.unlink"):
-            cmd_undo(_make_args())
-
-        mock_set_base.assert_called_once_with("main")
-
-    def test_main_used_as_base_branch_when_unset(self):
-        """'main' is used as the base branch when get_base() returns empty string."""
-        checkout_calls = []
-
-        def track_subprocess(cmd, **kwargs):
-            if cmd[:2] == ["git", "checkout"]:
-                checkout_calls.append(list(cmd))
-            return _ok()
-
-        with patch("ralph.commands.assert_project_exists"), \
-             patch("ralph.commands.os.path.exists", return_value=True), \
-             patch("builtins.open", mock_open(read_data=_FAILED_VALIDATION_MD)), \
-             patch("ralph.commands.get_base", return_value=""), \
-             patch("ralph.commands.set_base"), \
-             patch("ralph.commands.subprocess.run", side_effect=track_subprocess), \
-             patch("builtins.input", return_value="y"), \
-             patch("ralph.commands.json.load", return_value=copy.deepcopy(_SAMPLE_TASKS_DATA)), \
-             patch("ralph.commands.json.dump"), \
-             patch("ralph.commands.os.unlink"):
-            cmd_undo(_make_args())
-
-        assert ["git", "checkout", "main"] in checkout_calls
-
-
-# ===========================================================================
 # Git checkout fails
 # ===========================================================================
 

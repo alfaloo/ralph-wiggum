@@ -523,9 +523,6 @@ class UndoCommand(Command):
 
         # Resolve base branch.
         base_branch = get_base()
-        if not base_branch:
-            set_base("main")
-            base_branch = "main"
 
         # Abort if base branch and project branch are the same.
         if base_branch == args.project_name:
