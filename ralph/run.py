@@ -157,7 +157,6 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
     if os.environ.get("RALPH_VSCODE") and ralph_dir:
         return _collect_guided_answers_vscode(questions, ralph_dir)
 
-    DESCRIBE_YOURSELF = _DESCRIBE_YOURSELF
     SEPARATOR = "\u2500" * 61
     total = len(questions)
     qa_pairs: list[dict] = []
@@ -233,7 +232,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
         for i, q in enumerate(questions, start=1):
             question_text = q.get("question", "")
             options = list(q.get("options", []))
-            all_options = options + [DESCRIBE_YOURSELF]
+            all_options = options + [_DESCRIBE_YOURSELF]
 
             print(f"Q{i}: {question_text}\n")
 
@@ -244,7 +243,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
                 )
             elif sys.stdin.isatty():
                 selected = _tty_select(all_options)
-                if selected == DESCRIBE_YOURSELF:
+                if selected == _DESCRIBE_YOURSELF:
                     answer = _open_multiline_editor(
                         "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
                     )
@@ -252,7 +251,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
                     answer = selected
             else:
                 selected = _nontty_select(all_options)
-                if selected == DESCRIBE_YOURSELF:
+                if selected == _DESCRIBE_YOURSELF:
                     answer = _open_multiline_editor(
                         "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
                     )
