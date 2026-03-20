@@ -406,8 +406,12 @@ def main() -> None:
         set_provider(args.global_provider)
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
+    no_globals_set = all(
+        getattr(args, f"global_{flag}") is None
+        for flag in ("verbose", "rounds", "limit", "base", "provider", "asynchronous", "single")
+    )
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None and args.global_asynchronous is None and args.global_single is None:
+        if no_globals_set:
             print()
             print(RALPH_BANNER)
             print()
