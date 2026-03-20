@@ -39,6 +39,8 @@ from ralph.run import Runner
 from ralph import locks
 
 
+_RALPH_ROOT = ".ralph"
+
 ENRICH_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
     "Carefully read spec.md and all relevant source files, tests, and configuration in the "
@@ -194,7 +196,7 @@ def _print_validate_summary(project_name: str, json_result: str | None) -> None:
 
 def assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
-    ralph_dir = os.path.join(".ralph", project_name)
+    ralph_dir = os.path.join(_RALPH_ROOT, project_name)
     if not os.path.exists(ralph_dir):
         print(
             f"[ralph] I can't find project '{project_name}'! "
@@ -244,7 +246,7 @@ class InitCommand(Command):
     def execute(self) -> None:
         args = self.args
         project_name = args.project_name
-        ralph_dir = os.path.join(".ralph", project_name)
+        ralph_dir = os.path.join(_RALPH_ROOT, project_name)
 
         print(f"[ralph] Ooh, I'm making a new project called '{project_name}'!")
 
@@ -396,7 +398,7 @@ class ExecuteCommand(Command):
                 sys.exit(1)
 
         # Verify tasks.json exists and has been populated (e.g. by ralph enrich or ralph comment).
-        tasks_path = os.path.join(".ralph", project_name, "tasks.json")
+        tasks_path = os.path.join(_RALPH_ROOT, project_name, "tasks.json")
         if not os.path.exists(tasks_path):
             print(
                 f"[ralph] I can't find a tasks.json for project '{project_name}'! "
@@ -430,7 +432,7 @@ class ValidateCommand(Command):
         assert_project_exists(args.project_name)
         
         # Check pr-description.md exists.
-        pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
+        pr_desc_path = os.path.join(_RALPH_ROOT, args.project_name, "pr-description.md")
         if not os.path.exists(pr_desc_path):
             print(
                 f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "
@@ -440,7 +442,7 @@ class ValidateCommand(Command):
             sys.exit(1)
 
         # Check all tasks in tasks.json are completed.
-        tasks_path = os.path.join(".ralph", args.project_name, "tasks.json")
+        tasks_path = os.path.join(_RALPH_ROOT, args.project_name, "tasks.json")
         with open(tasks_path) as f:
             tasks_data = json.load(f)
         incomplete = [t for t in tasks_data.get("tasks", []) if t.get("status") != "completed"]
@@ -456,7 +458,7 @@ class ValidateCommand(Command):
         validate_branch_exists(args.project_name)
 
         # If validation.md already exists, ask whether to overwrite.
-        validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+        validation_path = os.path.join(_RALPH_ROOT, args.project_name, "validation.md")
         if os.path.exists(validation_path):
             while True:
                 answer = input(f"'{validation_path}' already exists! Should I write over it? (y/n): ").strip().lower()
@@ -487,7 +489,7 @@ class UndoCommand(Command):
         print(f"[ralph] Uh oh, we're doing the undo thing for '{args.project_name}'! This is a big deal!")
 
         # Check that validation.md exists.
-        validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+        validation_path = os.path.join(_RALPH_ROOT, args.project_name, "validation.md")
         if not os.path.exists(validation_path):
             print(
                 f"[ralph] I can't find 'validation.md' at '{validation_path}'! "
@@ -543,7 +545,7 @@ class UndoCommand(Command):
             print(f"[ralph] I couldn't delete branch '{args.project_name}': {delete_result.stderr.strip()}", file=sys.stderr)
             sys.exit(1)
 
-        ralph_dir = os.path.join(".ralph", args.project_name)
+        ralph_dir = os.path.join(_RALPH_ROOT, args.project_name)
 
         # Reset state.json.
         state_path = os.path.join(ralph_dir, "state.json")
@@ -600,7 +602,7 @@ class RetryCommand(Command):
         assert_project_exists(args.project_name)
 
         # Check that validation.md exists.
-        validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+        validation_path = os.path.join(_RALPH_ROOT, args.project_name, "validation.md")
         if not os.path.exists(validation_path):
             print(
                 f"[ralph] I can't find 'validation.md' at '{validation_path}'! "
@@ -674,7 +676,7 @@ class OneshotCommand(Command):
         ValidateCommand(args).execute()
 
         # Read validation.md and parse the rating.
-        validation_path = os.path.join(".ralph", args.project_name, "validation.md")
+        validation_path = os.path.join(_RALPH_ROOT, args.project_name, "validation.md")
         rating = _read_validation_rating(validation_path)
 
         if rating is None:
@@ -708,7 +710,7 @@ class StatusCommand(Command):
         assert_project_exists(args.project_name)
 
         project_name = args.project_name
-        ralph_dir = os.path.join(".ralph", project_name)
+        ralph_dir = os.path.join(_RALPH_ROOT, project_name)
 
         sep = "─" * 60
 
@@ -914,7 +916,7 @@ def _do_create_pr(cfg: _ProviderConfig, project_name: str) -> None:
             sys.exit(1)
 
     # Check pr-description.md exists.
-    pr_desc_path = os.path.join(".ralph", project_name, "pr-description.md")
+    pr_desc_path = os.path.join(_RALPH_ROOT, project_name, "pr-description.md")
     if not os.path.exists(pr_desc_path):
         print(
             f"[ralph] I can't find 'pr-description.md' at '{pr_desc_path}'! "

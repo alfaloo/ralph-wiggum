@@ -15,6 +15,8 @@ from ralph import dag
 from ralph import locks
 from ralph.parse import parse_summarise_md, parse_execute_async_md, parse_execute_md
 
+_RALPH_ROOT = ".ralph"
+
 
 def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
     """Run Claude Code in non-interactive (headless) mode.
@@ -303,7 +305,7 @@ class Runner:
     def __init__(self, project_name: str, verbose: bool = False) -> None:
         self.project_name = project_name
         self.verbose = verbose
-        self.ralph_dir = os.path.join(".ralph", project_name)
+        self.ralph_dir = os.path.join(_RALPH_ROOT, project_name)
         self._tasks_path = os.path.join(self.ralph_dir, "tasks.json")
 
     def _handle_result(self, result: subprocess.CompletedProcess) -> None:
