@@ -94,7 +94,7 @@ Implements the project by spawning execute agents iteratively. Each agent picks 
 
 ---
 
-### `ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--asynchronous BOOL] [--single BOOL]`
+### `ralph oneshot <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--asynchronous BOOL] [--single BOOL] [--resume] [--provider github|gitlab]`
 
 Runs the full pipeline in one command: enriches the spec, executes agents, validates the result, and creates a PR. Requires a clean working tree. Useful for straightforward tasks where interactive interview rounds are not needed.
 
@@ -102,6 +102,8 @@ Runs the full pipeline in one command: enriches the spec, executes agents, valid
 - A `"requires attention"` validation rating prints a warning but continues to create the PR.
 - `--asynchronous BOOL` runs tasks in parallel; mutually exclusive with `--single` (default: `false`).
 - `--single BOOL` runs all tasks with a single agent; mutually exclusive with `--asynchronous` (default: `false`).
+- `--resume` (alias `-r`) resumes execution on an existing project branch instead of creating a new one. Useful when a previous `oneshot` run was interrupted.
+- `--provider github|gitlab` (alias `-p`) selects the VCS platform for PR creation. Overrides the global setting.
 
 ---
 
