@@ -163,17 +163,17 @@ describe('CommandDialog — single-agent mode', () => {
 
   it('single_checkbox_present_in_execute_dialog', () => {
     renderDialog('execute');
-    expect(screen.getByLabelText('Single-agent mode')).toBeTruthy();
+    expect(screen.getByLabelText('--single')).toBeTruthy();
   });
 
   it('single_checkbox_present_in_oneshot_dialog', () => {
     renderDialog('oneshot');
-    expect(screen.getByLabelText('Single-agent mode')).toBeTruthy();
+    expect(screen.getByLabelText('--single')).toBeTruthy();
   });
 
   it('single_flag_included_in_run_command_args', () => {
     renderDialog('execute');
-    const singleCheckbox = screen.getByLabelText('Single-agent mode') as HTMLInputElement;
+    const singleCheckbox = screen.getByLabelText('--single') as HTMLInputElement;
     fireEvent.click(singleCheckbox);
     expect(singleCheckbox.checked).toBe(true);
     const runButton = screen.getByRole('button', { name: /Run/ });
@@ -187,7 +187,7 @@ describe('CommandDialog — single-agent mode', () => {
 
   it('single_and_async_checkboxes_mutually_disabled', () => {
     renderDialog('execute');
-    const singleCheckbox = screen.getByLabelText('Single-agent mode') as HTMLInputElement;
+    const singleCheckbox = screen.getByLabelText('--single') as HTMLInputElement;
     const asyncCheckbox = screen.getByLabelText('--asynchronous') as HTMLInputElement;
 
     // Check single → async should become disabled
