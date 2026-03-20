@@ -104,6 +104,7 @@ Runs the full pipeline in one command: enriches the spec, executes agents, valid
 - `--single BOOL` runs all tasks with a single agent; mutually exclusive with `--asynchronous` (default: `false`).
 - `--resume` (alias `-r`) resumes execution on an existing project branch instead of creating a new one. Useful when a previous `oneshot` run was interrupted.
 - `--provider github|gitlab` (alias `-p`) selects the VCS platform for PR creation. Overrides the global setting.
+- **Note:** if `validation.md` already exists in the project directory (e.g. when re-running `ralph oneshot` on a project that has already been validated), an interactive `y/n` prompt will fire asking whether to overwrite it. This can stall an otherwise automated pipeline.
 
 ---
 
