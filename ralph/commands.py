@@ -34,7 +34,7 @@ from ralph.parse import (
     parse_retry_md,
     parse_validate_md,
 )
-from ralph.helpers import _read_validation_rating
+from ralph.helpers import _git_branch_exists, _git_checkout, _read_validation_rating
 from ralph.run import Runner
 
 
@@ -393,16 +393,12 @@ class ExecuteCommand(Command):
 
         if args.resume:
             # Ensure that the project branch already exists; abort if not found.
-            branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
-            if not branch_check.stdout.strip():
+            if not _git_branch_exists(project_name):
                 print(f"[ralph] I can't find branch '{project_name}'. I'm going home.", file=sys.stderr)
                 sys.exit(1)
 
             # Checkout to the existing project branch.
-            checkout_branch = subprocess.run(["git", "checkout", project_name], capture_output=True, text=True)
-            if checkout_branch.returncode != 0:
-                print(f"[ralph] I couldn't get to branch '{project_name}': {checkout_branch.stderr.strip()}", file=sys.stderr)
-                sys.exit(1)
+            _git_checkout(project_name)
         else:
             # Check whether the project branch already exists; abort if it does.
             branch_check = subprocess.run(["git", "branch", "--list", project_name], capture_output=True, text=True)
@@ -494,13 +490,7 @@ class ValidateCommand(Command):
                     sys.exit(1)
 
         # Checkout the project branch.
-        checkout_result = subprocess.run(["git", "checkout", args.project_name], capture_output=True, text=True)
-        if checkout_result.returncode != 0:
-            print(
-                f"[ralph] I couldn't get to branch '{args.project_name}': {checkout_result.stderr.strip()}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+        _git_checkout(args.project_name)
 
         # Render the validate prompt and run the validation agent with JSON output mode.
         prompt = parse_validate_md(args.project_name)
@@ -569,10 +559,7 @@ class UndoCommand(Command):
             sys.exit(1)
 
         # Checkout the base branch.
-        checkout_result = subprocess.run(["git", "checkout", base_branch], capture_output=True, text=True)
-        if checkout_result.returncode != 0:
-            print(f"[ralph] I couldn't get to branch '{base_branch}': {checkout_result.stderr.strip()}", file=sys.stderr)
-            sys.exit(1)
+        _git_checkout(base_branch)
 
         # Force-delete the project branch.
         delete_result = subprocess.run(["git", "branch", "-D", args.project_name], capture_output=True, text=True)
@@ -686,16 +673,12 @@ class RetryCommand(Command):
             sys.exit(1)
 
         # Check that the project branch exists.
-        branch_check = subprocess.run(["git", "branch", "--list", args.project_name], capture_output=True, text=True)
-        if not branch_check.stdout.strip():
+        if not _git_branch_exists(args.project_name):
             print(f"[ralph] I can't find branch '{args.project_name}'. I'm going home.", file=sys.stderr)
             sys.exit(1)
 
         # Checkout the project branch.
-        checkout_result = subprocess.run(["git", "checkout", args.project_name], capture_output=True, text=True)
-        if checkout_result.returncode != 0:
-            print(f"[ralph] I couldn't get to branch '{args.project_name}': {checkout_result.stderr.strip()}", file=sys.stderr)
-            sys.exit(1)
+        _git_checkout(args.project_name)
 
         # Render the retry prompt and spawn the agent.
         prompt = parse_retry_md(args.project_name)
