@@ -37,7 +37,7 @@ from ralph.parse import (
 from ralph.run import Runner
 
 
-_ENRICH_COMMENT = (
+ENRICH_COMMENT = (
     "You are an expert software engineer reviewing this project for the first time. "
     "Carefully read spec.md and all relevant source files, tests, and configuration in the "
     "codebase to gain a thorough understanding of the problem domain and existing implementation "
@@ -76,7 +76,7 @@ _TEST_INSTRUCTIONS_TEMPLATE = """\
 # ---------------------------------------------------------------------------
 
 
-def _validate_branch_exists(branch: str) -> None:
+def validate_branch_exists(branch: str) -> None:
     """Verify that the given branch exists in the current repo; exit if not."""
     result = subprocess.run(["git", "branch", "--list", branch], capture_output=True, text=True)
     if not result.stdout.strip():
@@ -89,12 +89,12 @@ def _resolve_bool_flag(value: str | None, getter: Callable[[], bool]) -> bool:
     return value == "true" if value is not None else getter()
 
 
-def _resolve_verbose(args: argparse.Namespace) -> bool:
+def resolve_verbose(args: argparse.Namespace) -> bool:
     """Return effective verbose: per-command CLI flag > persisted setting."""
     return _resolve_bool_flag(getattr(args, "verbose", None), get_verbose)
 
 
-def _resolve_asynchronous(args: argparse.Namespace) -> bool:
+def resolve_asynchronous(args: argparse.Namespace) -> bool:
     """Return effective asynchronous: per-command CLI flag > persisted setting."""
     return _resolve_bool_flag(getattr(args, "asynchronous", None), get_asynchronous)
 
@@ -104,14 +104,14 @@ def _resolve_single(args: argparse.Namespace) -> bool:
     return _resolve_bool_flag(getattr(args, "single", None), get_single)
 
 
-def _resolve_provider(args: argparse.Namespace) -> str:
+def resolve_provider(args: argparse.Namespace) -> str:
     """Return effective provider: per-command CLI flag > persisted setting."""
     if getattr(args, "provider", None) is not None:
         return args.provider
     return get_provider()
 
 
-def _validate_provider_cli(provider: str) -> None:
+def validate_provider_cli(provider: str) -> None:
     """Check that the selected provider's CLI tool is installed and authenticated.
 
     Calls sys.exit(1) directly after printing an error if validation fails.
@@ -214,7 +214,7 @@ def _print_validate_summary(project_name: str, json_result: str | None) -> None:
     print()
 
 
-def _assert_project_exists(project_name: str) -> None:
+def assert_project_exists(project_name: str) -> None:
     """Assert that the project directory and spec.md exist; exit with an error if not."""
     ralph_dir = os.path.join(".ralph", project_name)
     if not os.path.exists(ralph_dir):
@@ -325,8 +325,8 @@ class InterviewCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
-        verbose = _resolve_verbose(args)
+        assert_project_exists(args.project_name)
+        verbose = resolve_verbose(args)
         # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
         rounds = args.rounds if args.rounds is not None else get_rounds()
 
@@ -356,10 +356,10 @@ class CommentCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
         print(f"[ralph] Okay, I'm adding your comment to '{args.project_name}'!")
         prompt = parse_generate_tasks_md(args.project_name, user_comment=args.comment)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "comment")
+        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "comment")
 
 
 class EnrichCommand(Command):
@@ -367,10 +367,10 @@ class EnrichCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
         print(f"[ralph] I'm gonna make the spec for '{args.project_name}' even better!")
-        prompt = parse_generate_tasks_md(args.project_name, user_comment=_ENRICH_COMMENT)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "enrich")
+        prompt = parse_generate_tasks_md(args.project_name, user_comment=ENRICH_COMMENT)
+        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "enrich")
 
 
 class ExecuteCommand(Command):
@@ -378,13 +378,13 @@ class ExecuteCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
-        verbose = _resolve_verbose(args)
-        asynchronous = _resolve_asynchronous(args)
+        assert_project_exists(args.project_name)
+        verbose = resolve_verbose(args)
+        asynchronous = resolve_asynchronous(args)
         limit = args.limit if args.limit is not None else get_limit()
         base = args.base if args.base is not None else get_base()
         if args.base is not None:
-            _validate_branch_exists(args.base)
+            validate_branch_exists(args.base)
 
         project_name = args.project_name
 
@@ -454,7 +454,7 @@ class ValidateCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
         
         # Check pr-description.md exists.
         pr_desc_path = os.path.join(".ralph", args.project_name, "pr-description.md")
@@ -480,7 +480,7 @@ class ValidateCommand(Command):
             sys.exit(1)
 
         # Check that the project branch exists.
-        _validate_branch_exists(args.project_name)
+        validate_branch_exists(args.project_name)
 
         # If validation.md already exists, ask whether to overwrite.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
@@ -503,7 +503,7 @@ class ValidateCommand(Command):
 
         # Render the validate prompt and run the validation agent with JSON output mode.
         prompt = parse_validate_md(args.project_name)
-        runner = Runner(args.project_name, verbose=_resolve_verbose(args))
+        runner = Runner(args.project_name, verbose=resolve_verbose(args))
         validate_json_result = runner.run_prompt(prompt, "validate", json_output=True)
 
         # Pretty-print the validation summary to the console.
@@ -515,7 +515,7 @@ class UndoCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
         print(f"[ralph] Uh oh, we're doing the undo thing for '{args.project_name}'! This is a big deal!")
 
@@ -639,7 +639,7 @@ class RetryCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
         # Check that validation.md exists.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
@@ -710,7 +710,7 @@ class RetryCommand(Command):
 
         # Render the retry prompt and spawn the agent.
         prompt = parse_retry_md(args.project_name)
-        Runner(args.project_name, verbose=_resolve_verbose(args)).run_prompt(prompt, "retry")
+        Runner(args.project_name, verbose=resolve_verbose(args)).run_prompt(prompt, "retry")
 
 
 class OneshotCommand(Command):
@@ -766,7 +766,7 @@ class StatusCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
         project_name = args.project_name
         ralph_dir = os.path.join(".ralph", project_name)
@@ -1020,9 +1020,9 @@ class PrCommand(Command):
 
     def execute(self) -> None:
         args = self.args
-        _assert_project_exists(args.project_name)
+        assert_project_exists(args.project_name)
 
-        provider = _resolve_provider(args)
+        provider = resolve_provider(args)
 
         print(f"[ralph] I'm making a pull request for '{args.project_name}'! Exciting!")
 

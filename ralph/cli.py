@@ -14,13 +14,13 @@ from ralph.config import (
     set_verbose,
 )
 from ralph.commands import (
-    _validate_branch_exists,
-    _validate_provider_cli,
-    _assert_project_exists,
-    _resolve_verbose,
-    _resolve_asynchronous,
-    _resolve_provider,
-    _ENRICH_COMMENT,
+    validate_branch_exists,
+    validate_provider_cli,
+    assert_project_exists,
+    resolve_verbose,
+    resolve_asynchronous,
+    resolve_provider,
+    ENRICH_COMMENT,
     Command,
     InitCommand,
     InterviewCommand,
@@ -395,7 +395,7 @@ def main() -> None:
     if args.global_limit is not None:
         set_limit(args.global_limit)
     if args.global_base is not None:
-        _validate_branch_exists(args.global_base)
+        validate_branch_exists(args.global_base)
         set_base(args.global_base)
     if args.global_asynchronous is not None:
         set_asynchronous(args.global_asynchronous == "true")
@@ -414,13 +414,13 @@ def main() -> None:
             sys.exit(0)
         # Provider requires validation before global persist.
         if args.global_provider is not None:
-            _validate_provider_cli(args.global_provider)
+            validate_provider_cli(args.global_provider)
             set_provider(args.global_provider)
         return
 
     # With a subcommand present, persist global provider if provided.
     if args.global_provider is not None:
-        _validate_provider_cli(args.global_provider)
+        validate_provider_cli(args.global_provider)
         set_provider(args.global_provider)
 
     try:
