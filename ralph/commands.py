@@ -442,8 +442,7 @@ class ValidateCommand(Command):
 
         # Check all tasks in tasks.json are completed.
         tasks_path = os.path.join(_RALPH_ROOT, args.project_name, "tasks.json")
-        with open(tasks_path) as f:
-            tasks_data = json.load(f)
+        tasks_data = locks.read_json(tasks_path)
         incomplete = [t for t in tasks_data.get("tasks", []) if t.get("status") != "completed"]
         if incomplete:
             print(
