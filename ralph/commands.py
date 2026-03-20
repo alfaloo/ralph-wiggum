@@ -861,7 +861,7 @@ _GITLAB = _ProviderConfig(
     body_flag="--description",
     base_flag="--target-branch",
     cli_url="https://gitlab.com/gitlab-org/cli",
-    check_merge_base=False,
+    check_merge_base=True,
 )
 
 
