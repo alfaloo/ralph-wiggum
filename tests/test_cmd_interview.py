@@ -507,8 +507,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str) as mock_guided,
         ):
@@ -527,8 +527,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str),
         ):
@@ -547,8 +547,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result) as mock_json,
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result) as mock_json,
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str),
         ):
@@ -567,8 +567,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
             patch("ralph.run._collect_user_answers", return_value=free_form),
         ):
@@ -588,8 +588,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
             patch("ralph.run._collect_user_answers", return_value=free_form),
         ):
@@ -608,8 +608,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=[]),
             patch("ralph.run._collect_user_answers", return_value=free_form),
         ):
@@ -627,8 +627,8 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
             patch("ralph.run._collect_user_answers", return_value="answer"),
             patch("ralph.run._collect_guided_answers") as mock_guided,
@@ -652,8 +652,8 @@ class TestRunInterviewLoop:
         make_amend_fn2 = MagicMock(return_value="amend2")
 
         with (
-            patch("ralph.run.run_noninteractive_json", side_effect=[q_result1, q_result2]),
-            patch("ralph.run.run_noninteractive", side_effect=[amend_result, amend_result]),
+            patch("ralph.run.Runner._run_noninteractive_json", side_effect=[q_result1, q_result2]),
+            patch("ralph.run.Runner._run_noninteractive", side_effect=[amend_result, amend_result]),
             patch("ralph.run._parse_questions_json", side_effect=[questions_round1, questions_round2]),
             patch("ralph.run._collect_guided_answers", side_effect=[qa_json_round1, qa_json_round2]),
         ):
