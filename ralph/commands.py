@@ -36,6 +36,7 @@ from ralph.parse import (
 )
 from ralph.helpers import _git_branch_exists, _git_checkout, _read_validation_rating
 from ralph.run import Runner
+from ralph import locks
 
 
 ENRICH_COMMENT = (
@@ -403,8 +404,7 @@ class ExecuteCommand(Command):
                 file=sys.stderr,
             )
             sys.exit(1)
-        with open(tasks_path) as f:
-            tasks_data = json.load(f)
+        tasks_data = locks.read_json(tasks_path)
         if not tasks_data.get("tasks"):
             print(
                 f"[ralph] There aren't any tasks in tasks.json for project '{project_name}'! "
