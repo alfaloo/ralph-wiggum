@@ -401,6 +401,9 @@ def main() -> None:
         set_asynchronous(args.global_asynchronous == "true")
     if args.global_single is not None:
         set_single(args.global_single == "true")
+    if args.global_provider is not None:
+        validate_provider_cli(args.global_provider)
+        set_provider(args.global_provider)
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     if args.command is None:
@@ -412,16 +415,7 @@ def main() -> None:
             print(f"Version: {RALPH_VERSION}")
             print()
             sys.exit(0)
-        # Provider requires validation before global persist.
-        if args.global_provider is not None:
-            validate_provider_cli(args.global_provider)
-            set_provider(args.global_provider)
         return
-
-    # With a subcommand present, persist global provider if provided.
-    if args.global_provider is not None:
-        validate_provider_cli(args.global_provider)
-        set_provider(args.global_provider)
 
     try:
         args.func(args).execute()
