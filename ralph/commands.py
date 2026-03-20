@@ -34,6 +34,7 @@ from ralph.parse import (
     parse_retry_md,
     parse_validate_md,
 )
+from ralph.helpers import _read_validation_rating
 from ralph.run import Runner
 
 
@@ -530,13 +531,7 @@ class UndoCommand(Command):
             sys.exit(1)
 
         # Parse the rating from validation.md.
-        rating = None
-        with open(validation_path) as f:
-            for line in f:
-                m = re.match(r"#\s*[Rr]ating:\s*(.+)", line.strip(), re.IGNORECASE)
-                if m:
-                    rating = m.group(1).strip().lower()
-                    break
+        rating = _read_validation_rating(validation_path)
 
         if rating is None and not args.force:
             print(
@@ -652,13 +647,7 @@ class RetryCommand(Command):
             sys.exit(1)
 
         # Parse the rating from validation.md.
-        rating = None
-        with open(validation_path) as f:
-            for line in f:
-                m = re.match(r"#\s*[Rr]ating:\s*(.+)", line.strip(), re.IGNORECASE)
-                if m:
-                    rating = m.group(1).strip().lower()
-                    break
+        rating = _read_validation_rating(validation_path)
 
         if rating is None:
             print(
@@ -727,16 +716,7 @@ class OneshotCommand(Command):
 
         # Read validation.md and parse the rating.
         validation_path = os.path.join(".ralph", args.project_name, "validation.md")
-        rating = None
-        try:
-            with open(validation_path) as f:
-                for line in f:
-                    m = re.match(r"#\s*Rating:\s*(.+)", line.strip(), re.IGNORECASE)
-                    if m:
-                        rating = m.group(1).strip().lower()
-                        break
-        except OSError:
-            pass
+        rating = _read_validation_rating(validation_path)
 
         if rating is None:
             print(
