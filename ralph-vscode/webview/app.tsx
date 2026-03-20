@@ -165,7 +165,7 @@ function App() {
     comment: true,
     oneshot: true,
     status: true,
-    enrich: fileFlags.hasTasks,
+    enrich: true,
     execute: fileFlags.hasTasks,
     pr: fileFlags.hasPrDescription,
     validate: fileFlags.hasSummary,
