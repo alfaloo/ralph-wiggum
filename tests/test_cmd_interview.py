@@ -570,7 +570,7 @@ class TestRunInterviewLoop:
             patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
             patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
-            patch("ralph.run._collect_user_answers", return_value=free_form),
+            patch("ralph.run._open_multiline_editor", return_value=free_form),
         ):
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
@@ -591,7 +591,7 @@ class TestRunInterviewLoop:
             patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
             patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
-            patch("ralph.run._collect_user_answers", return_value=free_form),
+            patch("ralph.run._open_multiline_editor", return_value=free_form),
         ):
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
@@ -611,7 +611,7 @@ class TestRunInterviewLoop:
             patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
             patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=[]),
-            patch("ralph.run._collect_user_answers", return_value=free_form),
+            patch("ralph.run._open_multiline_editor", return_value=free_form),
         ):
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])
 
@@ -630,7 +630,7 @@ class TestRunInterviewLoop:
             patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
             patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
-            patch("ralph.run._collect_user_answers", return_value="answer"),
+            patch("ralph.run._open_multiline_editor", return_value="answer"),
             patch("ralph.run._collect_guided_answers") as mock_guided,
         ):
             runner.run_interview_loop(["q-prompt"], [make_amend_fn])

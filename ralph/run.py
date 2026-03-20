@@ -74,16 +74,6 @@ def _open_multiline_editor(preamble: str) -> str:
     return "\n".join(lines).strip()
 
 
-def _collect_user_answers() -> str:
-    """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
-
-    Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
-    mouse-click cursor positioning, revisit previous lines). Falls back to
-    sentinel-based line reading if stdin is not a TTY (e.g. when stdin is a
-    pipe from the VSCode extension).
-    """
-    return _open_multiline_editor("Type your answers down here! Press Ctrl+D when you're all done, or Ctrl+C to stop:")
-
 
 def _parse_questions_json(raw: str) -> list[dict] | None:
     """Parse Claude's JSON output into a list of question dicts.
@@ -407,7 +397,7 @@ class Runner:
                 print("[ralph] I couldn't make the questions come out right, so I'll just ask you normally.")
                 print(raw_output)
                 print()
-                answers = _collect_user_answers()
+                answers = _open_multiline_editor("Type your answers down here! Press Ctrl+D when you're all done, or Ctrl+C to stop:")
                 qa_json = json.dumps([{"question": raw_output, "answer": answers}])
 
             # Phase 2: amend spec with Q&A
