@@ -71,7 +71,7 @@ def test_run_execute_loop_dispatches_to_single_when_single_true(tmp_path):
 
     with patch.object(runner, "run_execute_single") as mock_single, \
          patch.object(runner, "run_execute_loop_async") as mock_async, \
-         patch("ralph.run.run_noninteractive_json") as mock_json:
+         patch("ralph.run.Runner._run_noninteractive_json") as mock_json:
         runner.run_execute_loop(10, single=True)
 
     mock_single.assert_called_once()
@@ -103,7 +103,7 @@ def test_run_execute_single_invokes_agent(tmp_path):
     orig_dir = os.getcwd()
     try:
         os.chdir(tmp_path)
-        with patch("ralph.run.run_noninteractive_json", side_effect=mock_run_json), \
+        with patch("ralph.run.Runner._run_noninteractive_json", side_effect=mock_run_json), \
              patch.object(runner, "_run_summarise") as mock_summarise:
             runner.run_execute_single()
     finally:

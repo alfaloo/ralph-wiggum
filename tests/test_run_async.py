@@ -1,6 +1,6 @@
 """Unit tests for run_execute_loop_async() in ralph/run.py.
 
-All tests mock ``ralph.run.run_noninteractive`` — no real Claude Code agents
+All tests mock ``ralph.run.Runner._run_noninteractive`` — no real Claude Code agents
 are spawned. Concurrency scenarios use Python threading with ``threading.Event``
 and ``threading.Semaphore`` to gate workers and verify parallel execution.
 """
@@ -95,7 +95,7 @@ class TestAllTasksCompleted:
         tasks = [_task("T1")]
         runner, tasks_file, _, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -108,7 +108,7 @@ class TestAllTasksCompleted:
         tasks = [_task("T1"), _task("T2")]
         runner, tasks_file, _, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -121,7 +121,7 @@ class TestAllTasksCompleted:
         tasks = [_task("T1"), _task("T2"), _task("T3")]
         runner, _, state_file, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -136,7 +136,7 @@ class TestAllTasksCompleted:
         tasks = [_task("T1"), _task("T2")]
         runner, _, state_file, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -150,7 +150,7 @@ class TestAllTasksCompleted:
         tasks = [_task("T1")]
         runner, _, state_file, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -169,7 +169,7 @@ class TestAllTasksCompleted:
         tasks = [_task("T1")]
         runner, _, _, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
             runner.run_execute_loop_async(10)
@@ -212,7 +212,7 @@ class TestParallelDispatch:
         run_done = threading.Event()
 
         def run_loop():
-            with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+            with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
                  patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.005)), \
                  patch.object(runner, "_run_summarise"):
                 runner.run_execute_loop_async(10)
@@ -259,7 +259,7 @@ class TestParallelDispatch:
         run_done = threading.Event()
 
         def run_loop():
-            with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+            with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
                  patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.005)), \
                  patch.object(runner, "_run_summarise"):
                 runner.run_execute_loop_async(10)
@@ -307,7 +307,7 @@ class TestDependencyOrdering:
         run_done = threading.Event()
 
         def run_loop():
-            with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+            with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
                  patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.005)), \
                  patch.object(runner, "_run_summarise"):
                 runner.run_execute_loop_async(10)
@@ -357,7 +357,7 @@ class TestDependencyOrdering:
                         break
             return _ok()
 
-        with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+        with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -388,7 +388,7 @@ class TestDependencyOrdering:
                         break
             return _ok()
 
-        with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+        with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -418,7 +418,7 @@ class TestFailureHandling:
                 count = call_count[0]
             return _ok() if count > 1 else _fail()
 
-        with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+        with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -444,7 +444,7 @@ class TestFailureHandling:
                 count = call_count[0]
             return _ok() if count > 1 else _fail()
 
-        with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+        with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -468,7 +468,7 @@ class TestFailureHandling:
                 count = call_count[0]
             return _ok() if count >= 2 else _fail()
 
-        with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+        with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -496,7 +496,7 @@ class TestFailureHandling:
                 count = call_count[0]
             return _ok() if count >= 2 else _fail()
 
-        with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+        with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -516,7 +516,7 @@ class TestMaxAttemptsEnforcement:
         tasks = [_task("T1", max_attempts=2)]
         runner, _, _, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_fail()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
             runner.run_execute_loop_async(10)
@@ -529,7 +529,7 @@ class TestMaxAttemptsEnforcement:
         tasks = [_task("T1", max_attempts=2)]
         runner, tasks_file, _, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_fail()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -542,7 +542,7 @@ class TestMaxAttemptsEnforcement:
         tasks = [_task("T1", max_attempts=2)]
         runner, _, _, obstacles_file = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_fail()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -557,7 +557,7 @@ class TestMaxAttemptsEnforcement:
         tasks = [_task("T1", max_attempts=1, title="My Custom Task")]
         runner, _, _, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_fail()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_fail()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
             runner.run_execute_loop_async(10)
@@ -580,7 +580,7 @@ class TestMaxAttemptsEnforcement:
                 return _fail()
             return _ok()
 
-        with patch("ralph.run.run_noninteractive", side_effect=mock_agent), \
+        with patch("ralph.run.Runner._run_noninteractive", side_effect=mock_agent), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise") as mock_summarise:
             runner.run_execute_loop_async(10)
@@ -603,7 +603,7 @@ class TestStateJsonCorrectness:
         tasks = [_task(f"T{i}") for i in range(1, N + 1)]
         runner, _, state_file, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -629,7 +629,7 @@ class TestStateJsonCorrectness:
             with original_rw(path) as data:
                 yield data
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(locks_mod, "locked_json_rw", spy_rw), \
              patch.object(runner, "_run_summarise"):
@@ -647,7 +647,7 @@ class TestStateJsonCorrectness:
         runner, _, state_file, _ = _setup(tmp_path, tasks)
         state_file.unlink()  # simulate missing state.json
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -664,7 +664,7 @@ class TestStateJsonCorrectness:
         runner, _, _, obstacles_file = _setup(tmp_path, tasks)
         obstacles_file.unlink()  # simulate missing obstacles.json
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)
@@ -676,7 +676,7 @@ class TestStateJsonCorrectness:
         tasks = [_task(f"T{i}") for i in range(1, 4)]
         runner, _, state_file, _ = _setup(tmp_path, tasks)
 
-        with patch("ralph.run.run_noninteractive", return_value=_ok()), \
+        with patch("ralph.run.Runner._run_noninteractive", return_value=_ok()), \
              patch("ralph.run.time.sleep", side_effect=lambda *a: _real_sleep(0.001)), \
              patch.object(runner, "_run_summarise"):
             runner.run_execute_loop_async(10)

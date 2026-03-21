@@ -116,31 +116,33 @@ class TestCmdInterviewCoreFunction:
         with (
             patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
-            patch("ralph.commands.parse_questions_md", return_value="q") as mock_parse_q,
+            patch("ralph.commands.parse_questions_md", return_value="q"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
             patch("ralph.commands.get_rounds", return_value=99),
             patch("ralph.commands.get_verbose", return_value=False),
         ):
-            MockRunner.return_value.run_interview_loop = MagicMock()
+            mock_runner = MockRunner.return_value
             cmd_interview(_make_args(rounds=2))
-            assert mock_parse_q.call_count == 2
+            amend_fns = mock_runner.run_interview_loop.call_args[0][1]
+            assert len(amend_fns) == 2
 
     def test_uses_settings_rounds_when_not_provided(self):
         """When --rounds is absent, the value from get_rounds() must be used."""
         with (
             patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
-            patch("ralph.commands.parse_questions_md", return_value="q") as mock_parse_q,
+            patch("ralph.commands.parse_questions_md", return_value="q"),
             patch("ralph.commands.parse_generate_tasks_md", return_value="a"),
             patch("ralph.commands.get_rounds", return_value=3),
             patch("ralph.commands.get_verbose", return_value=False),
         ):
-            MockRunner.return_value.run_interview_loop = MagicMock()
+            mock_runner = MockRunner.return_value
             cmd_interview(_make_args(rounds=None))
-            assert mock_parse_q.call_count == 3
+            amend_fns = mock_runner.run_interview_loop.call_args[0][1]
+            assert len(amend_fns) == 3
 
-    def test_question_prompts_list_has_one_entry_per_round(self):
-        """The question_prompts list passed to run_interview_loop must have one entry per round."""
+    def test_question_prompt_fn_callable_passed_to_run_interview_loop(self):
+        """A callable question prompt factory must be passed as first arg to run_interview_loop."""
         with (
             patch("ralph.commands.assert_project_exists"),
             patch("ralph.commands.Runner") as MockRunner,
@@ -151,8 +153,8 @@ class TestCmdInterviewCoreFunction:
         ):
             mock_runner = MockRunner.return_value
             cmd_interview(_make_args(rounds=2))
-            question_prompts = mock_runner.run_interview_loop.call_args[0][0]
-            assert question_prompts == ["q-prompt", "q-prompt"]
+            question_prompt_fn = mock_runner.run_interview_loop.call_args[0][0]
+            assert callable(question_prompt_fn)
 
     def test_amend_fns_list_has_one_callable_per_round(self):
         """The amend_fns list passed to run_interview_loop must have one callable per round."""
@@ -180,8 +182,13 @@ class TestCmdInterviewCoreFunction:
             patch("ralph.commands.get_rounds", return_value=2),
             patch("ralph.commands.get_verbose", return_value=False),
         ):
-            MockRunner.return_value.run_interview_loop = MagicMock()
+            mock_runner = MockRunner.return_value
             cmd_interview(_make_args(project_name="proj", rounds=2))
+            # Factory callable is generated but only invoked when run_interview_loop calls it.
+            # Retrieve and call it to verify the correct args are forwarded.
+            question_prompt_fn = mock_runner.run_interview_loop.call_args[0][0]
+            question_prompt_fn(round_num=1)
+            question_prompt_fn(round_num=2)
             mock_parse_q.assert_any_call("proj", round_num=1, total_rounds=2)
             mock_parse_q.assert_any_call("proj", round_num=2, total_rounds=2)
 
@@ -507,12 +514,12 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str) as mock_guided,
         ):
-            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+            runner.run_interview_loop(lambda round_num: "q-prompt", [make_amend_fn])
 
         mock_guided.assert_called_once_with(questions_data, ralph_dir=".ralph/test-project")
 
@@ -527,14 +534,14 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str),
         ):
-            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+            runner.run_interview_loop(lambda round_num: "q-prompt", [make_amend_fn])
 
-        make_amend_fn.assert_called_once_with(qa_json_str)
+        make_amend_fn.assert_called_once_with(qa_json=qa_json_str)
 
     def test_interview_phase1_uses_json_output_mode(self):
         """Phase 1 (question generation) must use run_noninteractive_json, not run_noninteractive."""
@@ -547,12 +554,12 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result) as mock_json,
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result) as mock_json,
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=questions_data),
             patch("ralph.run._collect_guided_answers", return_value=qa_json_str),
         ):
-            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+            runner.run_interview_loop(lambda **_: "q-prompt", [make_amend_fn])
 
         mock_json.assert_called_once_with("q-prompt")
 
@@ -567,12 +574,12 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
-            patch("ralph.run._collect_user_answers", return_value=free_form),
+            patch("ralph.run._open_multiline_editor", return_value=free_form),
         ):
-            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+            runner.run_interview_loop(lambda **_: "q-prompt", [make_amend_fn])
 
         captured = capsys.readouterr()
         assert "couldn't make the questions come out right" in captured.out
@@ -588,15 +595,15 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
-            patch("ralph.run._collect_user_answers", return_value=free_form),
+            patch("ralph.run._open_multiline_editor", return_value=free_form),
         ):
-            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+            runner.run_interview_loop(lambda **_: "q-prompt", [make_amend_fn])
 
         expected_qa_json = json.dumps([{"question": raw_questions.strip(), "answer": free_form}])
-        make_amend_fn.assert_called_once_with(expected_qa_json)
+        make_amend_fn.assert_called_once_with(qa_json=expected_qa_json)
 
     def test_fallback_path_triggered_when_parse_returns_empty_list(self, capsys):
         """Fallback path: activates when _parse_questions_json returns [] (empty list is falsy)."""
@@ -608,12 +615,12 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=[]),
-            patch("ralph.run._collect_user_answers", return_value=free_form),
+            patch("ralph.run._open_multiline_editor", return_value=free_form),
         ):
-            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+            runner.run_interview_loop(lambda **_: "q-prompt", [make_amend_fn])
 
         captured = capsys.readouterr()
         assert "couldn't make the questions come out right" in captured.out
@@ -627,13 +634,13 @@ class TestRunInterviewLoop:
         make_amend_fn = MagicMock(return_value="amend-prompt")
 
         with (
-            patch("ralph.run.run_noninteractive_json", return_value=q_result),
-            patch("ralph.run.run_noninteractive", return_value=amend_result),
+            patch("ralph.run.Runner._run_noninteractive_json", return_value=q_result),
+            patch("ralph.run.Runner._run_noninteractive", return_value=amend_result),
             patch("ralph.run._parse_questions_json", return_value=None),
-            patch("ralph.run._collect_user_answers", return_value="answer"),
+            patch("ralph.run._open_multiline_editor", return_value="answer"),
             patch("ralph.run._collect_guided_answers") as mock_guided,
         ):
-            runner.run_interview_loop(["q-prompt"], [make_amend_fn])
+            runner.run_interview_loop(lambda **_: "q-prompt", [make_amend_fn])
 
         mock_guided.assert_not_called()
 
@@ -652,15 +659,15 @@ class TestRunInterviewLoop:
         make_amend_fn2 = MagicMock(return_value="amend2")
 
         with (
-            patch("ralph.run.run_noninteractive_json", side_effect=[q_result1, q_result2]),
-            patch("ralph.run.run_noninteractive", side_effect=[amend_result, amend_result]),
+            patch("ralph.run.Runner._run_noninteractive_json", side_effect=[q_result1, q_result2]),
+            patch("ralph.run.Runner._run_noninteractive", side_effect=[amend_result, amend_result]),
             patch("ralph.run._parse_questions_json", side_effect=[questions_round1, questions_round2]),
             patch("ralph.run._collect_guided_answers", side_effect=[qa_json_round1, qa_json_round2]),
         ):
             runner.run_interview_loop(
-                ["q-prompt1", "q-prompt2"],
+                lambda round_num: f"q-prompt{round_num}",
                 [make_amend_fn1, make_amend_fn2],
             )
 
-        make_amend_fn1.assert_called_once_with(qa_json_round1)
-        make_amend_fn2.assert_called_once_with(qa_json_round2)
+        make_amend_fn1.assert_called_once_with(qa_json=qa_json_round1)
+        make_amend_fn2.assert_called_once_with(qa_json=qa_json_round2)

@@ -14,6 +14,7 @@ vi.mock('vscode', () => ({
   window: {
     showInformationMessage: vi.fn().mockResolvedValue(undefined),
     createOutputChannel: vi.fn().mockReturnValue({
+      append: vi.fn(),
       appendLine: vi.fn(),
       show: vi.fn(),
       dispose: vi.fn(),

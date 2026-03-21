@@ -17,8 +17,8 @@ from ralph.commands import (
     validate_branch_exists,
     validate_provider_cli,
     assert_project_exists,
-    resolve_verbose,
-    resolve_asynchronous,
+    _resolve_verbose,
+    _resolve_asynchronous,
     resolve_provider,
     ENRICH_COMMENT,
     Command,
@@ -47,7 +47,7 @@ RALPH_BANNER = """\
 "Me fail English? That's unpossible"\
 """
 
-RALPH_VERSION = "4.0.0"
+RALPH_VERSION = "4.1.0"
 
 
 # ---------------------------------------------------------------------------
@@ -401,10 +401,17 @@ def main() -> None:
         set_asynchronous(args.global_asynchronous == "true")
     if args.global_single is not None:
         set_single(args.global_single == "true")
+    if args.global_provider is not None:
+        validate_provider_cli(args.global_provider)
+        set_provider(args.global_provider)
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
+    no_globals_set = all(
+        getattr(args, f"global_{flag}") is None
+        for flag in ("verbose", "rounds", "limit", "base", "provider", "asynchronous", "single")
+    )
     if args.command is None:
-        if args.global_verbose is None and args.global_rounds is None and args.global_limit is None and args.global_base is None and args.global_provider is None and args.global_asynchronous is None and args.global_single is None:
+        if no_globals_set:
             print()
             print(RALPH_BANNER)
             print()
@@ -412,16 +419,7 @@ def main() -> None:
             print(f"Version: {RALPH_VERSION}")
             print()
             sys.exit(0)
-        # Provider requires validation before global persist.
-        if args.global_provider is not None:
-            validate_provider_cli(args.global_provider)
-            set_provider(args.global_provider)
         return
-
-    # With a subcommand present, persist global provider if provided.
-    if args.global_provider is not None:
-        validate_provider_cli(args.global_provider)
-        set_provider(args.global_provider)
 
     try:
         args.func(args).execute()

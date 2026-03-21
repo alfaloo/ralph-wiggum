@@ -15,24 +15,8 @@ from ralph import dag
 from ralph import locks
 from ralph.parse import parse_summarise_md, parse_execute_async_md, parse_execute_md
 
+_RALPH_ROOT = ".ralph"
 
-def run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
-    """Run Claude Code in non-interactive (headless) mode.
-
-    Invokes `claude` with --print so output is piped back.
-    """
-    cmd = ["claude", "--dangerously-skip-permissions", "--print", prompt]
-    return subprocess.run(cmd, capture_output=True, text=True)
-
-
-def run_noninteractive_json(prompt: str) -> subprocess.CompletedProcess:
-    """Run Claude Code in non-interactive mode with JSON output format.
-
-    Like run_noninteractive() but adds --output-format json so that stdout is
-    a JSON object containing the result text and token usage information.
-    """
-    cmd = ["claude", "--dangerously-skip-permissions", "--print", "--output-format", "json", prompt]
-    return subprocess.run(cmd, capture_output=True, text=True)
 
 
 def _open_multiline_editor(preamble: str) -> str:
@@ -89,16 +73,6 @@ def _open_multiline_editor(preamble: str) -> str:
         sys.exit(0)
     return "\n".join(lines).strip()
 
-
-def _collect_user_answers() -> str:
-    """Read multi-line user input until Ctrl+D (submit) or Ctrl+C (abort).
-
-    Attempts to use prompt_toolkit for a richer editing experience (arrow keys,
-    mouse-click cursor positioning, revisit previous lines). Falls back to
-    sentinel-based line reading if stdin is not a TTY (e.g. when stdin is a
-    pipe from the VSCode extension).
-    """
-    return _open_multiline_editor("Type your answers down here! Press Ctrl+D when you're all done, or Ctrl+C to stop:")
 
 
 def _parse_questions_json(raw: str) -> list[dict] | None:
@@ -183,7 +157,6 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
     if os.environ.get("RALPH_VSCODE") and ralph_dir:
         return _collect_guided_answers_vscode(questions, ralph_dir)
 
-    DESCRIBE_YOURSELF = _DESCRIBE_YOURSELF
     SEPARATOR = "\u2500" * 61
     total = len(questions)
     qa_pairs: list[dict] = []
@@ -259,7 +232,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
         for i, q in enumerate(questions, start=1):
             question_text = q.get("question", "")
             options = list(q.get("options", []))
-            all_options = options + [DESCRIBE_YOURSELF]
+            all_options = options + [_DESCRIBE_YOURSELF]
 
             print(f"Q{i}: {question_text}\n")
 
@@ -270,7 +243,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
                 )
             elif sys.stdin.isatty():
                 selected = _tty_select(all_options)
-                if selected == DESCRIBE_YOURSELF:
+                if selected == _DESCRIBE_YOURSELF:
                     answer = _open_multiline_editor(
                         "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
                     )
@@ -278,7 +251,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
                     answer = selected
             else:
                 selected = _nontty_select(all_options)
-                if selected == DESCRIBE_YOURSELF:
+                if selected == _DESCRIBE_YOURSELF:
                     answer = _open_multiline_editor(
                         "Type your answer. Press Ctrl+D when done, or Ctrl+C to stop:"
                     )
@@ -303,8 +276,27 @@ class Runner:
     def __init__(self, project_name: str, verbose: bool = False) -> None:
         self.project_name = project_name
         self.verbose = verbose
-        self.ralph_dir = os.path.join(".ralph", project_name)
+        self.ralph_dir = os.path.join(_RALPH_ROOT, project_name)
         self._tasks_path = os.path.join(self.ralph_dir, "tasks.json")
+
+    @staticmethod
+    def _run_noninteractive(prompt: str) -> subprocess.CompletedProcess:
+        """Run Claude Code in non-interactive (headless) mode.
+
+        Invokes `claude` with --print so output is piped back.
+        """
+        cmd = ["claude", "--dangerously-skip-permissions", "--print", prompt]
+        return subprocess.run(cmd, capture_output=True, text=True)
+
+    @staticmethod
+    def _run_noninteractive_json(prompt: str) -> subprocess.CompletedProcess:
+        """Run Claude Code in non-interactive mode with JSON output format.
+
+        Like _run_noninteractive() but adds --output-format json so that stdout is
+        a JSON object containing the result text and token usage information.
+        """
+        cmd = ["claude", "--dangerously-skip-permissions", "--print", "--output-format", "json", prompt]
+        return subprocess.run(cmd, capture_output=True, text=True)
 
     def _handle_result(self, result: subprocess.CompletedProcess) -> None:
         """Print stdout if verbose; always print stderr on non-zero exit."""
@@ -331,7 +323,7 @@ class Runner:
         prompt = parse_summarise_md(
             self.project_name, ralph_dir=self.ralph_dir, exit_reason=exit_reason
         )
-        result = run_noninteractive(prompt)
+        result = self._run_noninteractive(prompt)
         self._handle_result(result)
         if result.returncode == 0:
             print("[ralph] The summary is all done! You can read it now!")
@@ -346,9 +338,9 @@ class Runner:
         """
         print(f"[ralph] I'm doing the {command_name} thing for '{self.project_name}'! Here we go!")
         if json_output:
-            result = run_noninteractive_json(prompt)
+            result = self._run_noninteractive_json(prompt)
         else:
-            result = run_noninteractive(prompt)
+            result = self._run_noninteractive(prompt)
         self._handle_result(result)
         if result.returncode == 0:
             print(f"[ralph] Yay! The {command_name} thing is all done for '{self.project_name}'!")
@@ -365,8 +357,8 @@ class Runner:
 
     def run_interview_loop(
         self,
-        question_prompts: list[str],
-        make_amend_prompts: list[Callable[[str], str]],
+        question_prompt_fn: Callable[..., str],
+        make_amend_prompts: list[Callable[..., str]],
     ) -> None:
         """Run sequential two-phase interview agents, one per round.
 
@@ -376,16 +368,17 @@ class Runner:
           Phase 2 — non-interactive agent receives Q&A JSON and amends
                      spec.md and creates/refreshes tasks.json.
         """
-        total = len(question_prompts)
+        total = len(make_amend_prompts)
         print(f"[ralph] I'm doing the interview thing for '{self.project_name}'! There are {total} round(s)!")
 
-        for i, q_prompt in enumerate(question_prompts):
+        for i, amend_fn in enumerate(make_amend_prompts):
             round_num = i + 1
+            q_prompt = question_prompt_fn(round_num=round_num)
             print(f"\n[ralph] Interview round {round_num} of {total}! Here we go!")
 
             # Phase 1: generate questions (JSON output mode so result text is cleanly extracted)
             print("[ralph] I'm thinking up some questions for you...\n")
-            result = run_noninteractive_json(q_prompt)
+            result = self._run_noninteractive_json(q_prompt)
             if result.returncode != 0 and result.stderr:
                 print(f"[ralph] Uh oh, the agent did a bad thing: {result.stderr}", file=sys.stderr)
             raw_output = result.stdout.strip()
@@ -404,12 +397,12 @@ class Runner:
                 print("[ralph] I couldn't make the questions come out right, so I'll just ask you normally.")
                 print(raw_output)
                 print()
-                answers = _collect_user_answers()
+                answers = _open_multiline_editor("Type your answers down here! Press Ctrl+D when you're all done, or Ctrl+C to stop:")
                 qa_json = json.dumps([{"question": raw_output, "answer": answers}])
 
             # Phase 2: amend spec with Q&A
             print("\n[ralph] Ooh, now I'm updating the spec with all your answers!")
-            result2 = run_noninteractive(make_amend_prompts[i](qa_json))
+            result2 = self._run_noninteractive(amend_fn(qa_json=qa_json))
             self._handle_result(result2)
             if result2.returncode == 0:
                 print(f"[ralph] Yay! Round {round_num} is all done!")
@@ -432,7 +425,6 @@ class Runner:
         futures: dict[str, concurrent.futures.Future] = {}
         executor = concurrent.futures.ThreadPoolExecutor()
         iteration = 0
-        exit_reason = f"Reached maximum iteration limit ({max_iterations})."
 
         try:
             while True:
@@ -477,6 +469,7 @@ class Runner:
                                 {
                                     "id": next_id,
                                     "task_id": task_id,
+                                    "iteration": iteration,
                                     "message": (
                                         f"Agent for task {task_id} failed with"
                                         f" returncode {returncode}."
@@ -514,7 +507,7 @@ class Runner:
 
                 if iteration >= max_iterations:
                     print(f"\n[ralph] I used up all {max_iterations} rounds and I'm all tired out now.")
-                    self._run_summarise(exit_reason)
+                    self._run_summarise(f"Reached maximum iteration limit ({max_iterations}).")
                     return
 
                 # Step C: Spawn agents for newly ready tasks.
@@ -532,7 +525,7 @@ class Runner:
                     prompt = parse_execute_async_md(
                         self.project_name,
                         task_id,
-                        1,
+                        iteration,
                         max_iterations,
                         task_title=task.get("title", ""),
                         task_description=task.get("description", ""),
@@ -540,7 +533,7 @@ class Runner:
                     print(f"[ralph] I'm starting an agent for task {task['id']} \"{task['title']}\"! Yay!")
 
                     def _worker(p=prompt):
-                        return run_noninteractive(p).returncode
+                        return Runner._run_noninteractive(p).returncode
 
                     futures[task_id] = executor.submit(_worker)
 
@@ -553,15 +546,13 @@ class Runner:
         """Reset all non-completed tasks to pending state silently."""
         if not os.path.exists(self._tasks_path):
             return
-        with open(self._tasks_path) as f:
-            data = json.load(f)
+        data = locks.read_json(self._tasks_path)
         for task in data.get("tasks", []):
             if task.get("status") != "completed":
                 task["status"] = "pending"
                 task["attempts"] = 0
                 task["blocked"] = False
-        with open(self._tasks_path, "w") as f:
-            json.dump(data, f, indent=2)
+        locks.write_json(self._tasks_path, data)
 
     def run_execute_single(self) -> None:
         """Spawn one agent to implement all pending tasks in sequence."""
@@ -577,12 +568,12 @@ class Runner:
                 print("[ralph] All tasks already completed. Skipping agent spawn.")
                 self._run_summarise("All tasks completed")
                 return
-        except Exception:
-            pass
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"[ralph] Warning: could not read tasks file before agent spawn: {e}", file=sys.stderr)
 
         print("[ralph] Single-agent mode: spawning one agent for all tasks.")
         prompt = parse_execute_single_md(self.project_name)
-        result = run_noninteractive_json(prompt)
+        result = self._run_noninteractive_json(prompt)
 
         if self.verbose:
             print(result.stdout)
@@ -604,7 +595,8 @@ class Runner:
                 t.get("status") == "completed" for t in tasks_data.get("tasks", [])
             )
             exit_reason = "All tasks completed" if all_completed else "Some tasks did not complete successfully"
-        except Exception:
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"[ralph] Warning: could not read tasks file after agent run: {e}", file=sys.stderr)
             exit_reason = "Some tasks did not complete successfully"
 
         self._run_summarise(exit_reason)
@@ -672,7 +664,7 @@ class Runner:
                 f"\n[ralph] I'm working on task {task_id} \"{task_title}\""
                 f" (round {iteration} of {max_iterations})! Here we go!"
             )
-            result = run_noninteractive_json(prompt)
+            result = self._run_noninteractive_json(prompt)
 
             # Handle errors from the subprocess.
             if result.returncode != 0 and result.stderr:
