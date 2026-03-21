@@ -47,7 +47,7 @@ RALPH_BANNER = """\
 "Me fail English? That's unpossible"\
 """
 
-RALPH_VERSION = "4.0.0"
+RALPH_VERSION = "4.1.0"
 
 
 # ---------------------------------------------------------------------------

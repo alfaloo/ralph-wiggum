@@ -2,7 +2,7 @@
   "name": "ralph-wiggum",
   "displayName": "Ralph Wiggum",
   "description": "GUI wrapper for the ralph CLI",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "engines": {
     "vscode": "^1.109.0"
   },
@@ -81,7 +81,7 @@
   "publisher": "alfaloo",
   "icon": "media/ralph-wiggum.jpeg",
   "galleryBanner": {
-    "color": "#1e1e1e",
+    "color": "#ffee8c",
     "theme": "dark"
   },
   "categories": [
