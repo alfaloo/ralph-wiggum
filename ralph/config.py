@@ -51,23 +51,8 @@ def get_asynchronous() -> bool:
     return bool(_read_settings().get("asynchronous", False))
 
 
-def set_asynchronous(value) -> None:
-    """Persist the asynchronous setting.
-
-    Accepts a bool or the strings 'true'/'false' (case-insensitive).
-    Prints an error and returns early if the value is invalid.
-    """
-    if isinstance(value, str):
-        if value.lower() == "true":
-            value = True
-        elif value.lower() == "false":
-            value = False
-        else:
-            print(f"[ralph] Oops! '{value}' is not a good value for asynchronous. Use true or false.")
-            return
-    elif not isinstance(value, bool):
-        print(f"[ralph] Oops! '{value}' is not a good value for asynchronous. Use true or false.")
-        return
+def set_asynchronous(value: bool) -> None:
+    """Persist the asynchronous setting."""
     data = _read_settings()
     data["asynchronous"] = value
     _write_settings(data)
@@ -136,23 +121,8 @@ def get_single() -> bool:
     return bool(_read_settings().get("single", False))
 
 
-def set_single(value) -> None:
-    """Persist the single setting.
-
-    Accepts a bool or the strings 'true'/'false' (case-insensitive).
-    Prints an error and returns early if the value is invalid.
-    """
-    if isinstance(value, str):
-        if value.lower() == "true":
-            value = True
-        elif value.lower() == "false":
-            value = False
-        else:
-            print(f"[ralph] Oops! '{value}' is not valid for single.")
-            return
-    elif not isinstance(value, bool):
-        print(f"[ralph] Oops! '{value}' is not valid for single.")
-        return
+def set_single(value: bool) -> None:
+    """Persist the single setting."""
     data = _read_settings()
     data["single"] = value
     _write_settings(data)
