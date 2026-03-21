@@ -357,7 +357,7 @@ class Runner:
 
     def run_interview_loop(
         self,
-        question_prompts: list[str],
+        question_prompt_fn: Callable[..., str],
         make_amend_prompts: list[Callable[..., str]],
     ) -> None:
         """Run sequential two-phase interview agents, one per round.
@@ -368,11 +368,12 @@ class Runner:
           Phase 2 — non-interactive agent receives Q&A JSON and amends
                      spec.md and creates/refreshes tasks.json.
         """
-        total = len(question_prompts)
+        total = len(make_amend_prompts)
         print(f"[ralph] I'm doing the interview thing for '{self.project_name}'! There are {total} round(s)!")
 
-        for i, q_prompt in enumerate(question_prompts):
+        for i, amend_fn in enumerate(make_amend_prompts):
             round_num = i + 1
+            q_prompt = question_prompt_fn(round_num=round_num)
             print(f"\n[ralph] Interview round {round_num} of {total}! Here we go!")
 
             # Phase 1: generate questions (JSON output mode so result text is cleanly extracted)
@@ -401,7 +402,7 @@ class Runner:
 
             # Phase 2: amend spec with Q&A
             print("\n[ralph] Ooh, now I'm updating the spec with all your answers!")
-            result2 = self._run_noninteractive(make_amend_prompts[i](qa_json=qa_json))
+            result2 = self._run_noninteractive(amend_fn(qa_json=qa_json))
             self._handle_result(result2)
             if result2.returncode == 0:
                 print(f"[ralph] Yay! Round {round_num} is all done!")

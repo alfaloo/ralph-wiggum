@@ -313,10 +313,11 @@ class InterviewCommand(Command):
 
         print(f"[ralph] Ooh, I'm doing the interview for '{args.project_name}'!")
 
-        question_prompts = [
-            parse_questions_md(args.project_name, round_num=i + 1, total_rounds=rounds)
-            for i in range(rounds)
-        ]
+        question_prompt_fn = functools.partial(
+            parse_questions_md,
+            args.project_name,
+            total_rounds=rounds,
+        )
 
         amend_fns = [
             functools.partial(
@@ -327,7 +328,7 @@ class InterviewCommand(Command):
             )
             for i in range(rounds)
         ]
-        Runner(args.project_name, verbose=verbose).run_interview_loop(question_prompts, amend_fns)
+        Runner(args.project_name, verbose=verbose).run_interview_loop(question_prompt_fn, amend_fns)
 
 
 class CommentCommand(Command):
