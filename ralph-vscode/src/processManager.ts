@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import * as pty from 'node-pty';
 
 const YN_PATTERNS = [
   /already exists\. Overwrite\? \(y\/n\):/,
@@ -85,8 +86,6 @@ export class RalphProcessManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let child: any;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-      const pty = require('node-pty') as any;
       child = pty.spawn('ralph', fullArgs, {
         name: 'xterm-256color',
         cols: 120,
