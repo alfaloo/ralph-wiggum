@@ -424,7 +424,6 @@ class Runner:
         futures: dict[str, concurrent.futures.Future] = {}
         executor = concurrent.futures.ThreadPoolExecutor()
         iteration = 0
-        exit_reason = f"Reached maximum iteration limit ({max_iterations})."
 
         try:
             while True:
@@ -507,7 +506,7 @@ class Runner:
 
                 if iteration >= max_iterations:
                     print(f"\n[ralph] I used up all {max_iterations} rounds and I'm all tired out now.")
-                    self._run_summarise(exit_reason)
+                    self._run_summarise(f"Reached maximum iteration limit ({max_iterations}).")
                     return
 
                 # Step C: Spawn agents for newly ready tasks.
