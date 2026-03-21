@@ -34,6 +34,9 @@ def _write_settings(data: dict) -> None:
         json.dump(data, f, indent=2)
 
 
+# Note: each setter performs a read-then-write without locking. This is a theoretical
+# TOCTOU race, but acceptable since settings are only mutated by user-initiated commands.
+
 def get_verbose() -> bool:
     """Return the persisted verbose setting (default: False)."""
     return bool(_read_settings().get("verbose", False))
