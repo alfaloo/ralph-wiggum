@@ -85,6 +85,28 @@ def set_limit(value: int) -> None:
     _write_settings(data)
 
 
+DEFAULT_TIMEOUT = 15
+
+
+def get_timeout() -> int:
+    """Return the persisted timeout setting (default: DEFAULT_TIMEOUT minutes)."""
+    return int(_read_settings().get("timeout", DEFAULT_TIMEOUT))
+
+
+def set_timeout(value: int) -> None:
+    """Persist the timeout setting.
+
+    Validates that value is a positive integer. Prints an error and returns
+    early if the value is invalid.
+    """
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        print(f"[ralph] Oops! '{value}' is not a valid timeout. Use a positive integer (minutes).")
+        return
+    data = _read_settings()
+    data["timeout"] = value
+    _write_settings(data)
+
+
 def get_base() -> str:
     """Return the persisted base branch setting (default: 'main')."""
     return str(_read_settings().get("base", "main"))
@@ -135,6 +157,7 @@ _DEFAULTS = {
     "verbose": False,
     "rounds": 1,
     "limit": 20,
+    "timeout": DEFAULT_TIMEOUT,
     "base": "main",
     "provider": "github",
     "asynchronous": False,
