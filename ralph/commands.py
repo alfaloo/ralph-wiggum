@@ -26,6 +26,7 @@ from ralph.config import (
     get_provider,
     get_rounds,
     get_single,
+    get_timeout,
     get_verbose,
     set_base,
 )
@@ -310,6 +311,7 @@ class InterviewCommand(Command):
         verbose = _resolve_verbose(args)
         # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
         rounds = args.rounds if args.rounds is not None else get_rounds()
+        timeout = args.timeout if args.timeout is not None else get_timeout()
 
         print(f"[ralph] Ooh, I'm doing the interview for '{args.project_name}'!")
 
@@ -328,7 +330,7 @@ class InterviewCommand(Command):
             )
             for i in range(rounds)
         ]
-        Runner(args.project_name, verbose=verbose).run_interview_loop(question_prompt_fn, amend_fns)
+        Runner(args.project_name, verbose=verbose).run_interview_loop(question_prompt_fn, amend_fns, timeout_minutes=timeout)
 
 
 class CommentCommand(Command):

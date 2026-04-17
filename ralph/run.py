@@ -95,7 +95,7 @@ _DESCRIBE_YOURSELF = "Describe yourself..."
 _VSCODE_SENTINEL = "[ralph-vscode] interview_questions_ready"
 
 
-def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str) -> str:
+def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str, timeout_minutes: int = 15) -> str:
     """VS Code extension mode: write questions to a temp file, wait for answers.
 
     Only called when the RALPH_VSCODE env var is set (set by the extension).
@@ -124,8 +124,8 @@ def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str) -> str
     # Signal the extension to read the file and display the form
     print(_VSCODE_SENTINEL, flush=True)
 
-    # Poll for the answers file written back by the extension (10-min timeout)
-    deadline = time.time() + 600
+    # Poll for the answers file written back by the extension
+    deadline = time.time() + timeout_minutes * 60
     while time.time() < deadline:
         if os.path.exists(answers_path):
             with open(answers_path) as f:
@@ -144,7 +144,7 @@ def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str) -> str
     raise TimeoutError("[ralph] VS Code interview timed out waiting for answers.")
 
 
-def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
+def _collect_guided_answers(questions: list[dict], ralph_dir: str = "", timeout_minutes: int = 15) -> str:
     """Present questions one at a time with arrow-key or numbered selection.
 
     Returns a JSON string of question–answer pairs suitable for passing to the
@@ -155,7 +155,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
     instead of terminal I/O. Terminal runs are completely unaffected.
     """
     if os.environ.get("RALPH_VSCODE") and ralph_dir:
-        return _collect_guided_answers_vscode(questions, ralph_dir)
+        return _collect_guided_answers_vscode(questions, ralph_dir, timeout_minutes=timeout_minutes)
 
     SEPARATOR = "\u2500" * 61
     total = len(questions)
@@ -359,6 +359,7 @@ class Runner:
         self,
         question_prompt_fn: Callable[..., str],
         make_amend_prompts: list[Callable[..., str]],
+        timeout_minutes: int = 15,
     ) -> None:
         """Run sequential two-phase interview agents, one per round.
 
@@ -391,7 +392,11 @@ class Runner:
             # Try structured (guided) path first
             questions_data = _parse_questions_json(raw_output)
             if questions_data:
-                qa_json = _collect_guided_answers(questions_data, ralph_dir=self.ralph_dir)
+                try:
+                    qa_json = _collect_guided_answers(questions_data, ralph_dir=self.ralph_dir, timeout_minutes=timeout_minutes)
+                except TimeoutError:
+                    print(f"Interview timed out after {timeout_minutes} minutes.")
+                    return
             else:
                 # Fallback: legacy free-form path
                 print("[ralph] I couldn't make the questions come out right, so I'll just ask you normally.")
