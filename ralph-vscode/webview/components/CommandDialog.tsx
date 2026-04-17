@@ -4,6 +4,7 @@ import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFo
 import { Button } from './ui/button';
 import { arrayRange, cn } from '../lib/utils';
 import { VscodeContext } from '../app';
+import { Task } from './TaskProgress';
 
 export interface CommandDialogProps {
   command: string | null;
@@ -98,6 +99,7 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
   const [force, setForce] = useState(false);
   const [provider, setProvider] = useState('github');
   const [timeoutMins, setTimeoutMins] = useState(15);
+  const [selectedTaskId, setSelectedTaskId] = useState('');
 
   const setRoundsRef = React.useRef(setRounds);
   const setVerboseRef = React.useRef(setVerbose);
@@ -110,6 +112,7 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
   const setForceRef = React.useRef(setForce);
   const setProviderRef = React.useRef(setProvider);
   const setTimeoutMinsRef = React.useRef(setTimeoutMins);
+  const setSelectedTaskIdRef = React.useRef(setSelectedTaskId);
 
   useEffect(() => {
     if (!command) return;
@@ -125,6 +128,7 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
     setForceRef.current(false);
     setProviderRef.current(s.provider);
     setTimeoutMinsRef.current(s.timeoutMins);
+    setSelectedTaskIdRef.current('');
   }, [command, settings]);
 
   const handleRun = () => {
@@ -149,6 +153,7 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
         args.push('--verbose', String(verbose));
         break;
       case 'execute':
+        if (selectedTaskId) args.push('--id', selectedTaskId);
         if (limit !== '') args.push('--limit', String(limit));
         if (base) args.push('--base', base);
         args.push('--verbose', String(verbose));
@@ -223,9 +228,33 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
           <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
         </div>;
 
-      case 'execute':
+      case 'execute': {
+        const allTasks: Task[] = taskData ? ((taskData as Record<string, unknown>)['tasks'] as Task[] || []) : [];
+        const completedIds = new Set(allTasks.filter(t => t.status === 'completed').map(t => t.id));
+        const eligibleTasks = allTasks.filter(t =>
+          t.status !== 'completed' &&
+          t.dependencies.every(dep => completedIds.has(dep))
+        );
         return (
           <div className="flex flex-col gap-3 w-96">
+            <Field label="Task" className='flex-col items-start gap-1'>
+              <select
+                value={selectedTaskId}
+                onChange={e => setSelectedTaskId(e.target.value)}
+                style={{
+                  fontFamily: 'var(--vscode-font-family)',
+                  background: 'var(--vscode-input-background)',
+                  color: 'var(--vscode-input-foreground)',
+                  border: '1px solid var(--vscode-input-border)',
+                  width: '100%',
+                }}
+              >
+                <option value=''>Execute All</option>
+                {eligibleTasks.map(t => (
+                  <option key={t.id} value={t.id}>{t.id} — {t.title}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="Maximum number of agent iterations" className='flex-col items-start gap-1'>
               <input type="number" min={1} max={50} value={limit} className='w-full'
                 onChange={e => setLimit(e.target.value === '' ? '' : Number(e.target.value))} />
@@ -244,6 +273,7 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
             </div>
           </div>
         );
+      }
 
       case 'validate':
         return <div className='w-96'>
