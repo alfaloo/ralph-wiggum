@@ -39,6 +39,7 @@ function initState(settings: Record<string, unknown>) {
     single: settingBool(settings, '--single'),
     force: false,
     provider: settingStr(settings, '--provider') || 'github',
+    timeoutMins: (settingNum(settings, '--timeout') || 15) as number,
   };
 }
 
@@ -95,6 +96,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
   const [single, setSingle] = useState(false);
   const [force, setForce] = useState(false);
   const [provider, setProvider] = useState('github');
+  const [timeoutMins, setTimeoutMins] = useState(15);
 
   const setRoundsRef = React.useRef(setRounds);
   const setVerboseRef = React.useRef(setVerbose);
@@ -106,6 +108,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
   const setSingleRef = React.useRef(setSingle);
   const setForceRef = React.useRef(setForce);
   const setProviderRef = React.useRef(setProvider);
+  const setTimeoutMinsRef = React.useRef(setTimeoutMins);
 
   useEffect(() => {
     if (!command) return;
@@ -120,6 +123,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
     setSingleRef.current(s.single);
     setForceRef.current(false);
     setProviderRef.current(s.provider);
+    setTimeoutMinsRef.current(s.timeoutMins);
   }, [command, settings]);
 
   const handleRun = () => {
@@ -134,6 +138,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
       case 'interview':
         args.push('--rounds', String(rounds));
         args.push('--verbose', String(verbose));
+        args.push('--timeout', String(timeoutMins));
         break;
       case 'comment':
         if (commentText) args.push(commentText);
@@ -188,6 +193,11 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
                 {arrayRange(1, 10).map(e => (<option key={e} value={e}>{e}</option>))}
               </select>
               <span className='text-description-color block text-md mt-1'>Number of interview rounds</span>
+            </Field>
+
+            <Field label="Timeout (min)" className='flex-col items-start gap-1'>
+              <input type="number" min={1} value={timeoutMins} className='w-full'
+                onChange={e => setTimeoutMins(Math.max(1, Number(e.target.value) || 15))} />
             </Field>
 
             <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
