@@ -26,6 +26,7 @@ def _args(
     limit: int | None = None,
     base: str | None = None,
     resume: bool = False,
+    id: str | None = None,
 ) -> argparse.Namespace:
     """Build a minimal argparse.Namespace for cmd_execute."""
     return argparse.Namespace(
@@ -36,6 +37,7 @@ def _args(
         limit=limit,
         base=base,
         resume=resume,
+        id=id,
     )
 
 

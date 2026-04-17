@@ -423,7 +423,26 @@ class ExecuteCommand(Command):
             print("[ralph] Error: --single and --asynchronous cannot both be true.")
             sys.exit(1)
 
-        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous, single=single, resume=args.resume)
+        if args.id and (asynchronous or single):
+            print('Error: --id cannot be combined with --asynchronous or --single.')
+            sys.exit(1)
+
+        if args.id:
+            tasks = tasks_data.get("tasks", [])
+            target = next((t for t in tasks if t["id"] == args.id), None)
+            if target is None:
+                print(f"Error: task '{args.id}' not found in tasks.json.")
+                sys.exit(1)
+            for dep_id in target.get("dependencies", []):
+                dep = next((t for t in tasks if t["id"] == dep_id), None)
+                if dep is None or dep.get("status") != "completed":
+                    print(f"Error: prerequisite task '{dep_id}' is not completed.")
+                    sys.exit(1)
+            if target.get("status") == "completed":
+                print(f"Error: task '{args.id}' is already completed.")
+                sys.exit(1)
+
+        Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous, single=single, resume=args.resume, task_id_filter=args.id)
 
 
 class ValidateCommand(Command):

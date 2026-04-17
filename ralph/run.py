@@ -606,7 +606,7 @@ class Runner:
 
         self._run_summarise(exit_reason)
 
-    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, single: bool = False, resume: bool = False) -> None:
+    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, single: bool = False, resume: bool = False, task_id_filter: str | None = None) -> None:
         """Run non-interactive execute agents in a loop."""
         if resume:
             self._reset_incomplete_tasks()
@@ -642,7 +642,14 @@ class Runner:
                 print(f"\n[ralph] I can't do anything right now — all the tasks are stuck or waiting for other tasks!")
                 break
 
-            task = ready_tasks[0]
+            if task_id_filter is not None:
+                task = next((t for t in ready_tasks if t["id"] == task_id_filter), None)
+                if task is None:
+                    exit_reason = f"Task '{task_id_filter}' is not in the ready list."
+                    print(f"\n[ralph] Task '{task_id_filter}' is not ready to execute right now.")
+                    break
+            else:
+                task = ready_tasks[0]
             task_id = task["id"]
             task_title = task.get("title", "")
             task_description = task.get("description", "")
@@ -714,6 +721,9 @@ class Runner:
             if exceeded:
                 exit_reason = f"Task {task['id']} ('{task['title']}') reached max_attempts ({task['max_attempts']})."
                 print(f"\n[ralph] I have to stop now — {exit_reason}")
+                break
+
+            if task_id_filter is not None:
                 break
         else:
             # for/else fires when all iterations were exhausted without breaking
