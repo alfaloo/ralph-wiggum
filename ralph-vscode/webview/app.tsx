@@ -139,6 +139,16 @@ function App() {
     setIsRunning(true);
     setLastCommand(buildCommandString(cmd, args));
     setInterviewQuestions(null);
+
+    if (cmd === 'comment') {
+      const flagIdx = args.indexOf('--comment');
+      const commentText = flagIdx !== -1 ? (args[flagIdx + 1] ?? '') : '';
+      setOutputLines(lines => [
+        ...lines,
+        { type: 'interview_qa' as const, text: '', question: 'Your comment', answer: commentText },
+      ]);
+    }
+
     vscode.postMessage({ type: 'run_command', command: cmd, args });
   };
 
