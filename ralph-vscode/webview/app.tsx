@@ -180,6 +180,7 @@ function App() {
         <CommandBar
           isRunning={isRunning}
           settings={settings}
+          taskData={taskData}
           commandEnabled={commandEnabled}
           onRun={handleRun}
           onStop={handleStop}

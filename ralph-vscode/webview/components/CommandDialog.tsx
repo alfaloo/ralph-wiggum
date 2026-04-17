@@ -8,6 +8,7 @@ import { VscodeContext } from '../app';
 export interface CommandDialogProps {
   command: string | null;
   settings: Record<string, unknown>;
+  taskData: object | null;
   onClose: () => void;
   onRun: (cmd: string, args: string[]) => void;
 }
@@ -84,7 +85,7 @@ function CheckField({
   );
 }
 
-export function CommandDialog({ command, settings, onClose, onRun }: CommandDialogProps) {
+export function CommandDialog({ command, settings, taskData, onClose, onRun }: CommandDialogProps) {
   const vscode = useContext(VscodeContext);
   const [rounds, setRounds] = useState(1);
   const [verbose, setVerbose] = useState(false);
