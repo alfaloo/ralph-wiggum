@@ -498,7 +498,8 @@ class Runner:
                     self._run_summarise("All tasks completed successfully.")
                     return
 
-                exceeded, task = dag.any_task_exceeded_max_attempts(tasks)
+                settled_tasks = [t for t in tasks if t["id"] not in futures]
+                exceeded, task = dag.any_task_exceeded_max_attempts(settled_tasks)
                 if exceeded:
                     exit_reason = (
                         f"Task {task['id']} ('{task['title']}') reached"
@@ -533,7 +534,7 @@ class Runner:
                         print(f"[ralph] I'm starting an agent for task {task['id']} \"{task['title']}\"! Yay!")
 
                         def _worker(p=prompt):
-                            return run_noninteractive(p).returncode
+                            return Runner._run_noninteractive(p).returncode
 
                         futures[task_id] = executor.submit(_worker)
                 elif not futures:
