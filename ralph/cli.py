@@ -295,6 +295,12 @@ def main() -> None:
         metavar="BOOL",
         help="Use a single agent to implement all tasks (true/false). Overrides persisted setting.",
     )
+    execute_parser.add_argument(
+        "--id", "-i",
+        type=str,
+        default=None,
+        help="Run only the task with this ID (e.g. T3). All prerequisites must be completed.",
+    )
     execute_parser.set_defaults(func=ExecuteCommand)
 
     # ralph status <project-name>
