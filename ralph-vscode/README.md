@@ -82,6 +82,7 @@ Commands that require prerequisite files are automatically disabled:
 | Command | Flag | Type | Default | Notes |
 |---------|------|------|---------|-------|
 | `interview` | `--rounds` | integer | 1 | Number of Q&A rounds |
+| `interview` | `--timeout` | integer | 15 | VSCode interview polling timeout in minutes |
 | `interview` | `--verbose` | boolean | false | |
 | `comment` | comment text | text | — | Required |
 | `comment` | `--verbose` | boolean | false | |
@@ -90,8 +91,9 @@ Commands that require prerequisite files are automatically disabled:
 | `execute` | `--base` | text | main | Branch to base from |
 | `execute` | `--verbose` | boolean | false | |
 | `execute` | `--resume` | boolean | false | Resume interrupted run |
-| `execute` | `--asynchronous` | boolean | false | Parallel tasks; mutually exclusive with `--single` |
-| `execute` | `--single` | boolean | false | Single agent for all tasks; mutually exclusive with `--asynchronous` |
+| `execute` | `--asynchronous` | boolean | false | Parallel tasks; mutually exclusive with `--single` and `--id` |
+| `execute` | `--single` | boolean | false | Single agent for all tasks; mutually exclusive with `--asynchronous` and `--id` |
+| `execute` | `--id` | text | — | Run only the single task with this ID (e.g. `T3`); all dependency tasks must already be completed; mutually exclusive with `--asynchronous` and `--single` |
 | `oneshot` | `--limit` | integer | 20 | |
 | `oneshot` | `--base` | text | main | |
 | `oneshot` | `--verbose` | boolean | false | |
@@ -143,7 +145,8 @@ There are no dedicated keyboard shortcuts for the extension. All ralph commands 
 ## Tips
 
 - `status` is the only command that runs immediately without opening a flag dialog.
-- `--asynchronous` and `--single` are mutually exclusive. Enabling one in the dialog disables the other automatically.
+- `--asynchronous`, `--single`, and `--id` are mutually exclusive. Enabling one in the dialog disables the others automatically.
+- `--id` runs a single named task (e.g. `T3`). All dependency tasks must already be completed before using it.
 - Clicking a task in the task list shows its full details in the output area — useful for debugging a blocked or failed task.
 - The output area auto-scrolls to the bottom while a command is running. Use the **Clear** button to reset it between runs.
 - PR URLs that appear in the output are rendered as clickable links and open in your browser.

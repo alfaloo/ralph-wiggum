@@ -55,13 +55,15 @@ Also creates `.ralph/settings.json` with default values for global flags if it d
 
 ---
 
-### `ralph interview <project-name> [--rounds N] [--verbose BOOL]`
+### `ralph interview <project-name> [--rounds N] [--timeout N] [--verbose BOOL]`
 
 Runs one or more interview rounds to refine the spec. Each round has two phases:
 1. An agent reads `spec.md` and outputs 3–5 clarifying questions.
 2. You type your answers; a second agent incorporates them into `spec.md` and writes/refreshes `tasks.json`.
 
 `--rounds N` (alias `-r`) controls how many rounds to run. Defaults to the persisted `rounds` setting (default: 1).
+
+`--timeout N` (alias `-t`) sets the VSCode interview polling timeout in minutes for this invocation only. Overrides the persisted `timeout` setting (default: 15).
 
 ---
 
@@ -79,7 +81,7 @@ Improves the `spec.md` file and regenerates `tasks.json` from it. A Claude agent
 
 ---
 
-### `ralph execute <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL] [--single BOOL]`
+### `ralph execute <project-name> [--limit N] [--base BRANCH] [--verbose BOOL] [--resume] [--asynchronous BOOL] [--single BOOL] [--id TASK_ID]`
 
 Implements the project by spawning execute agents iteratively. Each agent picks up the next pending task from `tasks.json`, implements it, commits the changes, and updates the task status.
 
@@ -91,6 +93,7 @@ Implements the project by spawning execute agents iteratively. Each agent picks 
 - `--resume` (alias `-r`) resumes execution on an existing project branch instead of creating a new one.
 - `--asynchronous BOOL` (alias `-a`) enables parallel agent execution. When `true`, tasks with no unsatisfied dependencies are dispatched concurrently using the DAG in `tasks.json`. Overrides the global setting for this invocation (default: `false`).
 - `--single BOOL` (alias `-s`) runs all tasks with a single agent instead of one agent per task. Reduces token usage for projects with many small tasks. Cannot be combined with `--asynchronous true` (default: `false`).
+- `--id TASK_ID` (alias `-i`) runs only the single task whose id matches `TASK_ID` (e.g. `T3`). All dependency tasks must already have `status: "completed"` before this flag is used; if any prerequisite is not completed, execution aborts with an error. Cannot be combined with `--asynchronous` or `--single`.
 
 ---
 
@@ -170,6 +173,7 @@ When used at the top level (before or without a subcommand), these flags persist
 | `--verbose true\|false` | `-v` | `false` | Print agent stdout during runs |
 | `--rounds N` | `-r` | `1` | Default number of interview rounds |
 | `--limit N` | `-l` | `20` | Default max execute iterations |
+| `--timeout N` | `-t` | `15` | VSCode interview polling timeout in minutes |
 | `--base BRANCH` | `-b` | `main` | Default base branch for execute |
 | `--provider github\|gitlab` | `-p` | `github` | VCS platform for PR/MR creation. Validates that the provider's CLI tool is installed and authenticated before saving. |
 | `--asynchronous true\|false` | `-a` | `false` | Enable parallel agent execution in `ralph execute`. |

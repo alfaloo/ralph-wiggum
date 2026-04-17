@@ -95,7 +95,7 @@ _DESCRIBE_YOURSELF = "Describe yourself..."
 _VSCODE_SENTINEL = "[ralph-vscode] interview_questions_ready"
 
 
-def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str) -> str:
+def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str, timeout_minutes: int = 15) -> str:
     """VS Code extension mode: write questions to a temp file, wait for answers.
 
     Only called when the RALPH_VSCODE env var is set (set by the extension).
@@ -124,8 +124,8 @@ def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str) -> str
     # Signal the extension to read the file and display the form
     print(_VSCODE_SENTINEL, flush=True)
 
-    # Poll for the answers file written back by the extension (10-min timeout)
-    deadline = time.time() + 600
+    # Poll for the answers file written back by the extension
+    deadline = time.time() + timeout_minutes * 60
     while time.time() < deadline:
         if os.path.exists(answers_path):
             with open(answers_path) as f:
@@ -144,7 +144,7 @@ def _collect_guided_answers_vscode(questions: list[dict], ralph_dir: str) -> str
     raise TimeoutError("[ralph] VS Code interview timed out waiting for answers.")
 
 
-def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
+def _collect_guided_answers(questions: list[dict], ralph_dir: str = "", timeout_minutes: int = 15) -> str:
     """Present questions one at a time with arrow-key or numbered selection.
 
     Returns a JSON string of question–answer pairs suitable for passing to the
@@ -155,7 +155,7 @@ def _collect_guided_answers(questions: list[dict], ralph_dir: str = "") -> str:
     instead of terminal I/O. Terminal runs are completely unaffected.
     """
     if os.environ.get("RALPH_VSCODE") and ralph_dir:
-        return _collect_guided_answers_vscode(questions, ralph_dir)
+        return _collect_guided_answers_vscode(questions, ralph_dir, timeout_minutes=timeout_minutes)
 
     SEPARATOR = "\u2500" * 61
     total = len(questions)
@@ -359,6 +359,7 @@ class Runner:
         self,
         question_prompt_fn: Callable[..., str],
         make_amend_prompts: list[Callable[..., str]],
+        timeout_minutes: int = 15,
     ) -> None:
         """Run sequential two-phase interview agents, one per round.
 
@@ -391,7 +392,11 @@ class Runner:
             # Try structured (guided) path first
             questions_data = _parse_questions_json(raw_output)
             if questions_data:
-                qa_json = _collect_guided_answers(questions_data, ralph_dir=self.ralph_dir)
+                try:
+                    qa_json = _collect_guided_answers(questions_data, ralph_dir=self.ralph_dir, timeout_minutes=timeout_minutes)
+                except TimeoutError:
+                    print(f"Interview timed out after {timeout_minutes} minutes.")
+                    return
             else:
                 # Fallback: legacy free-form path
                 print("[ralph] I couldn't make the questions come out right, so I'll just ask you normally.")
@@ -428,8 +433,6 @@ class Runner:
 
         try:
             while True:
-                iteration += 1
-
                 # Step A: Handle completed futures.
                 for task_id, future in list(futures.items()):
                     if not future.done():
@@ -495,7 +498,8 @@ class Runner:
                     self._run_summarise("All tasks completed successfully.")
                     return
 
-                exceeded, task = dag.any_task_exceeded_max_attempts(tasks)
+                settled_tasks = [t for t in tasks if t["id"] not in futures]
+                exceeded, task = dag.any_task_exceeded_max_attempts(settled_tasks)
                 if exceeded:
                     exit_reason = (
                         f"Task {task['id']} ('{task['title']}') reached"
@@ -505,37 +509,38 @@ class Runner:
                     self._run_summarise(exit_reason)
                     return
 
-                if iteration >= max_iterations:
+                # Step C: Spawn agents for newly ready tasks, or exit if limit reached.
+                if iteration < max_iterations:
+                    ready_tasks = dag.get_ready_tasks(tasks)
+                    for task in ready_tasks:
+                        task_id = task["id"]
+                        if task_id in futures:
+                            continue
+                        with locks.locked_json_rw(self._tasks_path) as data:
+                            for t in data["tasks"]:
+                                if t["id"] == task_id:
+                                    t["status"] = "in_progress"
+                                    t["attempts"] = t.get("attempts", 0) + 1
+                                    break
+                        prompt = parse_execute_async_md(
+                            self.project_name,
+                            task_id,
+                            1,
+                            max_iterations,
+                            task_title=task.get("title", ""),
+                            task_description=task.get("description", ""),
+                        )
+                        iteration += 1
+                        print(f"[ralph] I'm starting an agent for task {task['id']} \"{task['title']}\"! Yay!")
+
+                        def _worker(p=prompt):
+                            return Runner._run_noninteractive(p).returncode
+
+                        futures[task_id] = executor.submit(_worker)
+                elif not futures:
                     print(f"\n[ralph] I used up all {max_iterations} rounds and I'm all tired out now.")
                     self._run_summarise(f"Reached maximum iteration limit ({max_iterations}).")
                     return
-
-                # Step C: Spawn agents for newly ready tasks.
-                ready_tasks = dag.get_ready_tasks(tasks)
-                for task in ready_tasks:
-                    task_id = task["id"]
-                    if task_id in futures:
-                        continue
-                    with locks.locked_json_rw(self._tasks_path) as data:
-                        for t in data["tasks"]:
-                            if t["id"] == task_id:
-                                t["status"] = "in_progress"
-                                t["attempts"] = t.get("attempts", 0) + 1
-                                break
-                    prompt = parse_execute_async_md(
-                        self.project_name,
-                        task_id,
-                        iteration,
-                        max_iterations,
-                        task_title=task.get("title", ""),
-                        task_description=task.get("description", ""),
-                    )
-                    print(f"[ralph] I'm starting an agent for task {task['id']} \"{task['title']}\"! Yay!")
-
-                    def _worker(p=prompt):
-                        return Runner._run_noninteractive(p).returncode
-
-                    futures[task_id] = executor.submit(_worker)
 
                 # Step D: Sleep, then repeat.
                 time.sleep(2)
@@ -601,7 +606,7 @@ class Runner:
 
         self._run_summarise(exit_reason)
 
-    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, single: bool = False, resume: bool = False) -> None:
+    def run_execute_loop(self, max_iterations: int, asynchronous: bool = False, single: bool = False, resume: bool = False, task_id_filter: str | None = None) -> None:
         """Run non-interactive execute agents in a loop."""
         if resume:
             self._reset_incomplete_tasks()
@@ -637,7 +642,14 @@ class Runner:
                 print(f"\n[ralph] I can't do anything right now — all the tasks are stuck or waiting for other tasks!")
                 break
 
-            task = ready_tasks[0]
+            if task_id_filter is not None:
+                task = next((t for t in ready_tasks if t["id"] == task_id_filter), None)
+                if task is None:
+                    exit_reason = f"Task '{task_id_filter}' is not in the ready list."
+                    print(f"\n[ralph] Task '{task_id_filter}' is not ready to execute right now.")
+                    break
+            else:
+                task = ready_tasks[0]
             task_id = task["id"]
             task_title = task.get("title", "")
             task_description = task.get("description", "")
@@ -709,6 +721,9 @@ class Runner:
             if exceeded:
                 exit_reason = f"Task {task['id']} ('{task['title']}') reached max_attempts ({task['max_attempts']})."
                 print(f"\n[ralph] I have to stop now — {exit_reason}")
+                break
+
+            if task_id_filter is not None:
                 break
         else:
             # for/else fires when all iterations were exhausted without breaking

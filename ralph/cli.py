@@ -11,6 +11,7 @@ from ralph.config import (
     set_provider,
     set_rounds,
     set_single,
+    set_timeout,
     set_verbose,
 )
 from ralph.commands import (
@@ -47,7 +48,7 @@ RALPH_BANNER = """\
 "Me fail English? That's unpossible"\
 """
 
-RALPH_VERSION = "4.1.0"
+RALPH_VERSION = "4.2.1"
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +166,14 @@ def main() -> None:
         metavar="BOOL",
         help="Persist single-agent execute setting to .ralph/settings.json (true/false)",
     )
+    parser.add_argument(
+        "--timeout", "-t",
+        type=int,
+        default=None,
+        dest="global_timeout",
+        metavar="N",
+        help="Persist interview timeout (minutes) to .ralph/settings.json",
+    )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -198,6 +207,13 @@ def main() -> None:
         default=None,
         metavar="BOOL",
         help="Enable/disable verbose output for this invocation only",
+    )
+    interview_parser.add_argument(
+        "--timeout", "-t",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Interview timeout in minutes (overrides settings.json for this invocation only)",
     )
     interview_parser.set_defaults(func=InterviewCommand)
 
@@ -278,6 +294,12 @@ def main() -> None:
         default=None,
         metavar="BOOL",
         help="Use a single agent to implement all tasks (true/false). Overrides persisted setting.",
+    )
+    execute_parser.add_argument(
+        "--id", "-i",
+        type=str,
+        default=None,
+        help="Run only the task with this ID (e.g. T3). All prerequisites must be completed.",
     )
     execute_parser.set_defaults(func=ExecuteCommand)
 
@@ -404,11 +426,13 @@ def main() -> None:
     if args.global_provider is not None:
         validate_provider_cli(args.global_provider)
         set_provider(args.global_provider)
+    if args.global_timeout is not None:
+        set_timeout(args.global_timeout)
 
     # If no subcommand given (e.g. `ralph --verbose true`), we're done after persisting.
     no_globals_set = all(
         getattr(args, f"global_{flag}") is None
-        for flag in ("verbose", "rounds", "limit", "base", "provider", "asynchronous", "single")
+        for flag in ("verbose", "rounds", "limit", "base", "provider", "asynchronous", "single", "timeout")
     )
     if args.command is None:
         if no_globals_set:

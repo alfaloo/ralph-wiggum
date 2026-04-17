@@ -6,6 +6,7 @@ import { CommandDialog } from './CommandDialog';
 export interface CommandBarProps {
   isRunning: boolean;
   settings: Record<string, unknown>;
+  taskData: object | null;
   commandEnabled: Record<string, boolean>;
   onRun: (cmd: string, args: string[]) => void;
   onStop: () => void;
@@ -16,7 +17,7 @@ const COMMANDS = [
   'retry', 'undo', 'oneshot', 'pr', 'validate',
 ];
 
-export function CommandBar({ isRunning, settings, commandEnabled, onRun, onStop }: CommandBarProps) {
+export function CommandBar({ isRunning, settings, taskData, commandEnabled, onRun, onStop }: CommandBarProps) {
   const [selectedCmd, setSelectedCmd] = useState<string | null>(null);
 
   const handleClick = (cmd: string) => {
@@ -57,6 +58,7 @@ export function CommandBar({ isRunning, settings, commandEnabled, onRun, onStop 
       <CommandDialog
         command={selectedCmd}
         settings={settings}
+        taskData={taskData}
         onClose={() => setSelectedCmd(null)}
         onRun={handleRun}
       />

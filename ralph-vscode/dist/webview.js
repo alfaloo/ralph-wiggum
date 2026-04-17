@@ -24781,7 +24781,8 @@
       asynchronous: settingBool(settings, "--asynchronous"),
       single: settingBool(settings, "--single"),
       force: false,
-      provider: settingStr(settings, "--provider") || "github"
+      provider: settingStr(settings, "--provider") || "github",
+      timeoutMins: Math.min(60, Math.max(5, settingNum(settings, "--timeout") || 15))
     };
   }
   function Field({
@@ -24800,7 +24801,7 @@
   }) {
     return /* @__PURE__ */ React3.createElement("label", { className: cn("flex items-center gap-2 cursor-pointer text-base select-none", className) }, /* @__PURE__ */ React3.createElement("input", { type: "checkbox", checked, onChange: (e) => onChange(e.target.checked), className: "w-3.5 h-3.5", disabled }), /* @__PURE__ */ React3.createElement("span", { className: "mb-0.5" }, label));
   }
-  function CommandDialog({ command, settings, onClose, onRun }) {
+  function CommandDialog({ command, settings, taskData, onClose, onRun }) {
     const vscode2 = (0, import_react.useContext)(VscodeContext);
     const [rounds, setRounds] = (0, import_react.useState)(1);
     const [verbose, setVerbose] = (0, import_react.useState)(false);
@@ -24812,6 +24813,10 @@
     const [single, setSingle] = (0, import_react.useState)(false);
     const [force, setForce] = (0, import_react.useState)(false);
     const [provider, setProvider] = (0, import_react.useState)("github");
+    const [timeoutMins, setTimeoutMins] = (0, import_react.useState)(15);
+    const [timeoutRaw, setTimeoutRaw] = (0, import_react.useState)("15");
+    const [timeoutInvalid, setTimeoutInvalid] = (0, import_react.useState)(false);
+    const [selectedTaskId, setSelectedTaskId] = (0, import_react.useState)("");
     const setRoundsRef = React3.useRef(setRounds);
     const setVerboseRef = React3.useRef(setVerbose);
     const setCommentTextRef = React3.useRef(setCommentText);
@@ -24822,6 +24827,10 @@
     const setSingleRef = React3.useRef(setSingle);
     const setForceRef = React3.useRef(setForce);
     const setProviderRef = React3.useRef(setProvider);
+    const setTimeoutMinsRef = React3.useRef(setTimeoutMins);
+    const setTimeoutRawRef = React3.useRef(setTimeoutRaw);
+    const setTimeoutInvalidRef = React3.useRef(setTimeoutInvalid);
+    const setSelectedTaskIdRef = React3.useRef(setSelectedTaskId);
     (0, import_react.useEffect)(() => {
       if (!command) return;
       const s = initState(settings);
@@ -24835,9 +24844,14 @@
       setSingleRef.current(s.single);
       setForceRef.current(false);
       setProviderRef.current(s.provider);
+      setTimeoutMinsRef.current(s.timeoutMins);
+      setTimeoutRawRef.current(String(s.timeoutMins));
+      setTimeoutInvalidRef.current(false);
+      setSelectedTaskIdRef.current("");
     }, [command, settings]);
     const handleRun = () => {
       if (!command) return;
+      if (command === "interview" && timeoutInvalid) return;
       if (single && asynchronous) {
         vscode2.postMessage({ type: "show_error", message: "--single and --asynchronous cannot both be true." });
         return;
@@ -24847,6 +24861,7 @@
         case "interview":
           args.push("--rounds", String(rounds));
           args.push("--verbose", String(verbose));
+          args.push("--timeout", String(timeoutMins));
           break;
         case "comment":
           if (commentText) args.push(commentText);
@@ -24856,6 +24871,7 @@
           args.push("--verbose", String(verbose));
           break;
         case "execute":
+          if (selectedTaskId) args.push("--id", selectedTaskId);
           if (limit !== "") args.push("--limit", String(limit));
           if (base) args.push("--base", base);
           args.push("--verbose", String(verbose));
@@ -24892,7 +24908,27 @@
     const renderFlags = () => {
       switch (command) {
         case "interview":
-          return /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-3 w-96" }, /* @__PURE__ */ React3.createElement(Field, { label: "Rounds", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement("select", { className: "w-full", value: rounds, onChange: (e) => setRounds(Math.max(1, Number(e.target.value) || 1)) }, arrayRange(1, 10).map((e) => /* @__PURE__ */ React3.createElement("option", { key: e, value: e }, e))), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Number of interview rounds")), /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }));
+          return /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-3 w-96" }, /* @__PURE__ */ React3.createElement(Field, { label: "Rounds", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement("select", { className: "w-full", value: rounds, onChange: (e) => setRounds(Math.max(1, Number(e.target.value) || 1)) }, arrayRange(1, 10).map((e) => /* @__PURE__ */ React3.createElement("option", { key: e, value: e }, e))), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Number of interview rounds")), /* @__PURE__ */ React3.createElement(Field, { label: "Timeout (min)", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement(
+            "input",
+            {
+              type: "number",
+              value: timeoutRaw,
+              className: cn("w-full", timeoutInvalid && "border border-red-500 outline-red-500"),
+              onChange: (e) => {
+                setTimeoutRaw(e.target.value);
+                setTimeoutInvalid(false);
+              },
+              onBlur: () => {
+                const n = Number(timeoutRaw);
+                if (!timeoutRaw || isNaN(n) || n < 5 || n > 60) {
+                  setTimeoutInvalid(true);
+                } else {
+                  setTimeoutMins(n);
+                  setTimeoutInvalid(false);
+                }
+              }
+            }
+          ), timeoutInvalid ? /* @__PURE__ */ React3.createElement("span", { className: "text-red-500 block text-md mt-1" }, "Must be between 5 and 60 minutes") : /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Between 5 and 60 minutes")), /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }));
         case "comment":
           return /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-3 w-96" }, /* @__PURE__ */ React3.createElement(Field, { label: "Comment *", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement(
             "textarea",
@@ -24906,8 +24942,28 @@
           ), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "A description of the amendments to make")), /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }));
         case "enrich":
           return /* @__PURE__ */ React3.createElement("div", { className: "w-96" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }));
-        case "execute":
-          return /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-3 w-96" }, /* @__PURE__ */ React3.createElement(Field, { label: "Maximum number of agent iterations", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement(
+        case "execute": {
+          const allTasks = taskData ? taskData["tasks"] || [] : [];
+          const completedIds = new Set(allTasks.filter((t) => t.status === "completed").map((t) => t.id));
+          const eligibleTasks = allTasks.filter(
+            (t) => t.status !== "completed" && t.dependencies.every((dep) => completedIds.has(dep))
+          );
+          return /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-3 w-96" }, /* @__PURE__ */ React3.createElement(Field, { label: "Task", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement(
+            "select",
+            {
+              value: selectedTaskId,
+              onChange: (e) => setSelectedTaskId(e.target.value),
+              style: {
+                fontFamily: "var(--vscode-font-family)",
+                background: "var(--vscode-input-background)",
+                color: "var(--vscode-input-foreground)",
+                border: "1px solid var(--vscode-input-border)",
+                width: "100%"
+              }
+            },
+            /* @__PURE__ */ React3.createElement("option", { value: "" }, "Execute All"),
+            eligibleTasks.map((t) => /* @__PURE__ */ React3.createElement("option", { key: t.id, value: t.id }, t.id, " \u2014 ", t.title))
+          )), /* @__PURE__ */ React3.createElement(Field, { label: "Maximum number of agent iterations", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement(
             "input",
             {
               type: "number",
@@ -24929,10 +24985,11 @@
           ), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)")), /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-4" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--resume", checked: resume, onChange: setResume }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--asynchronous", checked: asynchronous, disabled: single, onChange: (checked) => {
             setAsynchronous(checked);
             if (checked) setSingle(false);
-          } }), /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "Single-agent mode", checked: single, disabled: asynchronous, onChange: (checked) => {
+          } }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--single", checked: single, disabled: asynchronous, onChange: (checked) => {
             setSingle(checked);
             if (checked) setAsynchronous(false);
-          } }), /* @__PURE__ */ React3.createElement("p", { className: "flag-description" }, "Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode."))));
+          } })));
+        }
         case "validate":
           return /* @__PURE__ */ React3.createElement("div", { className: "w-96" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose }));
         case "undo":
@@ -24962,17 +25019,17 @@
           ), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Base branch to branch from when creating the project branch (overrides settings.json for this invocation only)")), /* @__PURE__ */ React3.createElement(Field, { label: "Repository provider", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement("select", { value: provider, onChange: (e) => setProvider(e.target.value), className: "w-full" }, /* @__PURE__ */ React3.createElement("option", { value: "github" }, "github"), /* @__PURE__ */ React3.createElement("option", { value: "gitlab" }, "gitlab")), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Provider to use for this invocation only (github/gitlab)")), /* @__PURE__ */ React3.createElement("div", { className: "flex flex-col gap-4" }, /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--resume", checked: resume, onChange: setResume }), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Allow the agent to resume execution from an existing branch")), /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "--asynchronous", checked: asynchronous, disabled: single, onChange: (checked) => {
             setAsynchronous(checked);
             if (checked) setSingle(false);
-          } }), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Enable/disable asynchronous agent execution for this invocation only")), /* @__PURE__ */ React3.createElement("div", { className: "gap-0" }, /* @__PURE__ */ React3.createElement(CheckField, { label: "Single-agent mode", checked: single, disabled: asynchronous, onChange: (checked) => {
+          } }), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Enable/disable asynchronous agent execution for this invocation only")), /* @__PURE__ */ React3.createElement(CheckField, { label: "--single", checked: single, disabled: asynchronous, onChange: (checked) => {
             setSingle(checked);
             if (checked) setAsynchronous(false);
-          } }), /* @__PURE__ */ React3.createElement("p", { className: "flag-description" }, "Spawn one agent to implement all tasks in sequence. Reduces token usage. Cannot be combined with asynchronous mode.")), /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose })));
+          } }), /* @__PURE__ */ React3.createElement(CheckField, { label: "--verbose", checked: verbose, onChange: setVerbose })));
         case "pr":
           return /* @__PURE__ */ React3.createElement(Field, { label: "Repository provider", className: "flex-col items-start gap-1" }, /* @__PURE__ */ React3.createElement("select", { value: provider, onChange: (e) => setProvider(e.target.value), className: "w-full" }, /* @__PURE__ */ React3.createElement("option", { value: "github" }, "github"), /* @__PURE__ */ React3.createElement("option", { value: "gitlab" }, "gitlab")), /* @__PURE__ */ React3.createElement("span", { className: "text-description-color block text-md mt-1" }, "Provider to use for this invocation only (github/gitlab)"));
         default:
           return null;
       }
     };
-    const isRunDisabled = command === "comment" && !commentText;
+    const isRunDisabled = command === "comment" && !commentText || command === "interview" && timeoutInvalid;
     return /* @__PURE__ */ React3.createElement(Dialog, { open: command !== null, onOpenChange: (open) => !open }, /* @__PURE__ */ React3.createElement(DialogContent, { onClose }, /* @__PURE__ */ React3.createElement(DialogHeader, null, /* @__PURE__ */ React3.createElement(DialogTitle, null, "Configure: ", command)), /* @__PURE__ */ React3.createElement("div", { className: "py-1" }, renderFlags()), /* @__PURE__ */ React3.createElement(DialogFooter, null, /* @__PURE__ */ React3.createElement(DialogClose, null, /* @__PURE__ */ React3.createElement(Button, { variant: "ghost" }, "Cancel")), /* @__PURE__ */ React3.createElement(Button, { onClick: handleRun, disabled: isRunDisabled }, "\u25B6 Run"))));
   }
 
@@ -24989,7 +25046,7 @@
     "pr",
     "validate"
   ];
-  function CommandBar({ isRunning, settings, commandEnabled, onRun, onStop }) {
+  function CommandBar({ isRunning, settings, taskData, commandEnabled, onRun, onStop }) {
     const [selectedCmd, setSelectedCmd] = (0, import_react2.useState)(null);
     const handleClick = (cmd) => {
       if (cmd === "status") {
@@ -25020,6 +25077,7 @@
       {
         command: selectedCmd,
         settings,
+        taskData,
         onClose: () => setSelectedCmd(null),
         onRun: handleRun
       }
@@ -26580,6 +26638,14 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       setIsRunning(true);
       setLastCommand(buildCommandString(cmd, args));
       setInterviewQuestions(null);
+      if (cmd === "comment") {
+        const flagIdx = args.indexOf("--comment");
+        const commentText = flagIdx !== -1 ? args[flagIdx + 1] ?? "" : "";
+        setOutputLines((lines) => [
+          ...lines,
+          { type: "interview_qa", text: "", question: "Your comment", answer: commentText }
+        ]);
+      }
       vscode.postMessage({ type: "run_command", command: cmd, args });
     };
     const handleStop = () => vscode.postMessage({ type: "stop_command" });
@@ -26600,7 +26666,7 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       comment: true,
       oneshot: true,
       status: true,
-      enrich: fileFlags.hasTasks,
+      enrich: true,
       execute: fileFlags.hasTasks,
       pr: fileFlags.hasPrDescription,
       validate: fileFlags.hasSummary,
@@ -26612,6 +26678,7 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       {
         isRunning,
         settings,
+        taskData,
         commandEnabled,
         onRun: handleRun,
         onStop: handleStop

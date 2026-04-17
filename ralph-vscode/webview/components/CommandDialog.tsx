@@ -4,10 +4,12 @@ import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFo
 import { Button } from './ui/button';
 import { arrayRange, cn } from '../lib/utils';
 import { VscodeContext } from '../app';
+import { Task } from './TaskProgress';
 
 export interface CommandDialogProps {
   command: string | null;
   settings: Record<string, unknown>;
+  taskData: object | null;
   onClose: () => void;
   onRun: (cmd: string, args: string[]) => void;
 }
@@ -39,6 +41,7 @@ function initState(settings: Record<string, unknown>) {
     single: settingBool(settings, '--single'),
     force: false,
     provider: settingStr(settings, '--provider') || 'github',
+    timeoutMins: Math.min(60, Math.max(5, settingNum(settings, '--timeout') || 15)) as number,
   };
 }
 
@@ -83,7 +86,7 @@ function CheckField({
   );
 }
 
-export function CommandDialog({ command, settings, onClose, onRun }: CommandDialogProps) {
+export function CommandDialog({ command, settings, taskData, onClose, onRun }: CommandDialogProps) {
   const vscode = useContext(VscodeContext);
   const [rounds, setRounds] = useState(1);
   const [verbose, setVerbose] = useState(false);
@@ -95,6 +98,10 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
   const [single, setSingle] = useState(false);
   const [force, setForce] = useState(false);
   const [provider, setProvider] = useState('github');
+  const [timeoutMins, setTimeoutMins] = useState(15);
+  const [timeoutRaw, setTimeoutRaw] = useState('15');
+  const [timeoutInvalid, setTimeoutInvalid] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState('');
 
   const setRoundsRef = React.useRef(setRounds);
   const setVerboseRef = React.useRef(setVerbose);
@@ -106,6 +113,10 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
   const setSingleRef = React.useRef(setSingle);
   const setForceRef = React.useRef(setForce);
   const setProviderRef = React.useRef(setProvider);
+  const setTimeoutMinsRef = React.useRef(setTimeoutMins);
+  const setTimeoutRawRef = React.useRef(setTimeoutRaw);
+  const setTimeoutInvalidRef = React.useRef(setTimeoutInvalid);
+  const setSelectedTaskIdRef = React.useRef(setSelectedTaskId);
 
   useEffect(() => {
     if (!command) return;
@@ -120,10 +131,15 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
     setSingleRef.current(s.single);
     setForceRef.current(false);
     setProviderRef.current(s.provider);
+    setTimeoutMinsRef.current(s.timeoutMins);
+    setTimeoutRawRef.current(String(s.timeoutMins));
+    setTimeoutInvalidRef.current(false);
+    setSelectedTaskIdRef.current('');
   }, [command, settings]);
 
   const handleRun = () => {
     if (!command) return;
+    if (command === 'interview' && timeoutInvalid) return;
     if (single && asynchronous) {
       vscode.postMessage({ type: 'show_error', message: '--single and --asynchronous cannot both be true.' });
       return;
@@ -134,6 +150,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
       case 'interview':
         args.push('--rounds', String(rounds));
         args.push('--verbose', String(verbose));
+        args.push('--timeout', String(timeoutMins));
         break;
       case 'comment':
         if (commentText) args.push(commentText);
@@ -143,6 +160,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
         args.push('--verbose', String(verbose));
         break;
       case 'execute':
+        if (selectedTaskId) args.push('--id', selectedTaskId);
         if (limit !== '') args.push('--limit', String(limit));
         if (base) args.push('--base', base);
         args.push('--verbose', String(verbose));
@@ -190,6 +208,27 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
               <span className='text-description-color block text-md mt-1'>Number of interview rounds</span>
             </Field>
 
+            <Field label="Timeout (min)" className='flex-col items-start gap-1'>
+              <input
+                type="number"
+                value={timeoutRaw}
+                className={cn('w-full', timeoutInvalid && 'border border-red-500 outline-red-500')}
+                onChange={e => { setTimeoutRaw(e.target.value); setTimeoutInvalid(false); }}
+                onBlur={() => {
+                  const n = Number(timeoutRaw);
+                  if (!timeoutRaw || isNaN(n) || n < 5 || n > 60) {
+                    setTimeoutInvalid(true);
+                  } else {
+                    setTimeoutMins(n);
+                    setTimeoutInvalid(false);
+                  }
+                }}
+              />
+              {timeoutInvalid
+                ? <span className='text-red-500 block text-md mt-1'>Must be between 5 and 60 minutes</span>
+                : <span className='text-description-color block text-md mt-1'>Between 5 and 60 minutes</span>}
+            </Field>
+
             <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
           </div>
         );
@@ -212,9 +251,33 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
           <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
         </div>;
 
-      case 'execute':
+      case 'execute': {
+        const allTasks: Task[] = taskData ? ((taskData as Record<string, unknown>)['tasks'] as Task[] || []) : [];
+        const completedIds = new Set(allTasks.filter(t => t.status === 'completed').map(t => t.id));
+        const eligibleTasks = allTasks.filter(t =>
+          t.status !== 'completed' &&
+          t.dependencies.every(dep => completedIds.has(dep))
+        );
         return (
           <div className="flex flex-col gap-3 w-96">
+            <Field label="Task" className='flex-col items-start gap-1'>
+              <select
+                value={selectedTaskId}
+                onChange={e => setSelectedTaskId(e.target.value)}
+                style={{
+                  fontFamily: 'var(--vscode-font-family)',
+                  background: 'var(--vscode-input-background)',
+                  color: 'var(--vscode-input-foreground)',
+                  border: '1px solid var(--vscode-input-border)',
+                  width: '100%',
+                }}
+              >
+                <option value=''>Execute All</option>
+                {eligibleTasks.map(t => (
+                  <option key={t.id} value={t.id}>{t.id} — {t.title}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="Maximum number of agent iterations" className='flex-col items-start gap-1'>
               <input type="number" min={1} max={50} value={limit} className='w-full'
                 onChange={e => setLimit(e.target.value === '' ? '' : Number(e.target.value))} />
@@ -233,6 +296,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
             </div>
           </div>
         );
+      }
 
       case 'validate':
         return <div className='w-96'>
@@ -312,7 +376,7 @@ export function CommandDialog({ command, settings, onClose, onRun }: CommandDial
     }
   };
 
-  const isRunDisabled = command === 'comment' && !commentText;
+  const isRunDisabled = (command === 'comment' && !commentText) || (command === 'interview' && timeoutInvalid);
 
   return (
     <Dialog open={command !== null} onOpenChange={open => !open}>

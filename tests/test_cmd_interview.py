@@ -24,12 +24,14 @@ def _make_args(
     project_name: str = "my-project",
     verbose: str | None = None,
     rounds: int | None = None,
+    timeout: int | None = None,
 ) -> argparse.Namespace:
     """Build a minimal Namespace for cmd_interview."""
     return argparse.Namespace(
         project_name=project_name,
         verbose=verbose,
         rounds=rounds,
+        timeout=timeout,
     )
 
 
@@ -521,7 +523,7 @@ class TestRunInterviewLoop:
         ):
             runner.run_interview_loop(lambda round_num: "q-prompt", [make_amend_fn])
 
-        mock_guided.assert_called_once_with(questions_data, ralph_dir=".ralph/test-project")
+        mock_guided.assert_called_once_with(questions_data, ralph_dir=".ralph/test-project", timeout_minutes=15)
 
     def test_guided_path_passes_qa_json_to_amend_fn(self):
         """Guided path: make_amend_prompts[i] is called with the qa_json from _collect_guided_answers."""
