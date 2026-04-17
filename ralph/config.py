@@ -99,8 +99,8 @@ def set_timeout(value: int) -> None:
     Validates that value is a positive integer. Prints an error and returns
     early if the value is invalid.
     """
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        print(f"[ralph] Oops! '{value}' is not a valid timeout. Use a positive integer (minutes).")
+    if not isinstance(value, int) or isinstance(value, bool) or not (5 <= value <= 60):
+        print(f"[ralph] Oops! '{value}' is not a good timeout. I only understand numbers between 5 and 60 minutes!")
         return
     data = _read_settings()
     data["timeout"] = value

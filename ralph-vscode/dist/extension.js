@@ -292,7 +292,6 @@ var vscode3 = __toESM(require("vscode"));
 var fs3 = __toESM(require("fs"));
 var path3 = __toESM(require("path"));
 var import_child_process = require("child_process");
-var pty = __toESM(require("node-pty"));
 var YN_PATTERNS = [
   /already exists\. Overwrite\? \(y\/n\):/,
   /Delete branch '.*'\. This cannot be undone\. \(y\/n\):/
@@ -325,6 +324,7 @@ function stripAnsi(text) {
 }
 var RalphProcessManager = class {
   constructor(workspaceRoot) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.processes = /* @__PURE__ */ new Map();
     this.workspaceRoot = workspaceRoot;
     this.shellPath = resolveShellPath();
@@ -340,6 +340,7 @@ var RalphProcessManager = class {
     this.outputChannel.show(true);
     let child;
     try {
+      const pty = require("node-pty");
       child = pty.spawn("ralph", fullArgs, {
         name: "xterm-256color",
         cols: 120,

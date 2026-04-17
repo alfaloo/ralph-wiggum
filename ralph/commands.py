@@ -312,6 +312,9 @@ class InterviewCommand(Command):
         # Rounds: use explicit CLI value if provided; only fall back to settings.json if absent.
         rounds = args.rounds if args.rounds is not None else get_rounds()
         timeout = args.timeout if args.timeout is not None else get_timeout()
+        if not (5 <= timeout <= 60):
+            print(f"[ralph] Oops! '{timeout}' is not a good timeout. I only understand numbers between 5 and 60 minutes!", file=sys.stderr)
+            sys.exit(1)
 
         print(f"[ralph] Ooh, I'm doing the interview for '{args.project_name}'!")
 
@@ -424,22 +427,22 @@ class ExecuteCommand(Command):
             sys.exit(1)
 
         if args.id and (asynchronous or single):
-            print('Error: --id cannot be combined with --asynchronous or --single.')
+            print('[ralph] Uh oh! I can\'t use --id together with --asynchronous or --single. Pick just one!', file=sys.stderr)
             sys.exit(1)
 
         if args.id:
             tasks = tasks_data.get("tasks", [])
             target = next((t for t in tasks if t["id"] == args.id), None)
             if target is None:
-                print(f"Error: task '{args.id}' not found in tasks.json.")
+                print(f"[ralph] I looked everywhere and I can't find a task called '{args.id}' in tasks.json.", file=sys.stderr)
                 sys.exit(1)
             for dep_id in target.get("dependencies", []):
                 dep = next((t for t in tasks if t["id"] == dep_id), None)
                 if dep is None or dep.get("status") != "completed":
-                    print(f"Error: prerequisite task '{dep_id}' is not completed.")
+                    print(f"[ralph] Uh oh! Task '{dep_id}' needs to be done first before I can do '{args.id}'.", file=sys.stderr)
                     sys.exit(1)
             if target.get("status") == "completed":
-                print(f"Error: task '{args.id}' is already completed.")
+                print(f"[ralph] Task '{args.id}' is already done! Someone already did it!", file=sys.stderr)
                 sys.exit(1)
 
         Runner(project_name, verbose=verbose).run_execute_loop(limit, asynchronous=asynchronous, single=single, resume=args.resume, task_id_filter=args.id)

@@ -41,7 +41,7 @@ function initState(settings: Record<string, unknown>) {
     single: settingBool(settings, '--single'),
     force: false,
     provider: settingStr(settings, '--provider') || 'github',
-    timeoutMins: (settingNum(settings, '--timeout') || 15) as number,
+    timeoutMins: Math.min(60, Math.max(5, settingNum(settings, '--timeout') || 15)) as number,
   };
 }
 
@@ -99,6 +99,8 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
   const [force, setForce] = useState(false);
   const [provider, setProvider] = useState('github');
   const [timeoutMins, setTimeoutMins] = useState(15);
+  const [timeoutRaw, setTimeoutRaw] = useState('15');
+  const [timeoutInvalid, setTimeoutInvalid] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState('');
 
   const setRoundsRef = React.useRef(setRounds);
@@ -112,6 +114,8 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
   const setForceRef = React.useRef(setForce);
   const setProviderRef = React.useRef(setProvider);
   const setTimeoutMinsRef = React.useRef(setTimeoutMins);
+  const setTimeoutRawRef = React.useRef(setTimeoutRaw);
+  const setTimeoutInvalidRef = React.useRef(setTimeoutInvalid);
   const setSelectedTaskIdRef = React.useRef(setSelectedTaskId);
 
   useEffect(() => {
@@ -128,11 +132,14 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
     setForceRef.current(false);
     setProviderRef.current(s.provider);
     setTimeoutMinsRef.current(s.timeoutMins);
+    setTimeoutRawRef.current(String(s.timeoutMins));
+    setTimeoutInvalidRef.current(false);
     setSelectedTaskIdRef.current('');
   }, [command, settings]);
 
   const handleRun = () => {
     if (!command) return;
+    if (command === 'interview' && timeoutInvalid) return;
     if (single && asynchronous) {
       vscode.postMessage({ type: 'show_error', message: '--single and --asynchronous cannot both be true.' });
       return;
@@ -202,8 +209,24 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
             </Field>
 
             <Field label="Timeout (min)" className='flex-col items-start gap-1'>
-              <input type="number" min={1} value={timeoutMins} className='w-full'
-                onChange={e => setTimeoutMins(Math.max(1, Number(e.target.value) || 15))} />
+              <input
+                type="number"
+                value={timeoutRaw}
+                className={cn('w-full', timeoutInvalid && 'border border-red-500 outline-red-500')}
+                onChange={e => { setTimeoutRaw(e.target.value); setTimeoutInvalid(false); }}
+                onBlur={() => {
+                  const n = Number(timeoutRaw);
+                  if (!timeoutRaw || isNaN(n) || n < 5 || n > 60) {
+                    setTimeoutInvalid(true);
+                  } else {
+                    setTimeoutMins(n);
+                    setTimeoutInvalid(false);
+                  }
+                }}
+              />
+              {timeoutInvalid
+                ? <span className='text-red-500 block text-md mt-1'>Must be between 5 and 60 minutes</span>
+                : <span className='text-description-color block text-md mt-1'>Between 5 and 60 minutes</span>}
             </Field>
 
             <CheckField label="--verbose" checked={verbose} onChange={setVerbose} />
@@ -353,7 +376,7 @@ export function CommandDialog({ command, settings, taskData, onClose, onRun }: C
     }
   };
 
-  const isRunDisabled = command === 'comment' && !commentText;
+  const isRunDisabled = (command === 'comment' && !commentText) || (command === 'interview' && timeoutInvalid);
 
   return (
     <Dialog open={command !== null} onOpenChange={open => !open}>
