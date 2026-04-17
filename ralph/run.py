@@ -433,8 +433,6 @@ class Runner:
 
         try:
             while True:
-                iteration += 1
-
                 # Step A: Handle completed futures.
                 for task_id, future in list(futures.items()):
                     if not future.done():
@@ -510,37 +508,38 @@ class Runner:
                     self._run_summarise(exit_reason)
                     return
 
-                if iteration >= max_iterations:
+                # Step C: Spawn agents for newly ready tasks, or exit if limit reached.
+                if iteration < max_iterations:
+                    ready_tasks = dag.get_ready_tasks(tasks)
+                    for task in ready_tasks:
+                        task_id = task["id"]
+                        if task_id in futures:
+                            continue
+                        with locks.locked_json_rw(self._tasks_path) as data:
+                            for t in data["tasks"]:
+                                if t["id"] == task_id:
+                                    t["status"] = "in_progress"
+                                    t["attempts"] = t.get("attempts", 0) + 1
+                                    break
+                        prompt = parse_execute_async_md(
+                            self.project_name,
+                            task_id,
+                            1,
+                            max_iterations,
+                            task_title=task.get("title", ""),
+                            task_description=task.get("description", ""),
+                        )
+                        iteration += 1
+                        print(f"[ralph] I'm starting an agent for task {task['id']} \"{task['title']}\"! Yay!")
+
+                        def _worker(p=prompt):
+                            return run_noninteractive(p).returncode
+
+                        futures[task_id] = executor.submit(_worker)
+                elif not futures:
                     print(f"\n[ralph] I used up all {max_iterations} rounds and I'm all tired out now.")
                     self._run_summarise(f"Reached maximum iteration limit ({max_iterations}).")
                     return
-
-                # Step C: Spawn agents for newly ready tasks.
-                ready_tasks = dag.get_ready_tasks(tasks)
-                for task in ready_tasks:
-                    task_id = task["id"]
-                    if task_id in futures:
-                        continue
-                    with locks.locked_json_rw(self._tasks_path) as data:
-                        for t in data["tasks"]:
-                            if t["id"] == task_id:
-                                t["status"] = "in_progress"
-                                t["attempts"] = t.get("attempts", 0) + 1
-                                break
-                    prompt = parse_execute_async_md(
-                        self.project_name,
-                        task_id,
-                        iteration,
-                        max_iterations,
-                        task_title=task.get("title", ""),
-                        task_description=task.get("description", ""),
-                    )
-                    print(f"[ralph] I'm starting an agent for task {task['id']} \"{task['title']}\"! Yay!")
-
-                    def _worker(p=prompt):
-                        return Runner._run_noninteractive(p).returncode
-
-                    futures[task_id] = executor.submit(_worker)
 
                 # Step D: Sleep, then repeat.
                 time.sleep(2)
