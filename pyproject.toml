@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ralph-wiggum"
-version = "4.0.0"
+version = "4.3.0"
 description = "CLI-driven agentic coding framework"
 requires-python = ">=3.11"
 dependencies = [

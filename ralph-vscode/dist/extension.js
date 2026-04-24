@@ -292,6 +292,7 @@ var vscode3 = __toESM(require("vscode"));
 var fs3 = __toESM(require("fs"));
 var path3 = __toESM(require("path"));
 var import_child_process = require("child_process");
+var pty = __toESM(require("node-pty"));
 var YN_PATTERNS = [
   /already exists\. Overwrite\? \(y\/n\):/,
   /Delete branch '.*'\. This cannot be undone\. \(y\/n\):/
@@ -340,7 +341,6 @@ var RalphProcessManager = class {
     this.outputChannel.show(true);
     let child;
     try {
-      const pty = require("node-pty");
       child = pty.spawn("ralph", fullArgs, {
         name: "xterm-256color",
         cols: 120,
@@ -490,7 +490,72 @@ var RalphFileWatcher = class {
 
 // src/extension.ts
 var OPEN_PANELS_KEY2 = "ralph.openPanels";
-function activate(context) {
+function buildExtendedPath() {
+  const home = process.env.HOME || "";
+  const sep2 = process.platform === "win32" ? ";" : ":";
+  const extraPaths = [
+    `${home}/.local/bin`,
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    "/usr/local/bin"
+  ].join(sep2);
+  return [extraPaths, process.env.PATH || ""].join(sep2);
+}
+function readBundledVersion(bundledPath) {
+  try {
+    const toml = fs5.readFileSync(path5.join(bundledPath, "pyproject.toml"), "utf-8");
+    const match = toml.match(/^version\s*=\s*"([^"]+)"/m);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+function getInstalledVersion(extendedPath) {
+  try {
+    const pip = process.platform === "win32" ? "pip" : "python3 -m pip";
+    const output = (0, import_child_process2.execSync)(`${pip} show ralph-wiggum`, {
+      env: { ...process.env, PATH: extendedPath },
+      timeout: 1e4,
+      stdio: "pipe"
+    }).toString();
+    const match = output.match(/^Version:\s*(.+)$/m);
+    return match ? match[1].trim() : null;
+  } catch {
+    return null;
+  }
+}
+async function ensureRalphInstalled(context) {
+  const bundledPath = path5.join(context.extensionPath, "bundled");
+  const extendedPath = buildExtendedPath();
+  const bundledVersion = readBundledVersion(bundledPath);
+  const installedVersion = getInstalledVersion(extendedPath);
+  if (bundledVersion && installedVersion === bundledVersion) {
+    return;
+  }
+  const isUpgrade = installedVersion !== null;
+  const title = isUpgrade ? `Ralph Wiggum: Updating CLI ${installedVersion} \u2192 ${bundledVersion}...` : "Ralph Wiggum: Installing CLI...";
+  await vscode5.window.withProgress(
+    { location: vscode5.ProgressLocation.Notification, title, cancellable: false },
+    () => new Promise((resolve) => {
+      const pip = process.platform === "win32" ? "pip" : "python3 -m pip";
+      const cmd = `${pip} install --user --quiet "${bundledPath}"`;
+      (0, import_child_process2.exec)(cmd, { timeout: 12e4 }, (err, _stdout, stderr) => {
+        if (err) {
+          vscode5.window.showErrorMessage(
+            `Ralph CLI ${isUpgrade ? "update" : "installation"} failed: ${stderr || err.message}. Run \`pip install --user "${bundledPath}"\` manually.`
+          );
+        } else {
+          vscode5.window.showInformationMessage(
+            isUpgrade ? `Ralph CLI updated to ${bundledVersion}.` : "Ralph CLI installed successfully."
+          );
+        }
+        resolve();
+      });
+    })
+  );
+}
+async function activate(context) {
+  await ensureRalphInstalled(context);
   const workspaceRoot = vscode5.workspace.workspaceFolders[0].uri.fsPath;
   const sidebar = new RalphSidebarProvider(workspaceRoot, context);
   const panelManager = new RalphPanelManager(context, context.extensionUri, workspaceRoot);

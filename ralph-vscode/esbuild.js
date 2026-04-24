@@ -1,5 +1,6 @@
 const esbuild = require('esbuild');
 const { spawn, execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const tailwindBin = path.join('node_modules', '.bin', process.platform === 'win32' ? 'tailwindcss.cmd' : 'tailwindcss');
@@ -34,6 +35,20 @@ const tailwindArgs = [
   ...(isProd ? ['--minify'] : []),
 ];
 
+function copyBundled() {
+  const bundledDir = path.join(__dirname, 'bundled');
+  if (fs.existsSync(bundledDir)) {
+    fs.rmSync(bundledDir, { recursive: true });
+  }
+  fs.mkdirSync(bundledDir, { recursive: true });
+
+  fs.cpSync(path.join(__dirname, '..', 'ralph'), path.join(bundledDir, 'ralph'), { recursive: true });
+  fs.cpSync(path.join(__dirname, '..', 'templates'), path.join(bundledDir, 'templates'), { recursive: true });
+  fs.copyFileSync(path.join(__dirname, '..', 'pyproject.toml'), path.join(bundledDir, 'pyproject.toml'));
+
+  console.log('Bundled Python source copied.');
+}
+
 function buildTailwind() {
   execSync(`${tailwindBin} ${tailwindArgs.join(' ')}`, { stdio: 'inherit' });
 }
@@ -44,6 +59,7 @@ function watchTailwind() {
 }
 
 async function main() {
+  copyBundled();
   if (isWatch) {
     const [extensionCtx, webviewCtx] = await Promise.all([
       esbuild.context(extensionConfig),

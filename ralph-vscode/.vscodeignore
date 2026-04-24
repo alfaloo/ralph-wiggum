@@ -8,3 +8,5 @@ tsconfig.json
 **/*.map
 **/*.ts
 !dist/
+bundled/**/__pycache__
+bundled/**/*.pyc
