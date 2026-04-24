@@ -141,8 +141,7 @@ function App() {
     setInterviewQuestions(null);
 
     if (cmd === 'comment') {
-      const flagIdx = args.indexOf('--comment');
-      const commentText = flagIdx !== -1 ? (args[flagIdx + 1] ?? '') : '';
+      const commentText = args.length > 0 && !args[0].startsWith('--') ? args[0] : '';
       setOutputLines(lines => [
         ...lines,
         { type: 'interview_qa' as const, text: '', question: 'Your comment', answer: commentText },
